@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
 MODEL_PATH = os.getenv("MODEL_PATH", "models/Qwen3-0.6B-Q8_0.gguf")
+AI_PROVIDER = os.getenv("AI_PROVIDER", "pollinations")
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "qwen/qwen3-0.6b-04-28:free")
 
@@ -19,7 +20,7 @@ app.add_middleware(
 )
 
 llm = None
-if not OPENROUTER_API_KEY:
+if AI_PROVIDER == "local" and not OPENROUTER_API_KEY:
     from llama_cpp import Llama
 
     llm = Llama(
@@ -33,7 +34,7 @@ lock = Lock()  # ponytail: local GGUF is one request; hosted API does not need q
 
 @app.get("/health")
 def health():
-    return {"ok": True, "model": OPENROUTER_MODEL if OPENROUTER_API_KEY else MODEL_PATH}
+    return {"ok": True, "model": OPENROUTER_MODEL if OPENROUTER_API_KEY else AI_PROVIDER if AI_PROVIDER != "local" else MODEL_PATH}
 
 
 @app.post("/chat")
@@ -47,6 +48,13 @@ def chat(payload: dict):
 
 User: {message}
 Jarpis:"""
+
+    async def pollinations_generate():
+        import urllib.parse
+        url = "https://text.pollinations.ai/prompt/" + urllib.parse.quote(prompt)
+        async with httpx.AsyncClient(timeout=120, headers={"User-Agent": "Mozilla/5.0"}) as client:
+            response = await client.get(url, params={"model": os.getenv("POLLINATIONS_MODEL", "openai")})
+            yield response.text
 
     async def hosted_generate():
         async with httpx.AsyncClient(timeout=None) as client:
@@ -99,4 +107,5 @@ Jarpis:"""
         finally:
             lock.release()
 
-    return StreamingResponse(hosted_generate() if OPENROUTER_API_KEY else local_generate(), media_type="text/plain; charset=utf-8")
+    generator = hosted_generate() if OPENROUTER_API_KEY else pollinations_generate() if AI_PROVIDER == "pollinations" else local_generate()
+    return StreamingResponse(generator, media_type="text/plain; charset=utf-8")

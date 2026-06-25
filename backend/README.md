@@ -26,9 +26,20 @@ curl -X POST http://localhost:8000/chat -H "Content-Type: application/json" -d "
 python download_model.py && uvicorn main:app --host 0.0.0.0 --port $PORT
 ```
 
-## Env hosted AI cepat
+## Env AI gratis tanpa API key
 
-Kalau `OPENROUTER_API_KEY` diisi, backend tidak load GGUF lokal.
+Default backend memakai Pollinations, tanpa API key dan tanpa GGUF lokal.
+
+```text
+AI_PROVIDER=pollinations
+POLLINATIONS_MODEL=openai
+MAX_TOKENS=160
+CORS_ORIGINS=*
+```
+
+## Env hosted AI OpenRouter opsional
+
+Kalau `OPENROUTER_API_KEY` diisi, backend memakai OpenRouter.
 
 ```text
 OPENROUTER_API_KEY=...
