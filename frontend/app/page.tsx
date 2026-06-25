@@ -46,6 +46,24 @@ export default function Home() {
     url: "https://duckduckgo.com/?q=jarvis+futuristic+hud+ui",
     note: "Panel ini membuka website/search. Jika situs memblokir embed, gunakan tombol buka tab.",
   });
+  const [audioUrl, setAudioUrl] = useState<string>("");
+  const [speaker, setSpeaker] = useState("sari");
+  const [speakEnabled, setSpeakEnabled] = useState(true);
+
+  const voices = useMemo(() => [
+    { id: "sari", label: "Sari — Wanita" },
+    { id: "dewi", label: "Dewi — Wanita" },
+    { id: "ayu", label: "Ayu — Wanita" },
+    { id: "rina", label: "Rina — Wanita" },
+    { id: "maya", label: "Maya — Wanita" },
+    { id: "budi", label: "Budi — Pria" },
+    { id: "agus", label: "Agus — Pria" },
+    { id: "bayu", label: "Bayu — Pria" },
+    { id: "dimas", label: "Dimas — Pria" },
+    { id: "andi", label: "Andi — Pria" },
+  ], []);
+
+  const ttsUrl = process.env.NEXT_PUBLIC_TTS_URL;
 
   const chips = useMemo(() => ["/buka wikipedia.org", "/berita AI hari ini", "/gambar jarvis hud", "/lagu lofi malam", "Bantu outline novel"], []);
 
@@ -89,6 +107,23 @@ export default function Home() {
       const answer = await handle(text);
       setMessages((m) => m.map((msg, i) => (i === m.length - 1 ? { ...msg, text: answer } : msg)));
       await saveMessage("ai", answer);
+
+      if (speakEnabled && ttsUrl && !text.startsWith("/")) {
+        try {
+          const speakRes = await fetch(`${ttsUrl}/speak`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: answer, speaker }),
+          });
+          if (speakRes.ok) {
+            const blob = await speakRes.blob();
+            const url = URL.createObjectURL(blob);
+            setAudioUrl(url);
+          }
+        } catch (ttsErr) {
+          console.error("TTS failed", ttsErr);
+        }
+      }
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Error tidak diketahui";
       setMessages((m) => m.map((item, i) => (i === m.length - 1 ? { role: "ai", text: msg } : item)));
@@ -106,6 +141,17 @@ export default function Home() {
         <button onClick={() => setInput("/gambar ")}>Cari Gambar</button>
         <button onClick={() => setInput("/lagu ")}>Cari Lagu</button>
         <button onClick={() => setInput("Bantu buat outline novel tentang ")}>Novel</button>
+
+        <div className="tts-box">
+          <label>
+            <input type="checkbox" checked={speakEnabled} onChange={(e) => setSpeakEnabled(e.target.checked)} />
+            Suara Jarpis
+          </label>
+          <select value={speaker} onChange={(e) => setSpeaker(e.target.value)}>
+            {voices.map((v) => <option key={v.id} value={v.id}>{v.label}</option>)}
+          </select>
+          {audioUrl && <audio src={audioUrl} autoPlay controls style={{ width: "100%", marginTop: "10px" }} />}
+        </div>
       </aside>
 
       <section className="center">
