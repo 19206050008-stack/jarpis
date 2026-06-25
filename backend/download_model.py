@@ -10,5 +10,10 @@ if __name__ == "__main__":
         repo_id=REPO_ID,
         filename=FILENAME,
         local_dir=MODEL_DIR,
+        local_dir_use_symlinks=False,
+        force_download=os.getenv("FORCE_MODEL_DOWNLOAD", "0") == "1",
     )
-    print(path)
+    size = os.path.getsize(path)
+    print(f"{path} ({size} bytes)")
+    if size < 100_000_000:
+        raise SystemExit("model download looks incomplete")
