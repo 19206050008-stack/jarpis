@@ -3,4 +3,4 @@ nixPkgs = ["python311", "gcc", "cmake"]
 aptPkgs = ["libgomp1"]
 
 [start]
-cmd = "python download_model.py && uvicorn main:app --host 0.0.0.0 --port $PORT"
+cmd = "python start.py"

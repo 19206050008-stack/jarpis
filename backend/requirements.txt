@@ -2,3 +2,4 @@ fastapi==0.115.6
 uvicorn[standard]==0.34.0
 llama-cpp-python
 huggingface-hub==0.27.1
+httpx==0.28.1

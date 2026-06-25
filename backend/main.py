@@ -1,12 +1,14 @@
 import os
 from threading import Lock
 
+import httpx
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from llama_cpp import Llama
 
 MODEL_PATH = os.getenv("MODEL_PATH", "models/Qwen3-0.6B-Q8_0.gguf")
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "qwen/qwen3-0.6b-04-28:free")
 
 app = FastAPI(title="Jarpis AI")
 app.add_middleware(
@@ -16,18 +18,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-llm = Llama(
-    model_path=MODEL_PATH,
-    n_ctx=int(os.getenv("N_CTX", "4096")),
-    n_threads=int(os.getenv("N_THREADS", "4")),
-    verbose=False,
-)
-lock = Lock()  # ponytail: one model, one request; queue/worker if traffic grows.
+llm = None
+if not OPENROUTER_API_KEY:
+    from llama_cpp import Llama
+
+    llm = Llama(
+        model_path=MODEL_PATH,
+        n_ctx=int(os.getenv("N_CTX", "4096")),
+        n_threads=int(os.getenv("N_THREADS", "4")),
+        verbose=False,
+    )
+lock = Lock()  # ponytail: local GGUF is one request; hosted API does not need queue.
 
 
 @app.get("/health")
 def health():
-    return {"ok": True, "model": MODEL_PATH}
+    return {"ok": True, "model": OPENROUTER_MODEL if OPENROUTER_API_KEY else MODEL_PATH}
 
 
 @app.post("/chat")
@@ -36,12 +42,48 @@ def chat(payload: dict):
     if not message:
         raise HTTPException(status_code=400, detail="message is required")
 
-    prompt = f"""Kamu Jarpis, asisten AI penulisan novel berbahasa Indonesia. Jawab ringkas dan berguna.
+    system = "Kamu Jarpis, asisten AI penulisan novel berbahasa Indonesia. Jawab ringkas dan berguna."
+    prompt = f"""{system}
 
 User: {message}
 Jarpis:"""
 
-    def generate():
+    async def hosted_generate():
+        async with httpx.AsyncClient(timeout=None) as client:
+            async with client.stream(
+                "POST",
+                "https://openrouter.ai/api/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                    "Content-Type": "application/json",
+                    "HTTP-Referer": os.getenv("APP_URL", "https://jarpis-chi.vercel.app"),
+                    "X-Title": "Jarpis",
+                },
+                json={
+                    "model": OPENROUTER_MODEL,
+                    "stream": True,
+                    "messages": [
+                        {"role": "system", "content": system},
+                        {"role": "user", "content": message},
+                    ],
+                    "max_tokens": int(payload.get("max_tokens", os.getenv("MAX_TOKENS", "160"))),
+                    "temperature": float(payload.get("temperature", 0.7)),
+                },
+            ) as response:
+                if response.status_code >= 400:
+                    yield await response.aread()
+                    return
+                async for line in response.aiter_lines():
+                    if not line.startswith("data: "):
+                        continue
+                    data = line[6:]
+                    if data == "[DONE]":
+                        break
+                    import json
+                    chunk = json.loads(data)
+                    yield chunk.get("choices", [{}])[0].get("delta", {}).get("content", "")
+
+    def local_generate():
         if not lock.acquire(blocking=False):
             yield "Jarpis masih memproses pesan sebelumnya. Coba lagi sebentar."
             return
@@ -57,4 +99,4 @@ Jarpis:"""
         finally:
             lock.release()
 
-    return StreamingResponse(generate(), media_type="text/plain; charset=utf-8")
+    return StreamingResponse(hosted_generate() if OPENROUTER_API_KEY else local_generate(), media_type="text/plain; charset=utf-8")
