@@ -19,12 +19,11 @@ function withProtocol(url: string) {
   return /^https?:\/\//i.test(url) ? url : `https://${url}`;
 }
 
-function searchUrl(kind: string, query: string) {
+function searchUrl(kind: string, query: string, apiUrl: string) {
   const q = encodeURIComponent(query);
-  if (kind === "berita") return `https://www.bing.com/news/search?q=${q}`;
-  if (kind === "gambar") return `https://www.bing.com/images/search?q=${q}`;
-  if (kind === "lagu") return `https://www.youtube.com/results?search_query=${q}`;
-  return `https://duckduckgo.com/?q=${q}`;
+  if (kind === "berita") return `${apiUrl}/news?q=${q}`;
+  if (kind === "lagu") return `${apiUrl}/videos?q=${q}`;
+  return `${apiUrl}/proxy?url=${q}`;
 }
 
 async function askAi(text: string) {
@@ -43,12 +42,15 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [view, setView] = useState<View>({
     title: "Jarpis HUD",
-    url: "https://duckduckgo.com/?q=jarvis+futuristic+hud+ui",
-    note: "Panel ini membuka website/search. Jika situs memblokir embed, gunakan tombol buka tab.",
+    url: "",
+    note: "Gunakan perintah di panel tengah untuk membuka website/search.",
   });
   const [audioUrl, setAudioUrl] = useState<string>("");
   const [speaker, setSpeaker] = useState("sari");
   const [speakEnabled, setSpeakEnabled] = useState(true);
+  const [videos, setVideos] = useState<{ id: string; title: string; url: string }[]>([]);
+  const [news, setNews] = useState<{ title: string; link: string; source: string }[]>([]);
+  const [showIframe, setShowIframe] = useState(false);
 
   const voices = useMemo(() => [
     { id: "sari", label: "Sari — Wanita" },
@@ -72,24 +74,63 @@ export default function Home() {
     const parts = text.split(/\s+/);
     const cmd = parts[0].replace("/", "");
     const rest = text.slice(parts[0].length).trim();
+    const baseApi = apiUrl || "";
+
+    setVideos([]);
+    setNews([]);
+    setShowIframe(false);
 
     if (["buka", "open"].includes(cmd) && rest) {
-      const url = withProtocol(rest);
-      setView({ title: `Buka: ${rest}`, url, note: "Jika layar kosong, situs ini memblokir iframe. Klik buka tab." });
-      return `Saya buka ${rest} di panel kanan.`;
+      const targetUrl = withProtocol(rest);
+      const proxied = `${baseApi}/proxy?url=${encodeURIComponent(targetUrl)}`;
+      setView({ title: `Buka: ${rest}`, url: proxied, note: "Website dimuat via Jarpis Secure Proxy." });
+      setShowIframe(true);
+      return `Saya membuka website ${rest} via secure proxy di panel kanan.`;
     }
 
-    if (["cari", "web", "berita", "gambar", "lagu"].includes(cmd) && rest) {
+    if (cmd === "berita" && rest) {
+      try {
+        const res = await fetch(`${baseApi}/news?q=${encodeURIComponent(rest)}`);
+        if (res.ok) {
+          const list = await res.json();
+          setNews(list);
+          setView({ title: `Berita: ${rest}`, url: "", note: "Menampilkan 10 berita terhangat." });
+          return `Berikut berita terhangat terkait '${rest}' di panel kanan.`;
+        }
+      } catch (err) {
+        console.error("News fetch error", err);
+      }
+    }
+
+    if (cmd === "lagu" && rest) {
+      try {
+        const res = await fetch(`${baseApi}/videos?q=${encodeURIComponent(rest)}`);
+        if (res.ok) {
+          const list = await res.json();
+          setVideos(list);
+          setView({ title: `Lagu/Video: ${rest}`, url: "", note: "Pilih video untuk diputar langsung di panel." });
+          return `Saya carikan video/lagu terkait '${rest}' di panel kanan.`;
+        }
+      } catch (err) {
+        console.error("Video fetch error", err);
+      }
+    }
+
+    if (["cari", "web", "gambar"].includes(cmd) && rest) {
       const kind = cmd === "cari" || cmd === "web" ? "web" : cmd;
-      const url = searchUrl(kind, rest);
-      setView({ title: `${kind.toUpperCase()}: ${rest}`, url, note: "Hasil pencarian dibuka di panel. Klik buka tab jika diblokir." });
-      return `Saya cari ${kind}: ${rest}`;
+      const targetUrl = searchUrl(kind, rest, baseApi);
+      setView({ title: `${kind.toUpperCase()}: ${rest}`, url: targetUrl, note: "Pencarian dimuat via Jarpis Secure Proxy." });
+      setShowIframe(true);
+      return `Saya cari ${kind} '${rest}' di panel kanan.`;
     }
 
     if (lower.startsWith("buka ")) {
-      const url = withProtocol(text.slice(5).trim());
-      setView({ title: `Buka: ${text.slice(5).trim()}`, url, note: "Jika layar kosong, klik buka tab." });
-      return `Saya buka ${text.slice(5).trim()} di panel kanan.`;
+      const site = text.slice(5).trim();
+      const targetUrl = withProtocol(site);
+      const proxied = `${baseApi}/proxy?url=${encodeURIComponent(targetUrl)}`;
+      setView({ title: `Buka: ${site}`, url: proxied, note: "Website dimuat via Jarpis Secure Proxy." });
+      setShowIframe(true);
+      return `Saya membuka website ${site} via secure proxy.`;
     }
 
     return askAi(text);
@@ -167,9 +208,35 @@ export default function Home() {
       </section>
 
       <section className="viewer">
-        <header><b>{view.title}</b><a href={view.url} target="_blank">Buka tab</a></header>
+        <header>
+          <b>{view.title}</b>
+          {view.url && <a href={view.url.includes("proxy?url=") ? decodeURIComponent(view.url.split("proxy?url=")[1]) : view.url} target="_blank" rel="noreferrer">Buka tab</a>}
+        </header>
         <p>{view.note}</p>
-        <iframe src={view.url} title={view.title} />
+        
+        {showIframe && view.url && <iframe src={view.url} title={view.title} />}
+        
+        {news.length > 0 && (
+          <div className="news-list">
+            {news.map((item, i) => (
+              <a key={i} href={item.link} target="_blank" rel="noreferrer" className="news-item">
+                <h4>{item.title}</h4>
+                <span>{item.source} • {item.pubDate}</span>
+              </a>
+            ))}
+          </div>
+        )}
+
+        {videos.length > 0 && (
+          <div className="video-grid">
+            {videos.map((vid, i) => (
+              <div key={i} className="video-item">
+                <iframe src={vid.url} title={vid.title} allowFullScreen />
+                <h5>{vid.title}</h5>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
     </main>
   );

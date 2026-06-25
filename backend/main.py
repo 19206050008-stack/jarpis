@@ -188,6 +188,77 @@ Jarpis:"""
     return StreamingResponse(generator, media_type="text/plain; charset=utf-8")
 
 
+@app.get("/proxy")
+async def web_proxy(url: str):
+    if not url.startswith(("http://", "https://")):
+        url = "https://" + url
+    async with httpx.AsyncClient(follow_redirects=True, timeout=15) as client:
+        try:
+            headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+            res = await client.get(url, headers=headers)
+            content = res.text
+            base_tag = f'<base href="{url}">'
+            if "<head>" in content:
+                content = content.replace("<head>", f"<head>{base_tag}", 1)
+            else:
+                content = base_tag + content
+            return Response(content=content, media_type="text/html")
+        except Exception as e:
+            return Response(content=f"<h3>Gagal memuat halaman via Jarpis Secure Proxy:</h3><p>{e}</p>", status_code=500)
+
+
+@app.get("/news")
+async def get_news(q: str):
+    import urllib.parse
+    import xml.etree.ElementTree as ET
+    url = f"https://news.google.com/rss/search?q={urllib.parse.quote(q)}&hl=id&gl=ID&ceid=ID:id"
+    async with httpx.AsyncClient(timeout=15) as client:
+        try:
+            res = await client.get(url)
+            root = ET.fromstring(res.text)
+            items = []
+            for item in root.findall(".//item")[:10]:
+                items.append({
+                    "title": item.find("title").text if item.find("title") is not None else "",
+                    "link": item.find("link").text if item.find("link") is not None else "",
+                    "pubDate": item.find("pubDate").text if item.find("pubDate") is not None else "",
+                    "source": item.find("source").text if item.find("source") is not None else ""
+                })
+            return items
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/videos")
+async def search_videos(q: str):
+    import urllib.parse
+    import re
+    url = f"https://www.youtube.com/results?search_query={urllib.parse.quote(q)}"
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+    async with httpx.AsyncClient(timeout=15) as client:
+        try:
+            res = await client.get(url, headers=headers)
+            html = res.text
+            video_ids = re.findall(r'"videoId":"([^"]+)"', html)
+            titles = re.findall(r'"title":\{"runs":\[\{"text":"([^"]+)"', html)
+            seen = set()
+            results = []
+            for vid, title in zip(video_ids, titles):
+                if vid not in seen:
+                    seen.add(vid)
+                    clean_title = title.encode().decode('unicode-escape', errors='ignore')
+                    results.append({
+                        "id": vid,
+                        "title": clean_title,
+                        "url": f"https://www.youtube.com/embed/{vid}"
+                    })
+                if len(results) >= 6:
+                    break
+            return results
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/speak")
 def speak(req: SpeakRequest):
     text = (req.text or "").strip()
