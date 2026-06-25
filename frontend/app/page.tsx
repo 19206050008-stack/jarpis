@@ -3,9 +3,15 @@
 import { useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 
+declare global {
+  interface Window {
+    puter?: { ai?: { chat: (message: string, options?: Record<string, unknown>) => Promise<string | { message?: { content?: string } } | { text?: string }> } };
+  }
+}
+
 type Message = { role: "user" | "ai"; text: string };
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL!;
+const apiUrl = process.env.NEXT_PUBLIC_API_URL;
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
@@ -32,22 +38,31 @@ export default function Home() {
     await saveMessage("user", text);
 
     try {
-      const res = await fetch(`${apiUrl}/chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text }),
-      });
-      if (!res.ok || !res.body) throw new Error("Backend tidak menjawab");
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
       let answer = "";
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        answer += decoder.decode(value);
+      if (window.puter?.ai) {
+        const result = await window.puter.ai.chat(`Jawab sebagai Jarpis, asisten penulisan novel berbahasa Indonesia. Jawab ringkas dan berguna.\n\nUser: ${text}`);
+        answer = typeof result === "string" ? result : result.message?.content || result.text || "";
         setMessages((m) => m.map((msg, i) => (i === m.length - 1 ? { ...msg, text: answer } : msg)));
+      } else if (apiUrl) {
+        const res = await fetch(`${apiUrl}/chat`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: text }),
+        });
+        if (!res.ok || !res.body) throw new Error("Backend tidak menjawab");
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          answer += decoder.decode(value);
+          setMessages((m) => m.map((msg, i) => (i === m.length - 1 ? { ...msg, text: answer } : msg)));
+        }
+      } else {
+        throw new Error("AI belum siap. Refresh halaman lalu coba lagi.");
       }
 
       await saveMessage("ai", answer);
