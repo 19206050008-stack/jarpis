@@ -42,14 +42,19 @@ User: {message}
 Jarpis:"""
 
     def generate():
-        with lock:
+        if not lock.acquire(blocking=False):
+            yield "Jarpis masih memproses pesan sebelumnya. Coba lagi sebentar."
+            return
+        try:
             for chunk in llm(
                 prompt,
-                max_tokens=int(payload.get("max_tokens", os.getenv("MAX_TOKENS", "160"))),
+                max_tokens=int(payload.get("max_tokens", os.getenv("MAX_TOKENS", "80"))),
                 temperature=float(payload.get("temperature", 0.7)),
                 stream=True,
                 stop=["User:", "</s>"],
             ):
                 yield chunk["choices"][0]["text"]
+        finally:
+            lock.release()
 
     return StreamingResponse(generate(), media_type="text/plain; charset=utf-8")
