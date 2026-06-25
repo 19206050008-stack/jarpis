@@ -63,7 +63,7 @@ export default function Home() {
     { id: "andi", label: "Andi — Pria" },
   ], []);
 
-  const ttsUrl = process.env.NEXT_PUBLIC_TTS_URL;
+  const ttsUrl = process.env.NEXT_PUBLIC_TTS_URL || process.env.NEXT_PUBLIC_API_URL;
 
   const chips = useMemo(() => ["/buka wikipedia.org", "/berita AI hari ini", "/gambar jarvis hud", "/lagu lofi malam", "Bantu outline novel"], []);
 
