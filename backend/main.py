@@ -45,7 +45,7 @@ Jarpis:"""
         with lock:
             for chunk in llm(
                 prompt,
-                max_tokens=int(payload.get("max_tokens", 512)),
+                max_tokens=int(payload.get("max_tokens", os.getenv("MAX_TOKENS", "160"))),
                 temperature=float(payload.get("temperature", 0.7)),
                 stream=True,
                 stop=["User:", "</s>"],
