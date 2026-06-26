@@ -792,10 +792,10 @@ export default function Home() {
       {/* Popup 1: AI Chat */}
       {chatState === 'open' && (
         <section className="popup-window chat-window" style={{ left: popupPos.chat.x, top: popupPos.chat.y }}>
-          <header className="window-header" onPointerDown={(e) => { if (window.innerWidth > 800) startPopupDrag("chat", e); }} onPointerMove={movePopup} onPointerUp={stopPopupDrag}>
+          <header className="window-header" onPointerDown={(e) => { if (window.innerWidth > 800 && !e.target.closest('.controls')) startPopupDrag("chat", e); }} onPointerMove={movePopup} onPointerUp={stopPopupDrag}>
             <span className="title">💬 Anta Chat</span>
             <div className="controls">
-              <button onClick={() => setChatState('closed')}>x</button>
+              <button onClick={(e) => { e.stopPropagation(); setChatState('closed'); }} type="button">×</button>
             </div>
           </header>
           
@@ -823,10 +823,10 @@ export default function Home() {
       {/* Popup 2: Website & Media Viewer */}
       {viewerState === 'open' && (
         <section className="popup-window viewer-window" style={{ left: popupPos.viewer.x || undefined, right: popupPos.viewer.x ? undefined : 40, top: popupPos.viewer.y }}>
-          <header className="window-header" onPointerDown={(e) => { if (window.innerWidth > 800) startPopupDrag("viewer", e); }} onPointerMove={movePopup} onPointerUp={stopPopupDrag}>
+          <header className="window-header" onPointerDown={(e) => { if (window.innerWidth > 800 && !e.target.closest('.controls')) startPopupDrag("viewer", e); }} onPointerMove={movePopup} onPointerUp={stopPopupDrag}>
             <span className="title">🌐 Anta Monitor: {view.title || "No Signal"}</span>
             <div className="controls">
-              <button onClick={() => setViewerState('closed')}>x</button>
+              <button onClick={(e) => { e.stopPropagation(); setViewerState('closed'); }} type="button">×</button>
             </div>
           </header>
           <div className="viewer-content">
