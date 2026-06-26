@@ -43,7 +43,16 @@ async function saveMemory(kind: string, content: string) {
 }
 
 // News Bank — store summarized news for today, auto-clean yesterday's
+// Works with Supabase if available, localStorage as fallback
 async function cleanOldNews() {
+  // Clean localStorage news bank if date changed
+  try {
+    const bank = JSON.parse(localStorage.getItem("anta_news_bank") || '{"date":"","items":[]}');
+    if (bank.date !== new Date().toDateString()) {
+      localStorage.setItem("anta_news_bank", JSON.stringify({ date: new Date().toDateString(), items: [] }));
+    }
+  } catch { localStorage.setItem("anta_news_bank", JSON.stringify({ date: new Date().toDateString(), items: [] })); }
+  
   if (!supabase) return;
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
@@ -51,30 +60,72 @@ async function cleanOldNews() {
 }
 
 async function saveNewsToBank(title: string, source: string, link: string, summary: string) {
+  // Always save to localStorage
+  try {
+    const bank = JSON.parse(localStorage.getItem("anta_news_bank") || '{"date":"","items":[]}');
+    if (bank.date !== new Date().toDateString()) bank.items = [];
+    bank.date = new Date().toDateString();
+    bank.items.push({ id: Date.now(), title, source, link, summary, spoken: false });
+    localStorage.setItem("anta_news_bank", JSON.stringify(bank));
+  } catch {}
+  
   if (!supabase) return;
   await supabase.from("news_bank").insert({ title, source, link, summary, spoken: false }).then(() => {}, () => {});
 }
 
 async function getUnspokenNews(): Promise<{ id: number; summary: string; source: string } | null> {
-  if (!supabase) return null;
-  const { data } = await supabase
-    .from("news_bank")
-    .select("id, summary, source")
-    .eq("spoken", false)
-    .order("created_at", { ascending: true })
-    .limit(1);
-  return data && data.length > 0 ? data[0] : null;
+  // Try Supabase first
+  if (supabase) {
+    try {
+      const { data } = await supabase
+        .from("news_bank")
+        .select("id, summary, source")
+        .eq("spoken", false)
+        .order("created_at", { ascending: true })
+        .limit(1);
+      if (data && data.length > 0) return data[0];
+    } catch {}
+  }
+  
+  // Fallback to localStorage
+  try {
+    const bank = JSON.parse(localStorage.getItem("anta_news_bank") || '{"date":"","items":[]}');
+    if (bank.date !== new Date().toDateString()) return null;
+    const item = bank.items.find((x: { spoken: boolean }) => !x.spoken);
+    return item ? { id: item.id, summary: item.summary, source: item.source } : null;
+  } catch {}
+  return null;
 }
 
 async function markNewsSpoken(id: number) {
+  // Mark in localStorage
+  try {
+    const bank = JSON.parse(localStorage.getItem("anta_news_bank") || '{"date":"","items":[]}');
+    const item = bank.items.find((x: { id: number }) => x.id === id);
+    if (item) item.spoken = true;
+    localStorage.setItem("anta_news_bank", JSON.stringify(bank));
+  } catch {}
+  
   if (!supabase) return;
   await supabase.from("news_bank").update({ spoken: true }).eq("id", id).then(() => {}, () => {});
 }
 
 async function getNewsBankCount(): Promise<number> {
-  if (!supabase) return 0;
-  const { count } = await supabase.from("news_bank").select("*", { count: "exact", head: true });
-  return count || 0;
+  // Try Supabase
+  if (supabase) {
+    try {
+      const { count } = await supabase.from("news_bank").select("*", { count: "exact", head: true }).eq("spoken", false);
+      if (count !== null) return count;
+    } catch {}
+  }
+  
+  // Fallback localStorage
+  try {
+    const bank = JSON.parse(localStorage.getItem("anta_news_bank") || '{"date":"","items":[]}');
+    if (bank.date !== new Date().toDateString()) return 0;
+    return bank.items.filter((x: { spoken: boolean }) => !x.spoken).length;
+  } catch {}
+  return 0;
 }
 
 function withProtocol(url: string) {
@@ -987,11 +1038,15 @@ export default function Home() {
         const outro = `Sudah saya bacakan terkait ${topic}. Apakah ada lagi yang bisa saya bantu?`;
         const fullSpeech = `${intro}\n\n${cleanContent}\n\n${outro}`;
         
-        // Data ready — show content in chat
-        setMessages((m) => [...m.slice(0, -1), { role: "ai", text: fullSpeech }]);
+        // Data ready — show content in chat with notice
+        setMessages((m) => [...m.slice(0, -1), { role: "ai", text: fullSpeech }, { role: "ai", text: "Saya akan mulai membacakannya..." }]);
         setLoading(false);
         
-        // Minimize chat and speak
+        // Wait 3 seconds so user can see the content, then minimize and speak
+        await new Promise(r => setTimeout(r, 3000));
+        
+        // Remove the "mulai membacakan" notice and minimize
+        setMessages((m) => m.filter(msg => msg.text !== "Saya akan mulai membacakannya..."));
         autoMinimizeChat();
         
         // Speak it with intro + content + outro
