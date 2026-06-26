@@ -389,9 +389,10 @@ export default function Home() {
             // Fetch full article content
             const article = await fetch(`${apiUrl}/article?url=${encodeURIComponent(item.link)}`).then((r) => r.ok ? r.json() : null).catch(() => null);
             const content = article?.text || item.title;
-            // Generate natural commentary and read the news
-            line = await askAi(`Kamu Anta, AI asisten yang sedang idle. Kamu baru menemukan berita menarik dari ${item.source || 'Indonesia'}: "${item.title}". Sampaikan berita ini dengan gaya natural seperti teman yang ngasih tau berita, lalu kasih komentar singkatmu. Maksimal 2-3 kalimat. Jangan pakai markdown.`, false);
-            await saveMemory("idle_news", `${item.title} - ${line}`);
+            const source = item.source || new URL(item.link).hostname.replace("www.", "");
+            // Summarize the article content first, then speak it with source at the end
+            line = await askAi(`Kamu Anta, AI asisten. Rangkum berita berikut menjadi 2-3 kalimat ringkas dengan gaya natural seperti teman ngobrol. JANGAN menampilkan judul asli berita. Parafrase seluruhnya dengan kata-katamu sendiri. Di akhir tambahkan sumber: "(Sumber: ${source})". Jangan pakai markdown.\n\nJudul: ${item.title}\nIsi: ${content.slice(0, 1500)}`, false);
+            await saveMemory("idle_news", `${source} - ${line}`);
           } else {
             // Fallback: generic idle thought about current time and location
             const now = new Date();
