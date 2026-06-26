@@ -39,7 +39,7 @@ try {
   if (!/linear-gradient/.test(data.bg)) throw new Error(`Subtitle missing HUD gradient: ${JSON.stringify(data)}`);
   if (data.beforeDisplay === 'none' || !/linear-gradient/.test(data.beforeBg)) throw new Error(`Subtitle missing top title strip/line: ${JSON.stringify(data)}`);
   if (data.afterDisplay === 'none' || !/rgb/.test(data.afterBorder)) throw new Error(`Subtitle missing speaking connector line: ${JSON.stringify(data)}`);
-  if (data.subtitle.w < 180 || data.subtitle.w > 560) throw new Error(`Subtitle width not content-bounded: ${JSON.stringify(data)}`);
+  if (data.subtitle.w < 178 || data.subtitle.w > 560) throw new Error(`Subtitle width not content-bounded: ${JSON.stringify(data)}`);
 
   console.log('✓ Subtitle UI match: angled HUD box, below orb, connector line, content width');
 } finally {

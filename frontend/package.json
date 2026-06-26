@@ -10,7 +10,8 @@
     "test:orb-lock": "node tests/orb-lock.test.mjs",
     "test:buttons": "node tests/button-assets.test.mjs",
     "test:subtitle": "node tests/subtitle-ui.test.mjs",
-    "test:orbit-menu": "node tests/orbit-menu.test.mjs"
+    "test:orbit-menu": "node tests/orbit-menu.test.mjs",
+    "test:orb-free": "node tests/orb-free.test.mjs"
   },
   "dependencies": {
     "@react-three/fiber": "^9.6.1",

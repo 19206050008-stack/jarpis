@@ -27,14 +27,17 @@ try {
 
   if (closed.buttons.length !== 2) throw new Error(`Expected 2 orbit buttons: ${JSON.stringify(closed)}`);
   for (const b of closed.buttons) {
-    if (b.x < closed.orb.right + 12) throw new Error(`Button overlaps orb: ${JSON.stringify(closed)}`);
+    if (b.x < closed.orb.right + 40) throw new Error(`Button too close / overlaps orb: ${JSON.stringify(closed)}`);
     if (Math.abs(b.w - b.h) > 1 || b.radius !== '50%') throw new Error(`Button not round: ${JSON.stringify(b)}`);
     if (!/radial-gradient/.test(b.bg)) throw new Error(`Button not orb-colored radial: ${JSON.stringify(b)}`);
     if (!/rgb/.test(b.shadow)) throw new Error(`Button missing glow: ${JSON.stringify(b)}`);
     if (b.lineDisplay !== 'none') throw new Error(`Icon button line still visible: ${JSON.stringify(b)}`);
-    if (b.iconW > 22 || b.iconH > 22) throw new Error(`Icon still too large: ${JSON.stringify(b)}`);
+    if (b.w > 36 || b.h > 36) throw new Error(`Button still too large: ${JSON.stringify(b)}`);
+    if (b.iconW > 14 || b.iconH > 14) throw new Error(`Icon still too large: ${JSON.stringify(b)}`);
   }
   if (Math.abs(closed.dock.cy - closed.orb.cy) > 20) throw new Error(`Menu not exactly beside orbit: ${JSON.stringify(closed)}`);
+  const dockLine = await page.locator('.dock.orbit-menu').evaluate((el) => getComputedStyle(el, '::before').display);
+  if (dockLine !== 'none') throw new Error('Dock connector line still visible');
 
   await page.click('.dock.orbit-menu button[title="AI Chat"]');
   await page.waitForSelector('.dock.popup-dock', { timeout: 30000 });
@@ -44,7 +47,7 @@ try {
   });
   if (open.y < 650 || open.row !== 'row') throw new Error(`Popup dock did not return to bottom dock: ${JSON.stringify(open)}`);
 
-  console.log('✓ Orbit menu: small round buttons exactly right of orb, no icon lines, docked when popup opens');
+  console.log('✓ Orbit menu: tiny detached round buttons right of orb, no connector lines, docked when popup opens');
 } finally {
   await browser.close();
 }

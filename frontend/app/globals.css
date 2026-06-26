@@ -237,3 +237,17 @@
   .dock.orbit-menu button:nth-child(2){transform:translateX(0)}
   .dock.orbit-menu button svg{width:18px;height:18px}
 }
+
+/* User correction: no connector lines, smaller detached menu, free moving orb, subtitle floats again. */
+.dock.orbit-menu{left:calc(50% + 166px);top:calc(50% - 58px);gap:20px}
+.dock.orbit-menu:before{display:none!important}
+.dock.orbit-menu button{width:34px;height:34px;box-shadow:0 0 0 2px #22d3ee22,0 0 14px #22d3ee99,inset 0 0 10px #67e8f933}
+.dock.orbit-menu button svg{width:13px;height:13px}
+.subtitle-bubble{animation:subtitle-float 3s ease-in-out infinite}
+@media(max-width:800px){
+  .dock.orbit-menu{left:calc(50% + 104px)!important;top:calc(50% - 46px)!important;gap:16px!important}
+  .dock.orbit-menu button{width:32px!important;height:32px!important}
+  .dock.orbit-menu button svg{width:12px;height:12px}
+}
+.dock.orbit-menu{top:calc(50% - 81px)}
+@media(max-width:800px){.dock.orbit-menu{top:calc(50% - 70px)!important}}

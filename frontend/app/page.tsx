@@ -425,7 +425,7 @@ export default function Home() {
   const [orbOffset, setOrbOffset] = useState({ x: 0, y: 0 });
   const [orbShake, setOrbShake] = useState(false);
   const [orbDragging, setOrbDragging] = useState(false);
-  const [orbMoveEnabled, setOrbMoveEnabled] = useState(false);
+  const [orbMoveEnabled, setOrbMoveEnabled] = useState(true);
   const [agentAccepted, setAgentAccepted] = useState(true); // default to true (hidden) to prevent layout shift / background check first
   const [showAgentBanner, setShowAgentBanner] = useState(false);
 
