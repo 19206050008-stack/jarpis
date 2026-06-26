@@ -692,7 +692,7 @@ export default function Home() {
   }
 
   function acceptAgent() {
-    localStorage.setItem("jarpis_agent_accepted", "true");
+    localStorage.setItem("anta_agent_accepted", "true");
     setAgentAccepted(true);
     setShowAgentBanner(false);
   }
