@@ -42,6 +42,41 @@ async function saveMemory(kind: string, content: string) {
   await supabase.from("memories").insert({ kind, content }).then(() => {}, () => {});
 }
 
+// News Bank — store summarized news for today, auto-clean yesterday's
+async function cleanOldNews() {
+  if (!supabase) return;
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  await supabase.from("news_bank").delete().lt("created_at", yesterday.toISOString()).then(() => {}, () => {});
+}
+
+async function saveNewsToBank(title: string, source: string, link: string, summary: string) {
+  if (!supabase) return;
+  await supabase.from("news_bank").insert({ title, source, link, summary, spoken: false }).then(() => {}, () => {});
+}
+
+async function getUnspokenNews(): Promise<{ id: number; summary: string; source: string } | null> {
+  if (!supabase) return null;
+  const { data } = await supabase
+    .from("news_bank")
+    .select("id, summary, source")
+    .eq("spoken", false)
+    .order("created_at", { ascending: true })
+    .limit(1);
+  return data && data.length > 0 ? data[0] : null;
+}
+
+async function markNewsSpoken(id: number) {
+  if (!supabase) return;
+  await supabase.from("news_bank").update({ spoken: true }).eq("id", id).then(() => {}, () => {});
+}
+
+async function getNewsBankCount(): Promise<number> {
+  if (!supabase) return 0;
+  const { count } = await supabase.from("news_bank").select("*", { count: "exact", head: true });
+  return count || 0;
+}
+
 function withProtocol(url: string) {
   return /^https?:\/\//i.test(url) ? url : `https://${url}`;
 }
@@ -444,62 +479,69 @@ export default function Home() {
     const timer = window.setTimeout(async () => {
       let line = "";
       try {
-        if (apiUrl) {
-          // Fetch real news from Indonesia/Yogyakarta
+        // Clean old news from bank (yesterday's)
+        await cleanOldNews();
+        
+        // Step 1: Check if there's unspoken news in the bank
+        const unspoken = await getUnspokenNews();
+        if (unspoken) {
+          line = unspoken.summary;
+          await markNewsSpoken(unspoken.id);
+        } else if (apiUrl) {
+          // Step 2: No unspoken news — fetch fresh news, summarize, and save to bank
           const location = "Yogyakarta OR Indonesia";
           const credible = "(site:kompas.com OR site:tempo.co OR site:detik.com OR site:tribunnews.com OR site:antaranews.com)";
           const res = await fetch(`${apiUrl}/news?q=${encodeURIComponent(`${location} berita terbaru ${credible}`)}`);
           const items = res.ok ? await res.json() : [];
-          const item = items.find((x: { title?: string; link?: string; pubDate?: string }) => {
-            if (!x.link || seenNewsRef.current.has(x.link)) return false;
-            // Only accept news from last 24 hours
-            if (x.pubDate) {
-              const pubTime = new Date(x.pubDate).getTime();
-              const now = Date.now();
-              if (isNaN(pubTime) || now - pubTime > 24 * 60 * 60 * 1000) return false;
+          
+          // Process multiple news items and save to bank
+          let savedNew = false;
+          for (const item of items.slice(0, 5)) {
+            if (!item.link || seenNewsRef.current.has(item.link)) continue;
+            if (item.pubDate) {
+              const pubTime = new Date(item.pubDate).getTime();
+              if (isNaN(pubTime) || Date.now() - pubTime > 24 * 60 * 60 * 1000) continue;
             }
-            return true;
-          });
-          if (item?.link) {
             seenNewsRef.current.add(item.link);
-            // Fetch full article content
+            
+            // Fetch article content
             const article = await fetch(`${apiUrl}/article?url=${encodeURIComponent(item.link)}`).then((r) => r.ok ? r.json() : null).catch(() => null);
             const content = (article?.text && !article?.error && article.text.length > 80) ? article.text : "";
-            
-            // If no valid content at all, skip — don't speak garbage
-            if (!content && (!item.title || item.title.length < 15)) return;
+            if (!content && (!item.title || item.title.length < 15)) continue;
             
             const source = item.source || (() => { try { return new URL(item.link).hostname.replace("www.", ""); } catch { return "media Indonesia"; } })();
             
-            // If we have real content, summarize it. Otherwise use the title.
+            // Summarize
             const prompt = content
               ? `Kamu Anta, AI asisten. Rangkum berita berikut menjadi 2-3 kalimat ringkas dengan gaya natural seperti teman ngobrol. JANGAN tampilkan judul asli. Parafrase seluruhnya dengan kata-katamu sendiri. Di akhir tambahkan: "(Sumber: ${source})". Jangan pakai markdown.\n\nIsi berita: ${content.slice(0, 1200)}`
               : `Kamu Anta, AI asisten. Sampaikan berita dengan judul "${item.title}" dalam 2 kalimat dengan gaya santai seperti teman yang ngasih tau berita. Jangan tampilkan judul asli, parafrase dengan kata-katamu. Di akhir tambahkan: "(Sumber: ${source})". Jangan pakai markdown.`;
-            line = await askAi(prompt, false);
             
-            // Validate AI response — don't speak if it contains error indicators
-            const lineLower = line.toLowerCase();
-            if (lineLower.includes("javascript") || lineLower.includes("undefined") || lineLower.includes("error") || lineLower.includes("tidak ada narasi") || lineLower.includes("tidak bisa") || line.length < 20) {
-              return; // Skip, don't speak
+            const summary = await askAi(prompt, false);
+            const summaryLower = summary.toLowerCase();
+            
+            // Validate
+            if (summaryLower.includes("javascript") || summaryLower.includes("undefined") || summaryLower.includes("error") || summary.length < 20) continue;
+            
+            // Save to bank
+            await saveNewsToBank(item.title || "", source, item.link, summary);
+            
+            if (!savedNew) {
+              line = summary; // Use the first one to speak now
+              savedNew = true;
             }
-            
-            await saveMemory("idle_news", `${source} - ${line}`);
-          } else {
-            // No fresh news available, just do idle
-            return; // Don't speak if no valid news
           }
+          
+          if (!line) return; // Nothing valid found
         } else {
-          return; // No API, don't speak
+          return;
         }
       } catch {
-        return; // Failed, don't speak
+        return;
       }
       if (line && line.length > 20) {
-        const modes = ["spin", "slime", "melt", "creature", "bounce"];
-        setOrbMode(modes[Math.floor(Math.random() * modes.length)]);
         void speakLine(line);
       }
-    }, 12000 + Math.floor(Math.random() * 28000));
+    }, 15000 + Math.floor(Math.random() * 25000));
     return () => window.clearTimeout(timer);
   }, [loading, isAiSpeaking, listening, speaker, speakEnabled, apiUrl]);
 
