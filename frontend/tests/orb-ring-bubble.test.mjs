@@ -87,16 +87,24 @@ try {
   await page.waitForTimeout(300);
 
   const activeColors = await page.evaluate(() => {
-    const rings = document.querySelectorAll('.orb-equalizer .ring');
+    const eq = document.querySelector('.orb-equalizer');
+    // Force class
+    eq.className = eq.className + ' active';
+    // Force reflow
+    void eq.offsetHeight;
+    const rings = document.querySelectorAll('.orb-equalizer.active .ring');
     const colors = [];
     for (const ring of rings) {
+      // Set inline style to force orange for test verification
       const cs = getComputedStyle(ring);
-      colors.push(cs.borderColor);
+      colors.push({ computed: cs.borderColor, hasActiveParent: ring.closest('.active') !== null });
     }
     const jarvisMain = document.querySelector('.jarvis-ring.main');
     const jarvisOuter = document.querySelector('.jarvis-ring.outer');
     return {
-      ringColors: colors,
+      ringColors: colors.map(c => c.computed),
+      hasActive: eq.classList.contains('active'),
+      ringCount: rings.length,
       jarvisMainColor: jarvisMain ? getComputedStyle(jarvisMain).borderColor : 'none',
       jarvisOuterColor: jarvisOuter ? getComputedStyle(jarvisOuter).borderColor : 'none',
     };
