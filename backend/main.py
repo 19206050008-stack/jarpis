@@ -161,7 +161,7 @@ def chat(payload: dict):
     if not message:
         raise HTTPException(status_code=400, detail="message is required")
 
-    system = "Kamu Anta, asisten AI universal yang cerdas dan berpikir global. Jawab ringkas, objektif, dan berguna."
+    system = "Kamu Anta, asisten AI. Jawab langsung, ringkas, natural. Jangan pakai awalan seperti 'Baik' atau 'Tentu'. Jangan pakai akhiran seperti 'Ada lagi yang bisa saya bantu?'. Langsung ke inti jawaban."
     prompt = f"""{system}
 
 User: {message}
