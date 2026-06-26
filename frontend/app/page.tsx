@@ -6,6 +6,9 @@ import { createClient } from "@supabase/supabase-js";
 type Message = { role: "user" | "ai"; text: string };
 type View = { title: string; url: string; note: string };
 
+type LocalFile = { name: string; path: string; handle: FileSystemFileHandle };
+type DirectoryHandle = FileSystemDirectoryHandle & AsyncIterable<[string, FileSystemHandle]>;
+
 type SpeechRecognitionLike = {
   lang: string;
   interimResults: boolean;
@@ -20,6 +23,7 @@ declare global {
   interface Window {
     SpeechRecognition?: new () => SpeechRecognitionLike;
     webkitSpeechRecognition?: new () => SpeechRecognitionLike;
+    showDirectoryPicker?: () => Promise<DirectoryHandle>;
   }
 }
 
@@ -87,6 +91,7 @@ export default function Home() {
   const [isAiSpeaking, setIsAiSpeaking] = useState(false);
   const [listening, setListening] = useState(false);
   const [subtitle, setSubtitle] = useState("Jarpis online. Sistem santai tapi siap.");
+  const [files, setFiles] = useState<LocalFile[]>([]);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const orbRef = useRef<HTMLDivElement | null>(null);
@@ -214,6 +219,45 @@ export default function Home() {
     return () => window.clearTimeout(timer);
   }, [loading, isAiSpeaking, listening, speaker, speakEnabled, apiUrl]);
 
+  async function scanDirectory(dir: DirectoryHandle, base = ""): Promise<LocalFile[]> {
+    const out: LocalFile[] = [];
+    for await (const [name, handle] of dir) {
+      const path = base ? `${base}/${name}` : name;
+      if (handle.kind === "file") out.push({ name, path, handle: handle as FileSystemFileHandle });
+      if (handle.kind === "directory") out.push(...await scanDirectory(handle as DirectoryHandle, path));
+    }
+    return out;
+  }
+
+  async function askFolderPermission() {
+    if (!window.showDirectoryPicker) return "Browser ini belum mendukung akses folder. Pakai Chrome/Edge desktop, atau nanti butuh local agent untuk mobile.";
+    const dir = await window.showDirectoryPicker();
+    const list = await scanDirectory(dir);
+    setFiles(list);
+    return `Izin folder diterima. Saya mengindeks ${list.length} file. Sekarang kamu bisa bilang: cari file nama-file.`;
+  }
+
+  async function openLocalFile(file: LocalFile) {
+    const blob = await file.handle.getFile();
+    window.open(URL.createObjectURL(blob), "_blank");
+  }
+
+  function openKnownApp(name: string) {
+    const apps: Record<string, string> = {
+      whatsapp: "whatsapp://",
+      spotify: "spotify://",
+      telegram: "tg://",
+      youtube: "https://youtube.com",
+      gmail: "mailto:",
+      email: "mailto:",
+      maps: "https://maps.google.com",
+    };
+    const key = Object.keys(apps).find((app) => name.toLowerCase().includes(app));
+    if (!key) return "Saya belum bisa membuka aplikasi itu dari browser. Untuk aplikasi arbitrary perlu Jarpis Local Agent yang di-install di perangkat.";
+    window.location.href = apps[key];
+    return `Saya coba buka ${key}. Jika tidak terbuka, aplikasi itu belum terdaftar sebagai URL scheme di perangkat ini.`;
+  }
+
   async function handle(text: string) {
     const lower = text.toLowerCase();
     const parts = text.split(/\s+/);
@@ -222,6 +266,29 @@ export default function Home() {
 
     setVideos([]);
     setNews([]);
+
+    if (lower.includes("izin folder") || lower.includes("akses folder")) return askFolderPermission();
+
+    if ((lower.includes("cari file") || lower.includes("temukan file")) && files.length) {
+      const query = text.replace(/.*?(cari file|temukan file)/i, "").trim().toLowerCase();
+      const found = files.filter((f) => f.path.toLowerCase().includes(query)).slice(0, 20);
+      setNews(found.map((f) => ({ title: f.path, link: "#", source: "Local Folder" })));
+      setView({ title: `File: ${query}`, url: "", note: `${found.length} file ditemukan dari folder yang kamu izinkan.` });
+      setViewerState("open");
+      return found.length ? `Saya menemukan ${found.length} file. Sebut buka file pertama kalau ingin saya buka.` : `Saya tidak menemukan file dengan kata ${query}.`;
+    }
+
+    if (lower.includes("buka file pertama") && files.length) {
+      const first = news[0]?.title;
+      const file = files.find((f) => f.path === first);
+      if (file) {
+        await openLocalFile(file);
+        return `Saya buka ${file.name} di tab baru.`;
+      }
+      return "Belum ada hasil file untuk dibuka.";
+    }
+
+    if (lower.includes("buka aplikasi") || lower.includes("jalankan aplikasi")) return openKnownApp(rest || text);
 
     const voice = voices.find((v) => lower.includes(v.id) || lower.includes(v.label.toLowerCase().split(" ")[0]));
     if ((lower.includes("ganti suara") || lower.includes("ubah suara")) && voice) {
@@ -391,6 +458,9 @@ export default function Home() {
         <button className={listening ? 'active' : ''} onClick={startVoiceInput} title="Perintah Suara">
           <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
         </button>
+        <button onClick={() => send("izin folder")} title="Izinkan Folder">
+          <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none"><path d="M3 7h5l2 2h11v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><path d="M12 13v4"></path><path d="M10 15h4"></path></svg>
+        </button>
         <button onClick={() => setInput("/buka ")} title="Buka URL">
           <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
         </button>
@@ -454,12 +524,15 @@ export default function Home() {
             
             {news.length > 0 && (
               <div className="news-list">
-                {news.map((item, i) => (
-                  <a key={i} href={item.link} target="_blank" rel="noreferrer" className="news-item">
-                    <h4>{item.title}</h4>
-                    <span>{item.source} • {item.pubDate}</span>
-                  </a>
-                ))}
+                {news.map((item, i) => {
+                  const localFile = files.find((f) => f.path === item.title);
+                  return (
+                    <a key={i} href={localFile ? "#" : item.link} target={localFile ? undefined : "_blank"} rel="noreferrer" className="news-item" onClick={(e) => { if (localFile) { e.preventDefault(); void openLocalFile(localFile); } }}>
+                      <h4>{item.title}</h4>
+                      <span>{item.source} {item.pubDate ? `• ${item.pubDate}` : ""}</span>
+                    </a>
+                  );
+                })}
               </div>
             )}
 
