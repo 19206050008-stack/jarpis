@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useRef, useEffect } from "react";
+import { useMemo, useState, useRef, useEffect, type CSSProperties, type PointerEvent } from "react";
 import { createClient } from "@supabase/supabase-js";
 
 type Message = { role: "user" | "ai"; text: string };
@@ -94,9 +94,12 @@ export default function Home() {
   const [files, setFiles] = useState<LocalFile[]>([]);
   const [orbMode, setOrbMode] = useState("idle");
   const [orbSide, setOrbSide] = useState("center");
+  const [orbOffset, setOrbOffset] = useState({ x: 0, y: 0 });
+  const [orbShake, setOrbShake] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const orbRef = useRef<HTMLDivElement | null>(null);
+  const dragRef = useRef({ active: false, moved: false, x: 0, y: 0, ox: 0, oy: 0 });
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
 
   const voices = useMemo(() => [
@@ -207,6 +210,15 @@ export default function Home() {
 
   useEffect(() => {
     if (loading || isAiSpeaking || listening) return;
+    const modes = ["idle", "slime", "melt", "bounce", "spin", "fast", "creature"];
+    const timer = window.setInterval(() => {
+      setOrbMode(modes[Math.floor(Math.random() * modes.length)]);
+    }, 9000);
+    return () => window.clearInterval(timer);
+  }, [loading, isAiSpeaking, listening]);
+
+  useEffect(() => {
+    if (loading || isAiSpeaking || listening) return;
     const lines = [
       "Hmm... aku sedang menghitung kemungkinan, tapi hasilnya cuma ingin minum kopi digital.",
       "Mode siaga aktif. Kalau ada drama cerita, panggil aku sebelum tokohnya kabur.",
@@ -258,6 +270,30 @@ export default function Home() {
     if (!key) return "Saya belum bisa membuka aplikasi itu dari browser. Untuk aplikasi arbitrary perlu Jarpis Local Agent yang di-install di perangkat.";
     window.location.href = apps[key];
     return `Saya coba buka ${key}. Jika tidak terbuka, aplikasi itu belum terdaftar sebagai URL scheme di perangkat ini.`;
+  }
+
+  function startOrbDrag(e: PointerEvent<HTMLDivElement>) {
+    dragRef.current = { active: true, moved: false, x: e.clientX, y: e.clientY, ox: orbOffset.x, oy: orbOffset.y };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  }
+
+  function moveOrb(e: PointerEvent<HTMLDivElement>) {
+    const drag = dragRef.current;
+    if (!drag.active) return;
+    const dx = e.clientX - drag.x;
+    const dy = e.clientY - drag.y;
+    if (Math.abs(dx) + Math.abs(dy) > 6) drag.moved = true;
+    setOrbOffset({ x: drag.ox + dx, y: drag.oy + dy });
+  }
+
+  function stopOrbDrag(e: PointerEvent<HTMLDivElement>) {
+    const drag = dragRef.current;
+    dragRef.current.active = false;
+    e.currentTarget.releasePointerCapture(e.pointerId);
+    if (!drag.moved) {
+      setOrbShake(true);
+      window.setTimeout(() => setOrbShake(false), 450);
+    }
   }
 
   async function handle(text: string) {
@@ -452,8 +488,14 @@ export default function Home() {
   return (
     <main className="jarvis-desktop">
       {/* Background Equalizer Visualizer */}
-      <div className={`center-container ${orbSide}`}>
-        <div ref={orbRef} className={`orb-equalizer ${orbMode} ${isAiSpeaking ? 'active' : ''}`}>
+      <div className={`center-container ${orbSide}`} style={{ "--orb-x": `${orbOffset.x}px`, "--orb-y": `${orbOffset.y}px` } as CSSProperties}>
+        <div
+          ref={orbRef}
+          className={`orb-equalizer ${orbMode} ${orbShake ? 'shake' : ''} ${isAiSpeaking ? 'active' : ''}`}
+          onPointerDown={startOrbDrag}
+          onPointerMove={moveOrb}
+          onPointerUp={stopOrbDrag}
+        >
           <div className="ring ring-1"></div>
           <div className="ring ring-2"></div>
           <div className="ring ring-3"></div>
