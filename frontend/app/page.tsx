@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useRef, useEffect, type CSSProperties, type PointerEvent } from "react";
 import { createClient } from "@supabase/supabase-js";
+import AntaOrb3D from "./AntaOrb3D";
 
 type Message = { role: "user" | "ai"; text: string };
 type View = { title: string; url: string; note: string };
@@ -1351,11 +1352,7 @@ export default function Home() {
           onPointerMove={moveOrb}
           onPointerUp={stopOrbDrag}
         >
-          <div className="ring ring-1"></div>
-          <div className="ring ring-2"></div>
-          <div className="ring ring-3"></div>
-          <div className="ring ring-4"></div>
-          <div className="core"></div>
+          <AntaOrb3D active={isAiSpeaking} />
         </div>
         {subtitle && <div className={`subtitle-bubble ${isOrderedText(subtitle) ? 'align-left' : ''}`}>{subtitle}</div>}
       </div>
