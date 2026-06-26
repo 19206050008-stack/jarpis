@@ -581,9 +581,18 @@ export default function Home() {
     }
 
     if (lower.includes("buang") || lower.includes("tutup") || lower.includes("close")) {
-      if (lower.includes("monitor") || lower.includes("browser") || lower.includes("website")) setViewerState("closed");
-      else setChatState("closed");
-      return "Baik, saya tutup panelnya.";
+      // Check if user is referring to chat/panel itself
+      if (lower.includes("chat") || lower.includes("panel") || lower.includes("jendela")) {
+        setChatState("closed");
+        return "Baik, saya tutup panelnya.";
+      }
+      // Check if user is referring to viewer/monitor/browser
+      if (lower.includes("monitor") || lower.includes("browser") || lower.includes("website") || lower.includes("viewer")) {
+        setViewerState("closed");
+        return "Baik, saya tutup viewer.";
+      }
+      // Default: pass to AI, don't close anything
+      return askAi(text);
     }
 
     if (cmd === "download" && rest) {
