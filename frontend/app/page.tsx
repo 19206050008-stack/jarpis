@@ -747,6 +747,14 @@ export default function Home() {
       return `Saya carikan ${kind} tentang "${query}" di viewer Anta.`;
     }
 
+    // bacakan/baca — user asks Anta to read something aloud
+    const bacaMatch = lower.match(/(?:bacakan|baca|tolong\s*baca(?:kan)?|coba\s*baca(?:kan)?)\s+(.+)/);
+    if (bacaMatch) {
+      const topic = bacaMatch[1].trim();
+      // Return special marker that send() will handle
+      return `__SPEAK__:${topic}`;
+    }
+
     // normal chat
     return askAi(text);
   }
@@ -806,6 +814,33 @@ export default function Home() {
     try {
       const rawAnswer = await handle(text);
       const answer = cleanText(rawAnswer);
+      
+      // Check if this is a speak command
+      if (answer.startsWith("__SPEAK__:")) {
+        const topic = answer.replace("__SPEAK__:", "");
+        setMessages((m) => [...m, { role: "ai", text: `Oke, saya bacakan ${topic}...` }]);
+        setLoading(false);
+        
+        // Show typing indicator
+        setMessages((m) => [...m, { role: "ai", text: "Anta sedang mengetik . . ." }]);
+        
+        // Auto minimize chat on mobile
+        autoMinimizeChat();
+        
+        // Generate content and speak it
+        const content = await askAi(`Bacakan ${topic} dengan lengkap dan jelas. Jangan pakai markdown, jangan pakai simbol atau tanda baca yang aneh. Langsung bacakan saja isinya.`, false);
+        const cleanContent = cleanText(content);
+        
+        // Replace typing indicator with actual content
+        setMessages((m) => [...m.slice(0, -1), { role: "ai", text: cleanContent }]);
+        
+        // Speak it
+        void speakLine(cleanContent);
+        await saveMessage("ai", cleanContent);
+        await saveMemory("conversation", `User: ${text}\nAnta: ${cleanContent}`);
+        return;
+      }
+      
       // Immediately add to messages without waiting for TTS
       setMessages((m) => [...m, { role: "ai", text: answer }]);
       await saveMessage("ai", answer);
