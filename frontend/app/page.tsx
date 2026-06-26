@@ -498,12 +498,14 @@ export default function Home() {
   ], []);
 
   function cleanText(text: string) {
-    if (!text || text === "undefined" || text.includes("undefined")) return "";
-    return text
+    if (!text) return "";
+    return String(text)
       .replace(/\\+n/g, "\n") // replace \n, \\n, \\\n etc with real newline
+      .replace(/\b(undefined|null|NaN)\b/gi, "")
       .replace(/\\+/g, "") // strip remaining backslashes
       .replace(/[\*\#\"`]/g, "") // strip markdown * # ` "
       .replace(/\/(?=[a-zA-Z])/g, "") // strip forward slash before letters (command-like)
+      .replace(/[ \t]{2,}/g, " ")
       .trim();
   }
 
@@ -531,8 +533,9 @@ export default function Home() {
           clearInterval(intervalTyping);
           return;
         }
-        setSubtitle((prev) => (prev ? prev + " " + words[i] : words[i]));
-        i++;
+        const word = words[i++];
+        if (!word) return;
+        setSubtitle((prev) => (prev ? prev + " " + word : word));
       }, 220);
 
       // Store in ref or handle cleanup on stop/ended
