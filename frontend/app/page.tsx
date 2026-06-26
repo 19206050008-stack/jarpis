@@ -1227,30 +1227,26 @@ export default function Home() {
         setMessages((m) => [...m.slice(0, -1), { role: "ai", text: fullSpeech }, { role: "ai", text: "Saya akan mulai membacakannya..." }]);
         setLoading(false);
         
-        // Wait 3 seconds so user can see the content, then minimize and speak
+        // Wait 3 seconds so user can see the content, then close while reading.
         await new Promise(r => setTimeout(r, 3000));
         
-        // Remove the "mulai membacakan" notice and minimize
         setMessages((m) => m.filter(msg => msg.text !== "Saya akan mulai membacakannya..."));
-        autoMinimizeChat();
+        setChatState('closed');
         
-        // Speak it with intro + content + outro
         void speakLine(fullSpeech);
         
-        // Reopen chat when speaking finishes
-        const reopenChat = () => {
-          setChatState('open');
-          if (audioRef.current) {
-            audioRef.current.removeEventListener("ended", reopenChat);
+        const reopenChat = () => setChatState('open');
+        const attachReopen = (tries = 40) => {
+          const audio = audioRef.current;
+          if (audio) {
+            audio.addEventListener("ended", reopenChat, { once: true });
+            audio.addEventListener("pause", reopenChat, { once: true });
+            return;
           }
+          if (tries > 0) window.setTimeout(() => attachReopen(tries - 1), 250);
+          else window.setTimeout(reopenChat, Math.max(3000, fullSpeech.split(" ").length * 250));
         };
-        if (audioRef.current) {
-          audioRef.current.addEventListener("ended", reopenChat);
-        } else {
-          // If no audio (TTS not available), reopen after estimated reading time
-          const estimatedMs = fullSpeech.split(" ").length * 250;
-          setTimeout(() => setChatState('open'), estimatedMs);
-        }
+        attachReopen();
         
         await saveMessage("ai", fullSpeech);
         await saveMemory("conversation", `User: ${text}\nAnta: ${fullSpeech}`);
