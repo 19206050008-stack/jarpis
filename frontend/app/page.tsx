@@ -137,6 +137,15 @@ function isOrderedText(text: string) {
   return /(^|\n)\s*(\d+[.)]|[-•])\s+/.test(text);
 }
 
+function numberFromText(text: string) {
+  const lower = text.toLowerCase();
+  const words: Record<string, number> = { pertama: 0, satu: 0, kedua: 1, dua: 1, ketiga: 2, tiga: 2, keempat: 3, empat: 3, kelima: 4, lima: 4 };
+  const digit = lower.match(/(?:nomor|no\.?|ke)?\s*(\d+)/);
+  if (digit) return Number(digit[1]) - 1;
+  const key = Object.keys(words).find((w) => lower.includes(w));
+  return key ? words[key] : -1;
+}
+
 function quickAck(text: string) {
   const lower = text.toLowerCase();
   if (/^(halo|hai|hello|pagi|siang|malam)\b/.test(lower)) return "Halo. Saya siap. Mau saya bantu apa dulu?";
@@ -392,6 +401,7 @@ export default function Home() {
   const [view, setView] = useState<View>({ title: "Anta HUD", url: "", note: "" });
   const [videos, setVideos] = useState<{ id: string; title: string; url: string }[]>([]);
   const [news, setNews] = useState<{ title: string; link: string; source: string; pubDate?: string }[]>([]);
+  const [articleText, setArticleText] = useState("");
   
   // Popup States: 'closed' | 'open' | 'minimized'
   const [chatState, setChatState] = useState<'closed' | 'open' | 'minimized'>('closed');
@@ -920,8 +930,37 @@ export default function Home() {
     const cmd = parts[0].replace("/", "");
     const rest = text.slice(parts[0].length).trim();
 
+    const openIndex = /buka.*(nomor|no\.?|pertama|kedua|ketiga|keempat|kelima|satu|dua|tiga|empat|lima)/i.test(lower) ? numberFromText(text) : -1;
+    if (openIndex >= 0 && news[openIndex]) {
+      const item = news[openIndex];
+      const localFile = files.find((f) => f.path === item.title);
+      if (localFile) {
+        await openLocalFile(localFile);
+        return `Saya buka ${localFile.name} di tab baru.`;
+      }
+      setViewerLoading(true);
+      setViewerState('open');
+      try {
+        const article = apiUrl ? await fetch(`${apiUrl}/article?url=${encodeURIComponent(item.link)}`).then((r) => r.ok ? r.json() : null) : null;
+        setArticleText(article?.text || "");
+        setView({ title: item.title, url: "", note: article?.text ? `Artikel dari ${item.source}` : "Artikel tidak bisa diambil. Klik judul untuk buka sumber asli." });
+      } finally {
+        setViewerLoading(false);
+      }
+      return `Saya buka nomor ${openIndex + 1}.`;
+    }
+    if (openIndex >= 0 && videos[openIndex]) {
+      const item = videos[openIndex];
+      setViewerLoading(false);
+      setArticleText("");
+      setView({ title: item.title, url: item.url, note: "Memutar video." });
+      setViewerState('open');
+      return `Saya buka video nomor ${openIndex + 1}.`;
+    }
+
     setVideos([]);
     setNews([]);
+    setArticleText("");
 
     if (lower.includes("mode bulat") || lower.includes("mode orb") || lower.includes("jadi slime") || lower.includes("meleleh") || lower.includes("memantul") || lower.includes("berputar") || lower.includes("bergerak cepat") || lower.includes("ke kiri") || lower.includes("ke kanan") || lower.includes("ke tengah")) {
       if (lower.includes("slime")) setOrbMode("slime");
@@ -1059,7 +1098,7 @@ export default function Home() {
           const list = await res.json();
           setViewerLoading(false);
           setNews(list);
-          setView({ title: `Berita: ${searchQuery}`, url: "", note: "Menampilkan berita terhangat." });
+          setView({ title: `Berita: ${searchQuery}`, url: "", note: list.length ? "Menampilkan berita terhangat. Bilang: buka nomor satu." : "Tidak ada berita ditemukan." });
           setViewerState('open');
         autoMinimizeChat();
           return `Oke, saya buka jendela browser untuk menampilkan berita tentang "${searchQuery}".`;
@@ -1105,7 +1144,7 @@ export default function Home() {
         const list = res?.ok ? await res.json() : [];
         setViewerLoading(false);
         setNews(list);
-        setView({ title: `${kind.toUpperCase()}: ${query}`, url: "", note: list.length ? "Hasil pencarian. Klik untuk buka sumber asli." : "Tidak ada hasil." });
+        setView({ title: `${kind.toUpperCase()}: ${query}`, url: "", note: list.length ? "Hasil pencarian. Bilang: buka nomor satu." : "Tidak ada hasil." });
         setViewerState('open');
         autoMinimizeChat();
         return list.length ? `Saya menemukan hasil ${kind} tentang "${query}".` : `Saya belum menemukan hasil untuk "${query}".`;
@@ -1355,7 +1394,9 @@ export default function Home() {
             
             {view.url && <iframe src={view.url} className="viewer-frame" title={view.title} onLoad={() => setViewerLoading(false)} />}
             
-            {news.length > 0 && (
+            {articleText && <article className="article-view">{articleText}</article>}
+
+            {!articleText && news.length > 0 && (
               <div className="news-list">
                 {news.map((item, i) => {
                   const localFile = files.find((f) => f.path === item.title);
