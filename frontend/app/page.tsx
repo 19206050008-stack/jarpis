@@ -173,6 +173,9 @@ export default function Home() {
   async function speakLine(text: string) {
     const clean = cleanText(text);
     if (!clean) return;
+
+    // instant visual trigger
+    setIsAiSpeaking(true);
     
     // Auxiliary function to run when audio starts playing
     const playTypingEffect = () => {
@@ -182,7 +185,6 @@ export default function Home() {
       const intervalTyping = setInterval(() => {
         if (i >= words.length) {
           clearInterval(intervalTyping);
-          setTimeout(() => setSubtitle(""), 1200); // auto-hide bubble after done speaking
           return;
         }
         setSubtitle((prev) => (prev ? prev + " " + words[i] : words[i]));
@@ -193,9 +195,14 @@ export default function Home() {
       const cleanup = () => {
         clearInterval(intervalTyping);
         setSubtitle("");
-        audioRef.current?.removeEventListener("ended", cleanup);
-        audioRef.current?.removeEventListener("pause", cleanup);
+        setIsAiSpeaking(false);
+        if (audioRef.current) {
+          audioRef.current.removeEventListener("ended", cleanup);
+          audioRef.current.removeEventListener("pause", cleanup);
+        }
       };
+      
+      // Let the subtitle stay fully visible until audio ends or pauses
       audioRef.current?.addEventListener("ended", cleanup);
       audioRef.current?.addEventListener("pause", cleanup);
     };
@@ -203,7 +210,6 @@ export default function Home() {
     if (!speakEnabled || !apiUrl) {
       // Offline fallback: play typing immediately
       playTypingEffect();
-      setIsAiSpeaking(true);
       setTimeout(() => {
         setIsAiSpeaking(false);
         setSubtitle("");
@@ -229,15 +235,22 @@ export default function Home() {
         body: JSON.stringify({ text: clean.slice(0, 700), speaker }),
       });
       if (speakRes.ok) {
-        const blob = await speakRes.blob();
+        const blob = await speakRes.ok ? await speakRes.blob() : null;
+        if (!blob) {
+          setIsAiSpeaking(false);
+          return;
+        }
         const url = URL.createObjectURL(blob);
         ttsCacheRef.current.set(key, url);
         setAudioUrl(url);
         setTimeout(() => {
           playTypingEffect();
         }, 50);
+      } else {
+        setIsAiSpeaking(false);
       }
     } catch (ttsErr) {
+      setIsAiSpeaking(false);
       console.error("TTS failed", ttsErr);
     }
   }
