@@ -173,11 +173,13 @@
 .orb-equalizer.locked{cursor:default;touch-action:auto}
 .orb-equalizer.movable{cursor:grab}
 .orb-equalizer.movable:active{cursor:grabbing}
-/* Hide side labels; mini orb keeps only core + equalizer. */
+/* Hide side text everywhere; hide orbit effects only on mobile mini mode. */
 .hud-readout{opacity:0}
-.center-container.orb-mini .jarvis-hud,
-.center-container.orb-mini .hud-readout,
-.center-container.orb-mini .jarvis-glow,
-.center-container.orb-chat-open .jarvis-hud,
-.center-container.orb-chat-open .hud-readout,
-.center-container.orb-chat-open .jarvis-glow{display:none!important}
+@media(max-width:800px){
+  .center-container.orb-mini .jarvis-hud,
+  .center-container.orb-mini .hud-readout,
+  .center-container.orb-mini .jarvis-glow,
+  .center-container.orb-chat-open .jarvis-hud,
+  .center-container.orb-chat-open .hud-readout,
+  .center-container.orb-chat-open .jarvis-glow{display:none!important}
+}
