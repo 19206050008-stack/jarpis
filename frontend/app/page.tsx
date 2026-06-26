@@ -92,6 +92,7 @@ export default function Home() {
   // Popup States: 'closed' | 'open' | 'minimized'
   const [chatState, setChatState] = useState<'closed' | 'open' | 'minimized'>('closed');
   const [viewerState, setViewerState] = useState<'closed' | 'open' | 'minimized'>('closed');
+  const [viewerFullscreen, setViewerFullscreen] = useState(false);
   const [viewerLoading, setViewerLoading] = useState(false);
   const [popupPos, setPopupPos] = useState({ chat: { x: 40, y: 40 }, viewer: { x: 0, y: 40 } });
   
@@ -636,24 +637,29 @@ export default function Home() {
       return `Saya membuka website ${rest} di viewer Anta.`;
     }
 
-    // berita / cari berita
-    if ((cmd === "berita" || (cmd === "cari" && rest.toLowerCase().startsWith("berita"))) && rest) {
-      const query = rest.toLowerCase().startsWith("berita") ? rest.replace(/^berita\s*/i, "") : rest;
+    // berita / cari berita — natural language matching
+    const beritaMatch = lower.match(/(?:carikan|cari|tampilkan|kasih|beri|tolong.*?(?:cari|carikan))?\s*berita\s*(.*)/i);
+    if (beritaMatch || (cmd === "berita" && rest)) {
+      const query = beritaMatch ? (beritaMatch[1] || "Indonesia hari ini").trim() : rest;
+      if (!query) {
+        // fallback query
+      }
       try {
-        const res = await fetch(`${apiUrl}/news?q=${encodeURIComponent(query)}`);
+        const searchQuery = query || "Indonesia hari ini";
+        const res = await fetch(`${apiUrl}/news?q=${encodeURIComponent(searchQuery)}`);
         if (res.ok) {
           const list = await res.json();
           setViewerLoading(false);
           setNews(list);
-          setView({ title: `Berita: ${query}`, url: "", note: "Menampilkan 10 berita terhangat." });
+          setView({ title: `Berita: ${searchQuery}`, url: "", note: "Menampilkan berita terhangat." });
           setViewerState('open');
-          return `Oke, akan saya cari berita tentang ${query}. Apakah kamu ingin saya membacakan atau melihat berita yang sudah muncul?`;
+          return `Oke, saya buka jendela browser untuk menampilkan berita tentang "${searchQuery}". Orb akan mengecil ke samping.`;
         }
       } catch (err) {
         console.error("News fetch error", err);
       }
       setViewerLoading(false);
-      return `Maaf, saya gagal mencari berita tentang ${query}.`;
+      return `Maaf, saya gagal mencari berita. Coba lagi nanti ya.`;
     }
 
     // /lagu / musik
@@ -780,7 +786,7 @@ export default function Home() {
       )}
 
       {/* Background Equalizer Visualizer */}
-      <div className={`center-container ${orbSide}`} style={{ "--orb-x": `${orbOffset.x}px`, "--orb-y": `${orbOffset.y}px` } as CSSProperties}>
+      <div className={`center-container ${orbSide} ${viewerState === 'open' && viewerFullscreen ? 'orb-mini' : ''}`} style={{ "--orb-x": `${orbOffset.x}px`, "--orb-y": `${orbOffset.y}px` } as CSSProperties}>
         <div
           ref={orbRef}
           className={`orb-equalizer ${orbMode} ${orbDragging ? 'dragging' : ''} ${orbShake ? 'shake' : ''} ${isAiSpeaking ? 'active' : ''}`}
@@ -831,11 +837,12 @@ export default function Home() {
 
       {/* Popup 2: Website & Media Viewer */}
       {viewerState === 'open' && (
-        <section className="popup-window viewer-window" style={{ left: popupPos.viewer.x || undefined, right: popupPos.viewer.x ? undefined : 40, top: popupPos.viewer.y }}>
-          <header className="window-header" onPointerDown={(e) => { if (window.innerWidth > 800 && !(e.target instanceof Element && e.target.closest('.controls'))) startPopupDrag("viewer", e); }} onPointerMove={movePopup} onPointerUp={stopPopupDrag}>
+        <section className={`popup-window viewer-window ${viewerFullscreen ? 'viewer-fullscreen' : ''}`} style={viewerFullscreen ? undefined : { left: popupPos.viewer.x || undefined, right: popupPos.viewer.x ? undefined : 40, top: popupPos.viewer.y }}>
+          <header className="window-header" onPointerDown={(e) => { if (window.innerWidth > 800 && !viewerFullscreen && !(e.target instanceof Element && e.target.closest('.controls'))) startPopupDrag("viewer", e); }} onPointerMove={movePopup} onPointerUp={stopPopupDrag}>
             <span className="title">🌐 Anta Monitor: {view.title || "No Signal"}</span>
             <div className="controls">
-              <button onClick={(e) => { e.stopPropagation(); setViewerState('closed'); }} type="button">×</button>
+              <button onClick={(e) => { e.stopPropagation(); setViewerFullscreen(!viewerFullscreen); }} type="button" title="Fullscreen">⛶</button>
+              <button onClick={(e) => { e.stopPropagation(); setViewerFullscreen(false); setViewerState('closed'); }} type="button">×</button>
             </div>
           </header>
           <div className="viewer-content">
