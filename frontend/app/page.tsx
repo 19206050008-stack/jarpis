@@ -243,7 +243,18 @@ export default function Home() {
   const popupDragRef = useRef({ key: "", x: 0, y: 0, ox: 0, oy: 0 });
   const lastPinchRef = useRef(0);
   const ttsCacheRef = useRef(new Map<string, string>());
-  const seenNewsRef = useRef(new Set<string>());
+  const seenNewsRef = useRef(new Set<string>((() => {
+    try {
+      const stored = localStorage.getItem("anta_seen_news");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        // Clean if stored date is not today
+        if (parsed.date !== new Date().toDateString()) return [];
+        return parsed.links || [];
+      }
+    } catch {}
+    return [];
+  })()));
   const lastActiveAppRef = useRef("");
 
   const voices = useMemo(() => [
@@ -500,6 +511,7 @@ export default function Home() {
             if (isNaN(pubTime) || Date.now() - pubTime > 24 * 60 * 60 * 1000) continue;
           }
           seenNewsRef.current.add(item.link);
+          try { localStorage.setItem("anta_seen_news", JSON.stringify({ date: new Date().toDateString(), links: [...seenNewsRef.current] })); } catch {}
           
           const article = await fetch(`${apiUrl}/article?url=${encodeURIComponent(item.link)}`).then((r) => r.ok ? r.json() : null).catch(() => null);
           const content = (article?.text && !article?.error && article.text.length > 80) ? article.text : "";
@@ -533,7 +545,16 @@ export default function Home() {
       try {
         const unspoken = await getUnspokenNews();
         if (unspoken && unspoken.summary.length > 20) {
+          // Double-check: haven't we spoken this ID already? (localStorage backup)
+          const spokenIds: number[] = JSON.parse(localStorage.getItem("anta_spoken_ids") || "[]");
+          if (spokenIds.includes(unspoken.id)) return;
+          
           await markNewsSpoken(unspoken.id);
+          spokenIds.push(unspoken.id);
+          // Keep only last 50 IDs
+          localStorage.setItem("anta_spoken_ids", JSON.stringify(spokenIds.slice(-50)));
+          
+          void speakLine(unspoken.summary);
           void speakLine(unspoken.summary);
         }
       } catch { /* silent */ }
