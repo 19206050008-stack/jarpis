@@ -50,7 +50,8 @@ function searchUrl(kind: string, query: string, apiUrl: string) {
   const q = encodeURIComponent(query);
   if (kind === "berita") return `${apiUrl}/news?q=${q}`;
   if (kind === "lagu") return `${apiUrl}/videos?q=${q}`;
-  return `${apiUrl}/proxy?url=${q}`;
+  if (kind === "gambar") return `${apiUrl}/proxy?url=${encodeURIComponent(`https://www.google.com/search?q=${q}&tbm=isch`)}`;
+  return `${apiUrl}/proxy?url=${encodeURIComponent(`https://www.google.com/search?q=${q}`)}`;
 }
 
 function quickAck(text: string) {
@@ -644,10 +645,28 @@ export default function Home() {
       return askAi(`Buat balasan singkat untuk pesan ini:\n${rest}`);
     }
 
-    // buka website — natural: "buka youtube.com", "open google.com", "tampilkan detik.com"
-    const bukaMatch = lower.match(/(?:buka|open|tampilkan|bukakan|tolong\s*buka)\s+(.+)/);
+    // buka website — natural: "buka youtube.com", "open google.com", "buk browser"
+    // Also handle typos: "buk" = "buka", "brows" = "browser"
+    const bukaMatch = lower.match(/(?:buk[a]?[k]?[an]?|open|tampilkan|bukakan|tolong\s*buka?)\s+(.+)/);
     if (bukaMatch) {
       const target = bukaMatch[1].trim();
+      
+      // "browser", "google", "internet" = open google.com
+      const browserKeywords = ["browser", "brows", "internet", "google", "web"];
+      if (browserKeywords.some(k => target.includes(k))) {
+        const targetUrl = "https://www.google.com";
+        if (!apiUrl) {
+          window.open(targetUrl, "_blank", "noopener,noreferrer");
+          return `Saya membuka Google di tab baru.`;
+        }
+        const proxied = `${apiUrl}/proxy?url=${encodeURIComponent(targetUrl)}`;
+        setViewerLoading(true);
+        setView({ title: `Google`, url: proxied, note: "Google dimuat via Anta Secure Proxy." });
+        setViewerState('open');
+        setChatState('closed');
+        return `Saya membuka Google di viewer Anta.`;
+      }
+      
       // Check if it looks like a URL/website (has dot or known domain)
       if (target.includes(".") || /^(https?:\/\/|www\.)/.test(target)) {
         const targetUrl = withProtocol(target);
@@ -659,6 +678,7 @@ export default function Home() {
         setViewerLoading(true);
         setView({ title: `Buka: ${target}`, url: proxied, note: "Website dimuat via Anta Secure Proxy." });
         setViewerState('open');
+        setChatState('closed');
         return `Saya membuka website ${target} di viewer Anta.`;
       }
     }
@@ -676,6 +696,7 @@ export default function Home() {
           setNews(list);
           setView({ title: `Berita: ${searchQuery}`, url: "", note: "Menampilkan berita terhangat." });
           setViewerState('open');
+          setChatState('closed');
           return `Oke, saya buka jendela browser untuk menampilkan berita tentang "${searchQuery}".`;
         }
       } catch (err) {
@@ -697,6 +718,7 @@ export default function Home() {
           setVideos(list);
           setView({ title: `Lagu/Video: ${query}`, url: "", note: "Pilih video untuk diputar langsung di panel." });
           setViewerState('open');
+          setChatState('closed');
           return `Oke, saya carikan lagu/video tentang "${query}".`;
         }
       } catch (err) {
@@ -717,6 +739,7 @@ export default function Home() {
       setViewerLoading(true);
       setView({ title: `${kind.toUpperCase()}: ${query}`, url: targetUrl, note: "Pencarian dimuat via Anta Secure Proxy." });
       setViewerState('open');
+      setChatState('closed');
       return `Saya carikan ${kind} tentang "${query}" di viewer Anta.`;
     }
 
