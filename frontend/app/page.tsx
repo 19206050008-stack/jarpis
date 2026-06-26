@@ -819,17 +819,45 @@ export default function Home() {
       if (answer.startsWith("__SPEAK__:")) {
         const topic = answer.replace("__SPEAK__:", "");
         setMessages((m) => [...m, { role: "ai", text: `Oke, saya bacakan ${topic}...` }]);
-        setLoading(false);
         
         // Show typing indicator
-        setMessages((m) => [...m, { role: "ai", text: "Anta sedang mengetik . . ." }]);
+        setMessages((m) => [...m.slice(0, -1), { role: "ai", text: `Oke, saya bacakan ${topic}...` }, { role: "ai", text: "Anta sedang mengetik . . ." }]);
+        setLoading(false);
         
         // Auto minimize chat on mobile
         autoMinimizeChat();
         
-        // Generate content and speak it
-        const content = await askAi(`Bacakan ${topic} dengan lengkap dan jelas. Jangan pakai markdown, jangan pakai simbol atau tanda baca yang aneh. Langsung bacakan saja isinya.`, false);
-        const cleanContent = cleanText(content);
+        // Generate content — use specific prompt that forces AI to output the full text
+        let cleanContent = "";
+        
+        // Strategy 1: Ask AI directly (it should know common texts like Pancasila, Sumpah Pemuda, etc)
+        const aiContent = await askAi(`Tuliskan isi lengkap dari "${topic}" secara verbatim/persis. Jangan tambahkan penjelasan, komentar, atau kata pembuka. Langsung tulis isinya saja dari awal sampai akhir. Jangan pakai markdown, nomor, atau simbol. Pisahkan dengan baris baru jika perlu. Contoh: jika diminta "Pancasila", langsung tulis "Ketuhanan Yang Maha Esa..." dst.`, false);
+        cleanContent = cleanText(aiContent);
+        
+        // Strategy 2: If AI result is too short or looks wrong, try fetching from internet
+        if (!cleanContent || cleanContent.length < 30) {
+          try {
+            if (apiUrl) {
+              const searchRes = await fetch(`${apiUrl}/news?q=${encodeURIComponent(`isi lengkap ${topic}`)}`);
+              const searchItems = searchRes.ok ? await searchRes.json() : [];
+              if (searchItems.length > 0 && searchItems[0].link) {
+                const articleRes = await fetch(`${apiUrl}/article?url=${encodeURIComponent(searchItems[0].link)}`).then((r) => r.ok ? r.json() : null).catch(() => null);
+                if (articleRes?.text && articleRes.text.length > 50) {
+                  // Ask AI to extract the relevant part
+                  const extracted = await askAi(`Dari teks berikut, ambil hanya bagian yang berisi "${topic}" secara lengkap. Jangan tambahkan komentar. Langsung tulis isinya saja:\n\n${articleRes.text.slice(0, 2000)}`, false);
+                  cleanContent = cleanText(extracted);
+                }
+              }
+            }
+          } catch { /* ignore search errors */ }
+        }
+        
+        // Final check
+        if (!cleanContent || cleanContent.length < 30) {
+          setMessages((m) => [...m.slice(0, -1), { role: "ai", text: `Maaf, saya tidak berhasil menemukan isi "${topic}". Coba ulangi dengan kata kunci yang lebih spesifik.` }]);
+          setLoading(false);
+          return;
+        }
         
         // Replace typing indicator with actual content
         setMessages((m) => [...m.slice(0, -1), { role: "ai", text: cleanContent }]);
