@@ -26,6 +26,7 @@ try {
       core: box('.jarvis-core'),
       main: box('.jarvis-ring.main'),
       subtitle: box('.subtitle-bubble'),
+      hud: box('.jarvis-hud'),
       left: box('.hud-readout.left'),
       right: box('.hud-readout.right'),
       bars: { x: minX, y: minY, w: maxX - minX, h: maxY - minY, cx: (minX + maxX) / 2, cy: (minY + maxY) / 2 },
@@ -36,10 +37,10 @@ try {
   const gap = (data.bars.w - data.main.w) / 2;
   if (dist(data.core, data.main) > 1 || dist(data.core, data.bars) > 1) throw new Error(`Orb centers not aligned: ${JSON.stringify(data)}`);
   if (gap < 2 || gap > 14) throw new Error(`Equalizer gap not snug: ${gap}px ${JSON.stringify(data)}`);
-  if (data.left.x + data.left.w > data.orb.x || data.right.x < data.orb.x + data.orb.w) throw new Error(`HUD readouts overlap orb: ${JSON.stringify(data)}`);
-  if (data.subtitle.y < data.orb.y + data.orb.h + 30) throw new Error(`Subtitle too close to orb: ${JSON.stringify(data)}`);
+  if (data.left.x + data.left.w > data.hud.x || data.right.x < data.hud.x + data.hud.w) throw new Error(`HUD readouts overlap circle/HUD: ${JSON.stringify(data)}`);
+  if (data.subtitle.y < data.hud.y + data.hud.h + 20) throw new Error(`Subtitle too close to HUD: ${JSON.stringify(data)}`);
 
-  console.log(`✓ Orb aligned. gap=${gap.toFixed(1)}px subtitleGap=${(data.subtitle.y - data.orb.y - data.orb.h).toFixed(1)}px`);
+  console.log(`✓ Orb aligned. gap=${gap.toFixed(1)}px subtitleHudGap=${(data.subtitle.y - data.hud.y - data.hud.h).toFixed(1)}px`);
 } finally {
   await browser.close();
 }
