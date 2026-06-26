@@ -669,20 +669,44 @@ export default function Home() {
   function startVoiceInput() {
     const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!Recognition) {
-      setInput("Browser ini belum mendukung voice input. Ketik perintah saja.");
+      setSubtitle("Browser ini belum mendukung voice input.");
       return;
     }
     const rec = new Recognition();
     rec.lang = "id-ID";
     rec.interimResults = false;
     rec.continuous = false;
-    rec.onstart = () => setListening(true);
+    rec.onstart = () => {
+      setListening(true);
+      setSubtitle("Mendengarkan...");
+    };
     rec.onend = () => setListening(false);
     rec.onresult = (event) => {
       const text = event.results[0]?.[0]?.transcript || "";
-      if (text) void send(text);
+      if (text) void sendVoice(text);
     };
     rec.start();
+  }
+
+  async function sendVoice(text: string) {
+    if (!text || loading) return;
+    setLoading(true);
+    setSubtitle(text);
+    await saveMessage("user", text);
+
+    try {
+      const rawAnswer = await handle(text);
+      const answer = cleanText(rawAnswer);
+      setSubtitle(answer);
+      await saveMessage("ai", answer);
+      await saveMemory("conversation", `User: ${text}\nAnta: ${answer}`);
+      await speakLine(answer);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : "Error tidak diketahui";
+      setSubtitle(msg);
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function send(value = input) {
