@@ -265,7 +265,7 @@ def speak(req: SpeakRequest):
     if not text:
         raise HTTPException(status_code=400, detail="Teks wajib diisi")
     
-    speaker = (req.speaker or "sari").lower()
+    speaker = (req.speaker or "andi").lower()
     speed = float(req.speed) if req.speed else 1.0
 
     if speaker in SUPERTONIC_VOICES:

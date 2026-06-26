@@ -49,6 +49,7 @@ function quickAck(text: string) {
   if (lower.startsWith("/berita")) return "Baik, saya cari berita terbaru. Setelah muncul, saya bisa bantu ringkas atau bacakan.";
   if (lower.startsWith("/lagu")) return "Baik, saya cari lagu/video yang cocok. Sebentar.";
   if (lower.startsWith("/gambar")) return "Baik, saya cari gambar yang relevan. Sebentar.";
+  if (lower.includes("ganti suara") || lower.includes("ubah suara")) return "Baik, saya ganti suara Jarpis.";
   if (lower.startsWith("/buka")) return "Baik, saya buka websitenya di monitor.";
   return "Baik, saya proses. Saya akan jawab singkat lalu tanya langkah berikutnya.";
 }
@@ -81,7 +82,7 @@ export default function Home() {
   
   // Audio States
   const [audioUrl, setAudioUrl] = useState<string>("");
-  const [speaker, setSpeaker] = useState("sari");
+  const [speaker, setSpeaker] = useState("andi");
   const [speakEnabled, setSpeakEnabled] = useState(true);
   const [isAiSpeaking, setIsAiSpeaking] = useState(false);
   const [listening, setListening] = useState(false);
@@ -187,8 +188,46 @@ export default function Home() {
     setVideos([]);
     setNews([]);
 
-    // /buka website
-    if (["buka", "open"].includes(cmd) && rest) {
+    const voice = voices.find((v) => lower.includes(v.id) || lower.includes(v.label.toLowerCase().split(" ")[0]));
+    if ((lower.includes("ganti suara") || lower.includes("ubah suara")) && voice) {
+      setSpeaker(voice.id);
+      return `Baik, suara Jarpis saya ganti ke ${voice.label}.`;
+    }
+
+    if (lower.includes("minimize") || lower.includes("kecilkan")) {
+      if (lower.includes("monitor") || lower.includes("browser") || lower.includes("website")) setViewerState("minimized");
+      else setChatState("minimized");
+      return "Baik, saya kecilkan panelnya.";
+    }
+
+    if (lower.includes("maximize") || lower.includes("besarkan") || (lower.includes("tampilkan") && !rest)) {
+      if (lower.includes("monitor") || lower.includes("browser") || lower.includes("website") || lower.includes("berita") || lower.includes("lagu")) setViewerState("open");
+      else setChatState("open");
+      return "Baik, saya tampilkan panelnya.";
+    }
+
+    if (lower.includes("buang") || lower.includes("tutup") || lower.includes("close")) {
+      if (lower.includes("monitor") || lower.includes("browser") || lower.includes("website")) setViewerState("closed");
+      else setChatState("closed");
+      return "Baik, saya tutup panelnya.";
+    }
+
+    if (cmd === "download" && rest) {
+      const url = withProtocol(rest);
+      window.open(url, "_blank");
+      return `Baik, saya buka link download ${rest} di tab baru.`;
+    }
+
+    if (cmd === "edit" && rest) {
+      return askAi(`Edit teks ini agar lebih natural dan rapi:\n${rest}`);
+    }
+
+    if (cmd === "balas" && rest) {
+      return askAi(`Buat balasan singkat untuk pesan ini:\n${rest}`);
+    }
+
+    // buka website
+    if (["buka", "open", "tampilkan"].includes(cmd) && rest) {
       const targetUrl = withProtocol(rest);
       const proxied = `${apiUrl}/proxy?url=${encodeURIComponent(targetUrl)}`;
       setView({ title: `Buka: ${rest}`, url: proxied, note: "Website dimuat via Jarpis Secure Proxy." });
@@ -196,47 +235,51 @@ export default function Home() {
       return `Saya membuka website ${rest} di panel kanan.`;
     }
 
-    // /berita
-    if (cmd === "berita" && rest) {
+    // berita / cari berita
+    if ((cmd === "berita" || (cmd === "cari" && rest.toLowerCase().startsWith("berita"))) && rest) {
+      const query = rest.toLowerCase().startsWith("berita") ? rest.replace(/^berita\s*/i, "") : rest;
       try {
-        const res = await fetch(`${apiUrl}/news?q=${encodeURIComponent(rest)}`);
+        const res = await fetch(`${apiUrl}/news?q=${encodeURIComponent(query)}`);
         if (res.ok) {
           const list = await res.json();
           setNews(list);
-          setView({ title: `Berita: ${rest}`, url: "", note: "Menampilkan 10 berita terhangat." });
+          setView({ title: `Berita: ${query}`, url: "", note: "Menampilkan 10 berita terhangat." });
           setViewerState('open');
-          return `Oke, akan saya cari berita tentang ${rest}. Apakah kamu ingin saya membacakan atau melihat berita yang sudah muncul?`;
+          return `Oke, akan saya cari berita tentang ${query}. Apakah kamu ingin saya membacakan atau melihat berita yang sudah muncul?`;
         }
       } catch (err) {
         console.error("News fetch error", err);
       }
-      return `Maaf, saya gagal mencari berita tentang ${rest}.`;
+      return `Maaf, saya gagal mencari berita tentang ${query}.`;
     }
 
     // /lagu / musik
-    if (cmd === "lagu" && rest) {
+    if ((cmd === "lagu" || (cmd === "cari" && rest.toLowerCase().startsWith("lagu"))) && rest) {
+      const query = rest.toLowerCase().startsWith("lagu") ? rest.replace(/^lagu\s*/i, "") : rest;
       try {
-        const res = await fetch(`${apiUrl}/videos?q=${encodeURIComponent(rest)}`);
+        const res = await fetch(`${apiUrl}/videos?q=${encodeURIComponent(query)}`);
         if (res.ok) {
           const list = await res.json();
           setVideos(list);
-          setView({ title: `Lagu/Video: ${rest}`, url: "", note: "Pilih video untuk diputar langsung di panel." });
+          setView({ title: `Lagu/Video: ${query}`, url: "", note: "Pilih video untuk diputar langsung di panel." });
           setViewerState('open');
-          return `Oke, saya carikan lagu/video tentang ${rest}. Apakah kamu ingin saya membacakan atau melihat lagu yang sudah muncul?`;
+          return `Oke, saya carikan lagu/video tentang ${query}. Apakah kamu ingin saya membacakan atau melihat lagu yang sudah muncul?`;
         }
       } catch (err) {
         console.error("Video fetch error", err);
       }
-      return `Maaf, saya gagal mencari video tentang ${rest}.`;
+      return `Maaf, saya gagal mencari video tentang ${query}.`;
     }
 
     // /cari / web
     if (["cari", "web", "gambar"].includes(cmd) && rest) {
-      const kind = cmd === "cari" || cmd === "web" ? "web" : cmd;
-      const targetUrl = searchUrl(kind, rest, apiUrl);
-      setView({ title: `${kind.toUpperCase()}: ${rest}`, url: targetUrl, note: "Pencarian dimuat via Jarpis Secure Proxy." });
+      const isImageSearch = cmd === "gambar" || rest.toLowerCase().startsWith("gambar");
+      const kind = isImageSearch ? "gambar" : cmd === "cari" || cmd === "web" ? "web" : cmd;
+      const query = isImageSearch ? rest.replace(/^gambar\s*/i, "") : rest;
+      const targetUrl = searchUrl(kind, query, apiUrl);
+      setView({ title: `${kind.toUpperCase()}: ${query}`, url: targetUrl, note: "Pencarian dimuat via Jarpis Secure Proxy." });
       setViewerState('open');
-      return `Oke, saya carikan ${kind} tentang ${rest}. Apakah kamu ingin saya membacakan atau melihat hasil yang sudah muncul?`;
+      return `Oke, saya carikan ${kind} tentang ${query}. Apakah kamu ingin saya membacakan atau melihat hasil yang sudah muncul?`;
     }
 
     // normal chat
