@@ -605,6 +605,14 @@ export default function Home() {
     }
   }
 
+  // Startup greeting — orb says hello after mount
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      void speakLine("Anta online. Siap membantu.");
+    }, 2500);
+    return () => clearTimeout(timer);
+  }, []);
+
   // Realtime, lightweight Web Audio analyser for the Jarvis orb.
   useEffect(() => {
     const el = audioRef.current;
@@ -1384,7 +1392,7 @@ export default function Home() {
         >
           <AntaOrb3D active={isAiSpeaking} level={audioLevel} />
         </div>
-        {isAiSpeaking && subtitle && <div className={`subtitle-bubble ${isOrderedText(subtitle) ? 'align-left' : ''}`}>{subtitle}</div>}
+        {subtitle && <div className={`subtitle-bubble ${isOrderedText(subtitle) ? 'align-left' : ''}`}>{subtitle}</div>}
 
         {/* Orbit Menu — inside center-container so it follows orb animations */}
         <nav className={`dock ${chatState === 'closed' && viewerState === 'closed' ? 'orbit-menu' : 'popup-dock'}`}>
