@@ -612,9 +612,11 @@ export default function Home() {
     // buka website
     if (["buka", "open", "tampilkan"].includes(cmd) && rest) {
       const targetUrl = withProtocol(rest);
-      // Open directly in new tab instead of proxy for better compatibility
-      window.open(targetUrl, "_blank", "noopener,noreferrer");
-      return `Saya membuka ${rest} di tab baru browser.`;
+      const proxied = `${apiUrl}/proxy?url=${encodeURIComponent(targetUrl)}`;
+      setViewerLoading(true);
+      setView({ title: `Buka: ${rest}`, url: proxied, note: "Website dimuat via Anta Secure Proxy." });
+      setViewerState('open');
+      return `Saya membuka website ${rest} di viewer Anta.`;
     }
 
     // berita / cari berita
@@ -662,12 +664,11 @@ export default function Home() {
       const isImageSearch = cmd === "gambar" || rest.toLowerCase().startsWith("gambar");
       const kind = isImageSearch ? "gambar" : cmd === "cari" || cmd === "web" ? "web" : cmd;
       const query = isImageSearch ? rest.replace(/^gambar\s*/i, "") : rest;
-      // Open Google search in new tab
-      const searchUrl = isImageSearch 
-        ? `https://www.google.com/search?q=${encodeURIComponent(query)}&tbm=isch`
-        : `https://www.google.com/search?q=${encodeURIComponent(query)}`;
-      window.open(searchUrl, "_blank", "noopener,noreferrer");
-      return `Saya buka pencarian ${kind} tentang "${query}" di tab baru.`;
+      const targetUrl = searchUrl(kind, query, apiUrl);
+      setViewerLoading(true);
+      setView({ title: `${kind.toUpperCase()}: ${query}`, url: targetUrl, note: "Pencarian dimuat via Anta Secure Proxy." });
+      setViewerState('open');
+      return `Saya carikan ${kind} tentang "${query}" di viewer Anta.`;
     }
 
     // normal chat

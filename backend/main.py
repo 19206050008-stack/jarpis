@@ -207,19 +207,49 @@ def get_agent_state():
 async def web_proxy(url: str):
     if not url.startswith(("http://", "https://")):
         url = "https://" + url
-    async with httpx.AsyncClient(follow_redirects=True, timeout=15) as client:
+    async with httpx.AsyncClient(follow_redirects=True, timeout=30, verify=False) as client:
         try:
-            headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+                "Accept-Language": "id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7",
+                "Accept-Encoding": "gzip, deflate",
+            }
             res = await client.get(url, headers=headers)
             content = res.text
+            
+            # Inject base tag and CSP relaxation
             base_tag = f'<base href="{url}">'
+            csp_meta = '<meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">'
+            inject = base_tag + csp_meta
+            
             if "<head>" in content:
-                content = content.replace("<head>", f"<head>{base_tag}", 1)
+                content = content.replace("<head>", f"<head>{inject}", 1)
+            elif "<html>" in content:
+                content = content.replace("<html>", f"<html><head>{inject}</head>", 1)
             else:
-                content = base_tag + content
-            return Response(content=content, media_type="text/html")
+                content = inject + content
+            
+            return Response(content=content, media_type="text/html", headers={
+                "Access-Control-Allow-Origin": "*",
+                "X-Frame-Options": "ALLOWALL",
+                "Content-Security-Policy": "frame-ancestors *"
+            })
         except Exception as e:
-            return Response(content=f"<h3>Gagal memuat halaman via Anta Secure Proxy:</h3><p>{e}</p>", status_code=500)
+            error_html = f'''<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Error</title></head>
+<body style="font-family:Arial;padding:40px;background:#0a0e27;color:#67e8f9;">
+<h2 style="color:#22d3ee;">❌ Gagal memuat: {url}</h2>
+<p><strong>Error:</strong> {str(e)}</p>
+<p style="color:#94a3b8;">Kemungkinan penyebab:</p>
+<ul style="color:#94a3b8;">
+<li>Website memblokir akses via proxy</li>
+<li>Timeout atau koneksi lambat</li>
+<li>URL tidak valid</li>
+</ul>
+<button onclick="window.open('{url}', '_blank')" style="padding:10px 20px;background:#0891b2;color:white;border:0;border-radius:8px;cursor:pointer;margin-top:20px;">Buka di Tab Baru</button>
+</body></html>'''
+            return Response(content=error_html, media_type="text/html", status_code=500)
 
 
 @app.get("/news")
