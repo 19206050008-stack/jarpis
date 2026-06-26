@@ -758,10 +758,6 @@ export default function Home() {
       await saveMessage("ai", answer);
       await saveMemory("conversation", `User: ${text}\nAnta: ${answer}`);
       setLoading(false);
-      
-      // Show in subtitle for context
-      setSubtitle(answer);
-      setTimeout(() => setSubtitle(""), 5000);
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Error tidak diketahui";
       setMessages((m) => [...m, { role: "ai", text: msg }]);
