@@ -612,6 +612,11 @@ export default function Home() {
     // buka website
     if (["buka", "open", "tampilkan"].includes(cmd) && rest) {
       const targetUrl = withProtocol(rest);
+      if (!apiUrl) {
+        // Fallback: open in new tab if no API URL configured
+        window.open(targetUrl, "_blank", "noopener,noreferrer");
+        return `Saya membuka ${rest} di tab baru (proxy backend tidak tersedia).`;
+      }
       const proxied = `${apiUrl}/proxy?url=${encodeURIComponent(targetUrl)}`;
       setViewerLoading(true);
       setView({ title: `Buka: ${rest}`, url: proxied, note: "Website dimuat via Anta Secure Proxy." });
