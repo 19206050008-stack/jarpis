@@ -188,6 +188,21 @@ Jarpis:"""
     return StreamingResponse(generator, media_type="text/plain; charset=utf-8")
 
 
+# Shared state for local agent
+agent_state = {"title": "", "process": ""}
+
+@app.post("/agent/state")
+def update_agent_state(payload: dict):
+    global agent_state
+    agent_state["title"] = payload.get("title", "")
+    agent_state["process"] = payload.get("process", "")
+    return {"status": "ok"}
+
+@app.get("/agent/state")
+def get_agent_state():
+    return agent_state
+
+
 @app.get("/proxy")
 async def web_proxy(url: str):
     if not url.startswith(("http://", "https://")):

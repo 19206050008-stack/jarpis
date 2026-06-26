@@ -113,6 +113,7 @@ export default function Home() {
   const lastPinchRef = useRef(0);
   const ttsCacheRef = useRef(new Map<string, string>());
   const seenNewsRef = useRef(new Set<string>());
+  const lastActiveAppRef = useRef("");
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
 
   const voices = useMemo(() => [
@@ -229,6 +230,27 @@ export default function Home() {
       void audioContext.close();
     };
   }, [audioUrl]);
+
+  useEffect(() => {
+    if (!apiUrl) return;
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`${apiUrl}/agent/state`);
+        if (res.ok) {
+          const state = await res.json();
+          if (state.process && state.process !== "unknown" && state.process !== lastActiveAppRef.current) {
+            lastActiveAppRef.current = state.process;
+            // Generate custom response based on the active app detected
+            const phrase = await askAi(`Kamu Jarpis. User baru saja membuka/fokus ke aplikasi '${state.process}' (judul window: '${state.title}'). Buat satu kalimat sapaan cerdas dan humoris terkait hal ini secara spontan. Jangan pakai markdown/kutipan. Maksimal 1 kalimat.`, false);
+            void speakLine(phrase);
+          }
+        }
+      } catch (err) {
+        console.error("Agent state poll failed", err);
+      }
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [apiUrl, speaker, speakEnabled]);
 
   useEffect(() => {
     if (loading || isAiSpeaking || listening) return;
