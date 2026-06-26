@@ -7,7 +7,7 @@ const BARS = Array.from({ length: 96 }, (_, i) => i);
 export default function AntaOrb3D({ active, level = 0 }: { active: boolean; level?: number }) {
   const safeLevel = Math.min(1, Math.max(0, level));
   const center = 110;
-  const inner = 72;
+  const inner = 66;
 
   return (
     <div className={`jarvis-orb ${active ? "speaking" : ""}`} style={{ "--level": safeLevel } as CSSProperties}>
@@ -16,7 +16,7 @@ export default function AntaOrb3D({ active, level = 0 }: { active: boolean; leve
         {BARS.map((i) => {
           const a = (i / BARS.length) * Math.PI * 2 - Math.PI / 2;
           const weight = i % 8 === 0 ? 1.35 : i % 3 === 0 ? 1.05 : 0.75;
-          const h = 5 + safeLevel * 18 * weight;
+          const h = 4 + safeLevel * 10 * weight;
           const x1 = center + Math.cos(a) * inner;
           const y1 = center + Math.sin(a) * inner;
           const x2 = center + Math.cos(a) * (inner + h);
