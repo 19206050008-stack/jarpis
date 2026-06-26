@@ -808,7 +808,7 @@ export default function Home() {
     setInput("");
     setLoading(true);
     setChatState('open');
-    setMessages((m) => [...m, { role: "user", text }]);
+    setMessages((m) => [...m, { role: "user", text }, { role: "ai", text: "Anta sedang mengetik . . ." }]);
     await saveMessage("user", text);
 
     try {
@@ -869,14 +869,14 @@ export default function Home() {
         return;
       }
       
-      // Immediately add to messages without waiting for TTS
-      setMessages((m) => [...m, { role: "ai", text: answer }]);
+      // Replace typing indicator with actual answer
+      setMessages((m) => [...m.slice(0, -1), { role: "ai", text: answer }]);
       await saveMessage("ai", answer);
       await saveMemory("conversation", `User: ${text}\nAnta: ${answer}`);
       setLoading(false);
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Error tidak diketahui";
-      setMessages((m) => [...m, { role: "ai", text: msg }]);
+      setMessages((m) => [...m.slice(0, -1), { role: "ai", text: msg }]);
       setLoading(false);
     }
   }
@@ -936,7 +936,7 @@ export default function Home() {
           </header>
           
           <div className="chat">
-            {messages.map((msg, i) => <div key={i} className={`msg ${msg.role}`}>{msg.text}</div>)}
+            {messages.map((msg, i) => <div key={i} className={`msg ${msg.role} ${msg.text === "Anta sedang mengetik . . ." ? "typing" : ""}`}>{msg.text}</div>)}
           </div>
 
           <form className="form" onSubmit={(e) => { e.preventDefault(); send(); }}>
