@@ -486,14 +486,20 @@ export default function Home() {
     orbRef.current?.style.setProperty("--pull-x", "1");
     orbRef.current?.style.setProperty("--pull-y", "1");
     if (drag.moved) {
+      // Cubit/drag: trigger AI response only if not speaking/loading and cooldown 8s
       const now = Date.now();
-      if (now - lastPinchRef.current > 2200) {
+      if (!isAiSpeaking && !loading && now - lastPinchRef.current > 8000) {
         lastPinchRef.current = now;
         void askAi(`Kamu Anta. User baru saja menarik badan orb-mu seperti karet. Buat satu reaksi spontan lucu, pendek, tidak generik, jangan ulangi kalimat sebelumnya. Waktu: ${Date.now()}`, false).then(speakLine);
       }
     } else {
-      setOrbShake(true);
-      window.setTimeout(() => setOrbShake(false), 450);
+      // Tap: hanya visual shake, throttle 3 detik, tanpa AI call
+      const now = Date.now();
+      if (now - lastPinchRef.current > 3000) {
+        lastPinchRef.current = now;
+        setOrbShake(true);
+        window.setTimeout(() => setOrbShake(false), 450);
+      }
     }
   }
 
