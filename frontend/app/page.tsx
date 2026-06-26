@@ -138,6 +138,7 @@ export default function Home() {
   ], []);
 
   function cleanText(text: string) {
+    if (!text || text === "undefined" || text.includes("undefined")) return "";
     return text
       .replace(/[\*\#\"`]/g, "") // strip markdown * # ` "
       .replace(/\/[a-zA-Z0-9_\-]+/g, "") // strip debug commands like /debug
@@ -146,6 +147,7 @@ export default function Home() {
 
   async function speakLine(text: string) {
     const clean = cleanText(text);
+    if (!clean) return;
     
     // Auxiliary function to run when audio starts playing
     const playTypingEffect = () => {
@@ -155,6 +157,7 @@ export default function Home() {
       const intervalTyping = setInterval(() => {
         if (i >= words.length) {
           clearInterval(intervalTyping);
+          setTimeout(() => setSubtitle(""), 1200); // auto-hide bubble after done speaking
           return;
         }
         setSubtitle((prev) => (prev ? prev + " " + words[i] : words[i]));
