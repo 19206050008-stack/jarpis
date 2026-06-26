@@ -880,12 +880,16 @@ export default function Home() {
         void askAi(`Kamu Anta. User baru saja menarik badan orb-mu seperti karet. Buat satu reaksi spontan lucu, pendek, tidak generik, jangan ulangi kalimat sebelumnya. Waktu: ${Date.now()}`, false).then(speakLine);
       }
     } else {
-      // Tap: hanya visual shake, throttle 3 detik, tanpa AI call
-      const now = Date.now();
-      if (now - lastPinchRef.current > 3000) {
-        lastPinchRef.current = now;
-        setOrbShake(true);
-        window.setTimeout(() => setOrbShake(false), 450);
+      // Tap: on mobile open chat, on desktop just shake
+      if (window.innerWidth <= 800) {
+        setChatState(chatState === 'open' ? 'closed' : 'open');
+      } else {
+        const now = Date.now();
+        if (now - lastPinchRef.current > 3000) {
+          lastPinchRef.current = now;
+          setOrbShake(true);
+          window.setTimeout(() => setOrbShake(false), 450);
+        }
       }
     }
   }
@@ -1405,6 +1409,9 @@ export default function Home() {
 
           <form className="form" onSubmit={(e) => { e.preventDefault(); send(); }}>
             <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ketik pesan, berita, lagu, cari..." />
+            <button className={`voice-btn-mobile ${listening ? 'active' : ''}`} type="button" onClick={startVoiceInput} title="Suara">
+              <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" strokeWidth="2" fill="none"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path></svg>
+            </button>
             <button disabled={loading || !input.trim()}>{loading ? "..." : "Kirim"}</button>
           </form>
 
