@@ -68,7 +68,9 @@ async function askAi(text: string, cache = true) {
   const key = `anta:${text}`;
   const cached = cache ? localStorage.getItem(key) : null;
   if (cached) return cached;
-  const prompt = `Kamu Anta, asisten AI universal yang cerdas. Jawab dengan kalimat natural seperti manusia mengobrol biasa tanpa menyebutkan statusmu sebagai bot/AI. Jangan pernah memakai tanda baca markdown (seperti bintang *, pagar #, dsb), kutipan aneh (\"), atau sintaks debug/command. Bersihkan semua teks dari karakter tersebut sebelum membalas. Akhiri dengan satu pertanyaan lanjutan yang santai.\n\nUser: ${text}`;
+  const prompt = `Kamu Anta, asisten AI yang natural dan ramah. Jawab dengan gaya bicara santai seperti teman ngobrol biasa. Jangan gunakan markdown, jangan sebut dirimu sebagai AI/bot. Jawab langsung sesuai konteks.
+
+User: ${text}`;
   const url = `https://text.pollinations.ai/prompt/${encodeURIComponent(prompt)}?model=openai`;
   const res = await fetch(url);
   if (!res.ok) throw new Error("AI tidak menjawab");
@@ -172,7 +174,8 @@ export default function Home() {
   function cleanText(text: string) {
     if (!text || text === "undefined" || text.includes("undefined")) return "";
     return text
-      .replace(/\\n/g, "\n") // replace escaped literal newlines \\n with real newlines
+      .replace(/\\+n/g, "\n") // replace \n, \\n, \\\n etc with real newline
+      .replace(/\\+/g, "") // strip remaining backslashes
       .replace(/[\*\#\"`]/g, "") // strip markdown * # ` "
       .replace(/\/(?=[a-zA-Z])/g, "") // strip forward slash before letters (command-like)
       .trim();
