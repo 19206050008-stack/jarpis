@@ -546,45 +546,51 @@ export default function Home() {
         // Only fetch if bank has 5 or fewer unspoken items
         if (bankCount > 5) return;
         
-        const topics = ["Indonesia terbaru", "teknologi", "Yogyakarta", "ekonomi Indonesia", "olahraga Indonesia", "hiburan Indonesia"];
-        const topic = topics[Math.floor(Math.random() * topics.length)];
-        const credible = "(site:kompas.com OR site:tempo.co OR site:detik.com OR site:tribunnews.com OR site:antaranews.com)";
-        const res = await fetch(`${apiUrl}/news?q=${encodeURIComponent(`${topic} berita ${credible}`)}`);
-        const items = res.ok ? await res.json() : [];
-        
-        // Only process 2-3 random items per fetch (not too many)
-        const shuffled = items.sort(() => Math.random() - 0.5).slice(0, 3);
-        
-        for (const item of shuffled) {
-          if (!item.link || seenNewsRef.current.has(item.link)) continue;
-          if (item.pubDate) {
-            const pubTime = new Date(item.pubDate).getTime();
-            if (isNaN(pubTime) || Date.now() - pubTime > 24 * 60 * 60 * 1000) continue;
+        const topics = ["Indonesia terbaru", "teknologi terbaru", "Yogyakarta hari ini", "ekonomi Indonesia", "olahraga Indonesia", "hiburan Indonesia", "pendidikan Indonesia", "kesehatan", "startup Indonesia", "cuaca Indonesia"];
+        // Try up to 2 different topics to find fresh news
+        for (let topicAttempt = 0; topicAttempt < 2; topicAttempt++) {
+          const topic = topics[Math.floor(Math.random() * topics.length)];
+          const res = await fetch(`${apiUrl}/news?q=${encodeURIComponent(`${topic} berita terbaru`)}`);
+          const items = res.ok ? await res.json() : [];
+          
+          // Process 3-4 random items per fetch
+          const shuffled = items.sort(() => Math.random() - 0.5).slice(0, 4);
+          let addedAny = false;
+          
+          for (const item of shuffled) {
+            if (!item.link || seenNewsRef.current.has(item.link)) continue;
+            if (item.pubDate) {
+              const pubTime = new Date(item.pubDate).getTime();
+              if (isNaN(pubTime) || Date.now() - pubTime > 24 * 60 * 60 * 1000) continue;
+            }
+            seenNewsRef.current.add(item.link);
+            try { localStorage.setItem("anta_seen_news", JSON.stringify({ date: new Date().toDateString(), links: [...seenNewsRef.current].slice(-100) })); } catch {}
+          
+            const article = await fetch(`${apiUrl}/article?url=${encodeURIComponent(item.link)}`).then((r) => r.ok ? r.json() : null).catch(() => null);
+            const content = (article?.text && !article?.error && article.text.length > 80) ? article.text : "";
+            if (!content && (!item.title || item.title.length < 15)) continue;
+          
+            const source = item.source || (() => { try { return new URL(item.link).hostname.replace("www.", ""); } catch { return "media Indonesia"; } })();
+          
+            const prompt = content
+              ? `Kamu Anta, AI asisten. Rangkum berita berikut menjadi 2-3 kalimat ringkas dengan gaya natural seperti teman ngobrol. JANGAN tampilkan judul asli. Parafrase seluruhnya dengan kata-katamu sendiri. Di akhir tambahkan: "(Sumber: ${source})". Jangan pakai markdown.\n\nIsi berita: ${content.slice(0, 1200)}`
+              : `Kamu Anta, AI asisten. Sampaikan berita dengan judul "${item.title}" dalam 2 kalimat dengan gaya santai seperti teman yang ngasih tau berita. Jangan tampilkan judul asli, parafrase dengan kata-katamu. Di akhir tambahkan: "(Sumber: ${source})". Jangan pakai markdown.`;
+          
+            const summary = await askAi(prompt, false);
+            const summaryLower = summary.toLowerCase();
+            if (summaryLower.includes("javascript") || summaryLower.includes("undefined") || summaryLower.includes("error") || summary.length < 20) continue;
+          
+            await saveNewsToBank(item.title || "", source, item.link, summary);
+            addedAny = true;
           }
-          seenNewsRef.current.add(item.link);
-          try { localStorage.setItem("anta_seen_news", JSON.stringify({ date: new Date().toDateString(), links: [...seenNewsRef.current] })); } catch {}
           
-          const article = await fetch(`${apiUrl}/article?url=${encodeURIComponent(item.link)}`).then((r) => r.ok ? r.json() : null).catch(() => null);
-          const content = (article?.text && !article?.error && article.text.length > 80) ? article.text : "";
-          if (!content && (!item.title || item.title.length < 15)) continue;
-          
-          const source = item.source || (() => { try { return new URL(item.link).hostname.replace("www.", ""); } catch { return "media Indonesia"; } })();
-          
-          const prompt = content
-            ? `Kamu Anta, AI asisten. Rangkum berita berikut menjadi 2-3 kalimat ringkas dengan gaya natural seperti teman ngobrol. JANGAN tampilkan judul asli. Parafrase seluruhnya dengan kata-katamu sendiri. Di akhir tambahkan: "(Sumber: ${source})". Jangan pakai markdown.\n\nIsi berita: ${content.slice(0, 1200)}`
-            : `Kamu Anta, AI asisten. Sampaikan berita dengan judul "${item.title}" dalam 2 kalimat dengan gaya santai seperti teman yang ngasih tau berita. Jangan tampilkan judul asli, parafrase dengan kata-katamu. Di akhir tambahkan: "(Sumber: ${source})". Jangan pakai markdown.`;
-          
-          const summary = await askAi(prompt, false);
-          const summaryLower = summary.toLowerCase();
-          if (summaryLower.includes("javascript") || summaryLower.includes("undefined") || summaryLower.includes("error") || summary.length < 20) continue;
-          
-          await saveNewsToBank(item.title || "", source, item.link, summary);
+          if (addedAny) break; // Got some news, stop trying more topics
         }
       } catch { /* silent */ }
     };
     
-    // First fetch after 30s, then every 5 min (± 1 min random)
-    const firstTimer = window.setTimeout(fetchNews, 30000);
+    // First fetch after 10s, then every 5 min (± 1 min random)
+    const firstTimer = window.setTimeout(fetchNews, 10000);
     const interval = window.setInterval(fetchNews, 300000 + Math.floor(Math.random() * 60000));
     return () => { window.clearTimeout(firstTimer); window.clearInterval(interval); };
   }, [apiUrl]);
