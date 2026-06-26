@@ -42,7 +42,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [view, setView] = useState<View>({ title: "", url: "", note: "" });
   const [videos, setVideos] = useState<{ id: string; title: string; url: string }[]>([]);
-  const [news, setNews] = useState<{ title: string; link: string; source: string }[]>([]);
+  const [news, setNews] = useState<{ title: string; link: string; source: string; pubDate?: string }[]>([]);
   
   // Popup States: 'closed' | 'open' | 'minimized'
   const [chatState, setChatState] = useState<'closed' | 'open' | 'minimized'>('open');
