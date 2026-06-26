@@ -1375,8 +1375,8 @@ export default function Home() {
           <div className="ring ring-2" />
           <div className="ring ring-1" />
           <AntaOrb3D active={isAiSpeaking} level={audioLevel} />
-          {subtitle && <div className={`subtitle-bubble ${isOrderedText(subtitle) ? 'align-left' : ''}`}>{subtitle}</div>}
         </div>
+        {subtitle && <div className={`subtitle-bubble ${isOrderedText(subtitle) ? 'align-left' : ''}`}>{subtitle}</div>}
 
         {/* Orbit Menu — inside center-container so it follows orb animations */}
         <nav className={`dock ${chatState === 'closed' && viewerState === 'closed' ? 'orbit-menu' : 'popup-dock'}`}>
