@@ -735,17 +735,18 @@ export default function Home() {
     try {
       const rawAnswer = await handle(text);
       const answer = cleanText(rawAnswer);
+      // Immediately add to messages without waiting for TTS
       setMessages((m) => [...m, { role: "ai", text: answer }]);
-      setSubtitle(answer);
       await saveMessage("ai", answer);
       await saveMemory("conversation", `User: ${text}\nAnta: ${answer}`);
-
-      // Don't auto-play TTS in text chat mode
-      // User can manually enable TTS via checkbox
+      setLoading(false);
+      
+      // Show in subtitle for context
+      setSubtitle(answer);
+      setTimeout(() => setSubtitle(""), 5000);
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Error tidak diketahui";
       setMessages((m) => [...m, { role: "ai", text: msg }]);
-    } finally {
       setLoading(false);
     }
   }
