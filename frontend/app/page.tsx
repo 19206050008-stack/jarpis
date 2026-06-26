@@ -425,6 +425,7 @@ export default function Home() {
   const [orbOffset, setOrbOffset] = useState({ x: 0, y: 0 });
   const [orbShake, setOrbShake] = useState(false);
   const [orbDragging, setOrbDragging] = useState(false);
+  const [orbMoveEnabled, setOrbMoveEnabled] = useState(false);
   const [agentAccepted, setAgentAccepted] = useState(true); // default to true (hidden) to prevent layout shift / background check first
   const [showAgentBanner, setShowAgentBanner] = useState(false);
 
@@ -868,6 +869,7 @@ export default function Home() {
   }
 
   function startOrbDrag(e: PointerEvent<HTMLDivElement>) {
+    if (!orbMoveEnabled) return;
     setOrbDragging(true);
     dragRef.current = { active: true, moved: false, x: e.clientX, y: e.clientY, ox: orbOffset.x, oy: orbOffset.y };
     e.currentTarget.setPointerCapture(e.pointerId);
@@ -968,6 +970,17 @@ export default function Home() {
     setVideos([]);
     setNews([]);
     setArticleText("");
+
+    if (/(bisa|boleh|aktifkan|izinkan).*geser|geser.*(orb|anta|inti)/i.test(lower)) {
+      setOrbMoveEnabled(true);
+      return "Baik, orb Anta sekarang bisa digeser.";
+    }
+
+    if (/(jangan|tidak|nggak|nonaktifkan|kunci).*geser|kunci.*(orb|anta|inti)/i.test(lower)) {
+      setOrbMoveEnabled(false);
+      setOrbDragging(false);
+      return "Baik, orb Anta saya kunci lagi.";
+    }
 
     if (lower.includes("mode bulat") || lower.includes("mode orb") || lower.includes("jadi slime") || lower.includes("meleleh") || lower.includes("memantul") || lower.includes("berputar") || lower.includes("bergerak cepat") || lower.includes("ke kiri") || lower.includes("ke kanan") || lower.includes("ke tengah")) {
       if (lower.includes("slime")) setOrbMode("slime");
@@ -1364,7 +1377,7 @@ export default function Home() {
       <div className={`center-container ${orbSide} ${viewerState === 'open' && viewerFullscreen ? 'orb-mini' : ''} ${chatState === 'open' ? 'orb-chat-open' : ''}`} style={{ "--orb-x": `${orbOffset.x}px`, "--orb-y": `${orbOffset.y}px` } as CSSProperties}>
         <div
           ref={orbRef}
-          className={`orb-equalizer ${orbMode} ${orbDragging ? 'dragging' : ''} ${orbShake ? 'shake' : ''} ${isAiSpeaking ? 'active' : ''}`}
+          className={`orb-equalizer ${orbMode} ${orbMoveEnabled ? 'movable' : 'locked'} ${orbDragging ? 'dragging' : ''} ${orbShake ? 'shake' : ''} ${isAiSpeaking ? 'active' : ''}`}
           onPointerDown={startOrbDrag}
           onPointerMove={moveOrb}
           onPointerUp={stopOrbDrag}
