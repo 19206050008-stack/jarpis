@@ -146,74 +146,70 @@ export default function Home() {
 
   async function speakLine(text: string) {
     const clean = cleanText(text);
-    setSubtitle(""); // Reset to start fresh typing effect
     
-    // Karaoke/typing subtitle animation
-    let i = 0;
-    const words = clean.split(" ");
-    const intervalTyping = setInterval(() => {
-      if (i >= words.length) {
-        clearInterval(intervalTyping);
-        return;
-      }
-      setSubtitle((prev) => (prev ? prev + " " + words[i] : words[i]));
-      i++;
-    }, 180); // ~180ms per word, feels natural like reading lyrics
+    // Auxiliary function to run when audio starts playing
+    const playTypingEffect = () => {
+      setSubtitle(""); 
+      let i = 0;
+      const words = clean.split(" ");
+      const intervalTyping = setInterval(() => {
+        if (i >= words.length) {
+          clearInterval(intervalTyping);
+          return;
+        }
+        setSubtitle((prev) => (prev ? prev + " " + words[i] : words[i]));
+        i++;
+      }, 180);
 
-    setIsAiSpeaking(true);
-    let mockTick = 0;
-    const orb = orbRef.current;
-    const interval = setInterval(() => {
-      if (!orb || !audioRef.current?.paused) {
-        clearInterval(interval);
-        return;
-      }
-      mockTick++;
-      const bass = 0.2 + Math.sin(mockTick * 0.5) * 0.15;
-      const mid = 0.2 + Math.cos(mockTick * 0.3) * 0.15;
-      const high = 0.1 + Math.sin(mockTick * 0.8) * 0.1;
-      orb.style.setProperty("--bass", String(1 + bass));
-      orb.style.setProperty("--mid", String(1 + mid));
-      orb.style.setProperty("--high", String(1 + high));
-      orb.style.setProperty("--glow", String(50 + bass * 80));
-    }, 100);
+      // Store in ref or handle cleanup on stop/ended
+      const cleanup = () => {
+        clearInterval(intervalTyping);
+        setSubtitle("");
+        audioRef.current?.removeEventListener("ended", cleanup);
+        audioRef.current?.removeEventListener("pause", cleanup);
+      };
+      audioRef.current?.addEventListener("ended", cleanup);
+      audioRef.current?.addEventListener("pause", cleanup);
+    };
 
     if (!speakEnabled || !apiUrl) {
+      // Offline fallback: play typing immediately
+      playTypingEffect();
+      setIsAiSpeaking(true);
       setTimeout(() => {
-        clearInterval(interval);
-        clearInterval(intervalTyping);
         setIsAiSpeaking(false);
         setSubtitle("");
       }, Math.max(1500, clean.length * 60));
       return;
     }
+
     const key = `${speaker}:${clean}`;
     const cached = ttsCacheRef.current.get(key);
     if (cached) {
-      clearInterval(interval);
       setAudioUrl(cached);
+      // Wait briefly for elements to mount and listen
+      setTimeout(() => {
+        playTypingEffect();
+      }, 50);
       return;
     }
+
     try {
       const speakRes = await fetch(`${apiUrl}/speak`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: clean.slice(0, 700), speaker }),
       });
-      clearInterval(interval);
       if (speakRes.ok) {
         const blob = await speakRes.blob();
         const url = URL.createObjectURL(blob);
         ttsCacheRef.current.set(key, url);
         setAudioUrl(url);
-      } else {
-        setIsAiSpeaking(false);
-        setSubtitle("");
+        setTimeout(() => {
+          playTypingEffect();
+        }, 50);
       }
     } catch (ttsErr) {
-      clearInterval(interval);
-      setIsAiSpeaking(false);
-      setSubtitle("");
       console.error("TTS failed", ttsErr);
     }
   }
