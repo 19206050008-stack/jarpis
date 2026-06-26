@@ -293,6 +293,40 @@ async def web_proxy(url: str):
             return Response(content=error_html, media_type="text/html", status_code=500)
 
 
+@app.get("/search")
+async def search_web(q: str):
+    import urllib.parse
+    from bs4 import BeautifulSoup
+    url = f"https://duckduckgo.com/html/?q={urllib.parse.quote(q)}"
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+    async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
+        try:
+            res = await client.get(url, headers=headers)
+            soup = BeautifulSoup(res.text, "lxml")
+            results = []
+            for item in soup.select(".result")[:10]:
+                a = item.select_one(".result__a")
+                if not a:
+                    continue
+                link = a.get("href", "")
+                if "uddg=" in link:
+                    link = urllib.parse.unquote(urllib.parse.parse_qs(urllib.parse.urlparse(link).query).get("uddg", [link])[0])
+                snippet = item.select_one(".result__snippet")
+                try:
+                    source = urllib.parse.urlparse(link).netloc.replace("www.", "")
+                except Exception:
+                    source = "web"
+                results.append({
+                    "title": a.get_text(" ", strip=True),
+                    "link": link,
+                    "source": source,
+                    "pubDate": snippet.get_text(" ", strip=True) if snippet else "",
+                })
+            return results
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/news")
 async def get_news(q: str):
     import urllib.parse

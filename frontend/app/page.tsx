@@ -132,12 +132,9 @@ function withProtocol(url: string) {
   return /^https?:\/\//i.test(url) ? url : `https://${url}`;
 }
 
-function searchUrl(kind: string, query: string, apiUrl: string) {
-  const q = encodeURIComponent(query);
-  if (kind === "berita") return `${apiUrl}/news?q=${q}`;
-  if (kind === "lagu") return `${apiUrl}/videos?q=${q}`;
-  if (kind === "gambar") return `${apiUrl}/proxy?url=${encodeURIComponent(`https://www.google.com/search?q=${q}&tbm=isch`)}`;
-  return `${apiUrl}/proxy?url=${encodeURIComponent(`https://www.google.com/search?q=${q}`)}`;
+
+function isOrderedText(text: string) {
+  return /(^|\n)\s*(\d+[.)]|[-•])\s+/.test(text);
 }
 
 function quickAck(text: string) {
@@ -1023,12 +1020,8 @@ export default function Home() {
           window.open(targetUrl, "_blank", "noopener,noreferrer");
           return `Saya membuka Google di tab baru.`;
         }
-        const proxied = `${apiUrl}/proxy?url=${encodeURIComponent(targetUrl)}`;
-        setViewerLoading(true);
-        setView({ title: `Google`, url: proxied, note: "Google dimuat via Anta Secure Proxy." });
-        setViewerState('open');
-        autoMinimizeChat();
-        return `Saya membuka Google di viewer Anta.`;
+        window.open(targetUrl, "_blank", "noopener,noreferrer");
+        return `Saya membuka Google di tab baru.`;
       }
       
       // Check if it looks like a URL/website (has dot or known domain)
@@ -1099,12 +1092,19 @@ export default function Home() {
       const isImage = !!gambarMatch;
       const query = (isImage ? gambarMatch![1] : cariMatch![1]).trim();
       const kind = isImage ? "gambar" : "web";
-      const targetUrl = searchUrl(kind, query, apiUrl);
-      setViewerLoading(true);
-      setView({ title: `${kind.toUpperCase()}: ${query}`, url: targetUrl, note: "Pencarian dimuat via Anta Secure Proxy." });
-      setViewerState('open');
+      try {
+        const res = apiUrl ? await fetch(`${apiUrl}/search?q=${encodeURIComponent(isImage ? `gambar ${query}` : query)}`) : null;
+        const list = res?.ok ? await res.json() : [];
+        setViewerLoading(false);
+        setNews(list);
+        setView({ title: `${kind.toUpperCase()}: ${query}`, url: "", note: list.length ? "Hasil pencarian. Klik untuk buka sumber asli." : "Tidak ada hasil." });
+        setViewerState('open');
         autoMinimizeChat();
-      return `Saya carikan ${kind} tentang "${query}" di viewer Anta.`;
+        return list.length ? `Saya menemukan hasil ${kind} tentang "${query}".` : `Saya belum menemukan hasil untuk "${query}".`;
+      } catch {
+        setViewerLoading(false);
+        return `Maaf, pencarian gagal. Coba lagi nanti ya.`;
+      }
     }
 
     // bacakan/baca — user asks Anta to read something aloud
@@ -1300,7 +1300,7 @@ export default function Home() {
           <div className="ring ring-4"></div>
           <div className="core"></div>
         </div>
-        {subtitle && <div className={`subtitle-bubble ${/^\d/.test(subtitle.trim()) ? 'align-left' : ''}`}>{subtitle}</div>}
+        {subtitle && <div className={`subtitle-bubble ${isOrderedText(subtitle) ? 'align-left' : ''}`}>{subtitle}</div>}
       </div>
 
       {/* Floating System Dock (Icons only) */}
@@ -1324,7 +1324,7 @@ export default function Home() {
           </header>
           
           <div className="chat">
-            {messages.map((msg, i) => <div key={i} className={`msg ${msg.role} ${msg.text === "Anta sedang mengetik . . ." ? "typing" : ""}`}>{msg.text}</div>)}
+            {messages.map((msg, i) => <div key={i} className={`msg ${msg.role} ${msg.text === "Anta sedang mengetik . . ." ? "typing" : ""} ${isOrderedText(msg.text) ? "ordered" : ""}`}>{msg.text}</div>)}
           </div>
 
           <form className="form" onSubmit={(e) => { e.preventDefault(); send(); }}>
