@@ -712,36 +712,7 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [apiUrl, speaker, speakEnabled, agentAccepted]);
 
-  useEffect(() => {
-    if (loading || isAiSpeaking || listening) return;
-    let callCount = 0;
-    const timer = window.setInterval(async () => {
-      callCount++;
-      // Only ask AI every 5th cycle (~60s), otherwise random
-      if (callCount % 5 === 0) {
-        try {
-          const response = await askPollinations(
-            `Kamu adalah orb AI hidup. Pilih SATU mood/gerakan untuk dirimu sekarang. Pilihan: idle, slime, melt, bounce, spin, fast, creature. Dan pilih posisi: center, left, right. Jawab HANYA dalam format: mode:posisi (contoh: slime:center atau bounce:right). Jangan tambahkan kata lain.`,
-            "mistral"
-          );
-          const clean = response.trim().toLowerCase().replace(/[^a-z:]/g, "");
-          const [mode, side] = clean.split(":");
-          const validModes = ["idle", "slime", "melt", "bounce", "spin", "fast", "creature"];
-          const validSides = ["center", "left", "right"];
-          if (validModes.includes(mode)) setOrbMode(mode);
-          if (validSides.includes(side)) setOrbSide(side);
-        } catch {
-          const modes = ["idle", "slime", "melt", "bounce", "spin", "fast", "creature"];
-          setOrbMode(modes[Math.floor(Math.random() * modes.length)]);
-        }
-      } else {
-        // Local random — no API call
-        const modes = ["idle", "slime", "melt", "bounce", "spin", "fast", "creature"];
-        setOrbMode(modes[Math.floor(Math.random() * modes.length)]);
-      }
-    }, 12000);
-    return () => window.clearInterval(timer);
-  }, [loading, isAiSpeaking, listening]);
+  // Orb stays idle — gentle breathing animation only, no random mode switching
 
   // Timer 1: News Fetcher — every ~5 min, fetch new news if bank is low
   useEffect(() => {
