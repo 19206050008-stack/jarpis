@@ -586,6 +586,7 @@ export default function Home() {
         const blob = await speakRes.ok ? await speakRes.blob() : null;
         if (!blob) {
           setIsAiSpeaking(false);
+          setSubtitle("");
           return;
         }
         const url = URL.createObjectURL(blob);
@@ -594,11 +595,22 @@ export default function Home() {
         setTimeout(() => {
           playTypingEffect();
         }, 50);
+        // Safety timeout: clear subtitle after max duration in case audio events don't fire
+        setTimeout(() => {
+          setSubtitle("");
+          setIsAiSpeaking(false);
+        }, Math.max(8000, clean.length * 150));
       } else {
-        setIsAiSpeaking(false);
+        // TTS failed - use offline fallback
+        playTypingEffect();
+        setTimeout(() => {
+          setIsAiSpeaking(false);
+          setSubtitle("");
+        }, Math.max(1500, clean.length * 60));
       }
     } catch (ttsErr) {
       setIsAiSpeaking(false);
+      setSubtitle("");
       console.error("TTS failed", ttsErr);
     }
   }
@@ -790,7 +802,6 @@ export default function Home() {
           // Keep only last 50 IDs
           localStorage.setItem("anta_spoken_ids", JSON.stringify(spokenIds.slice(-50)));
           
-          void speakLine(unspoken.summary);
           void speakLine(unspoken.summary);
         }
       } catch { /* silent */ }
