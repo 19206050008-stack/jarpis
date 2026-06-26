@@ -416,6 +416,7 @@ export default function Home() {
   const [speaker, setSpeaker] = useState("andi");
   const [speakEnabled, setSpeakEnabled] = useState(true);
   const [isAiSpeaking, setIsAiSpeaking] = useState(false);
+  const [audioLevel, setAudioLevel] = useState(0);
   const [listening, setListening] = useState(false);
   const [subtitle, setSubtitle] = useState("Anta online.");
   const [files, setFiles] = useState<LocalFile[]>([]);
@@ -638,6 +639,7 @@ export default function Home() {
       const mid = avg(8, 24);
       const high = avg(24, data.length);
       const energy = Math.max(bass, mid, high);
+      setAudioLevel(energy);
 
       orb.style.setProperty("--bass", String(1 + bass * 0.45));
       orb.style.setProperty("--mid", String(1 + mid * 0.35));
@@ -661,6 +663,7 @@ export default function Home() {
       orb.style.setProperty("--mid", "1");
       orb.style.setProperty("--high", "1");
       orb.style.setProperty("--glow", "35");
+      setAudioLevel(0);
     };
 
     el.addEventListener("play", start);
@@ -1366,7 +1369,7 @@ export default function Home() {
           onPointerMove={moveOrb}
           onPointerUp={stopOrbDrag}
         >
-          <AntaOrb3D active={isAiSpeaking} />
+          <AntaOrb3D active={isAiSpeaking} level={audioLevel} />
         </div>
         {subtitle && <div className={`subtitle-bubble ${isOrderedText(subtitle) ? 'align-left' : ''}`}>{subtitle}</div>}
       </div>
