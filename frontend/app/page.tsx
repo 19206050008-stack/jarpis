@@ -1211,22 +1211,31 @@ export default function Home() {
     if (!text || loading) return;
     setLoading(true);
     setSubtitle(text);
+    setMessages((m) => [...m, { role: "user", text }]);
     await saveMessage("user", text);
 
     try {
       const rawAnswer = await handle(text);
       if (rawAnswer.startsWith("__SPEAK__:")) {
-        setLoading(false);
-        await send(text);
-        return;
+        // Bacakan topic — get AI answer for the topic
+        const topic = rawAnswer.slice(10);
+        const answer = cleanText(await askAi(topic));
+        setMessages((m) => [...m, { role: "ai", text: answer }]);
+        setSubtitle(answer);
+        await saveMessage("ai", answer);
+        await saveMemory("conversation", `User: ${text}\nAnta: ${answer}`);
+        await speakLine(answer);
+      } else {
+        const answer = cleanText(rawAnswer);
+        setMessages((m) => [...m, { role: "ai", text: answer }]);
+        setSubtitle(answer);
+        await saveMessage("ai", answer);
+        await saveMemory("conversation", `User: ${text}\nAnta: ${answer}`);
+        await speakLine(answer);
       }
-      const answer = cleanText(rawAnswer);
-      setSubtitle(answer);
-      await saveMessage("ai", answer);
-      await saveMemory("conversation", `User: ${text}\nAnta: ${answer}`);
-      await speakLine(answer);
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Error tidak diketahui";
+      setMessages((m) => [...m, { role: "ai", text: msg }]);
       setSubtitle(msg);
     } finally {
       setLoading(false);
