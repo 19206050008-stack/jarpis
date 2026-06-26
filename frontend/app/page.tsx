@@ -568,6 +568,11 @@ export default function Home() {
       return `Baik, suara Anta saya ganti ke ${voice.label}.`;
     }
 
+    if ((lower.includes("ganti suara") || lower.includes("ubah suara") || lower.includes("daftar suara") || lower.includes("suara siapa") || lower.includes("list suara")) && !voice) {
+      const list = voices.map((v) => `• ${v.label}`).join("\n");
+      return `Berikut daftar suara yang tersedia:\n${list}\n\nKetik "ganti suara [nama]" untuk mengganti.`;
+    }
+
     if (lower.includes("minimize") || lower.includes("kecilkan")) {
       if (lower.includes("monitor") || lower.includes("browser") || lower.includes("website")) setViewerState("minimized");
       else setChatState("minimized");
@@ -814,15 +819,6 @@ export default function Home() {
             <button disabled={loading || !input.trim()}>{loading ? "..." : "Kirim"}</button>
           </form>
 
-          <div className="tts-dock">
-            <label>
-              <input type="checkbox" checked={speakEnabled} onChange={(e) => setSpeakEnabled(e.target.checked)} />
-              Suara Aktif
-            </label>
-            <select value={speaker} onChange={(e) => setSpeaker(e.target.value)}>
-              {voices.map((v) => <option key={v.id} value={v.id}>{v.label}</option>)}
-            </select>
-          </div>
         </section>
       )}
 
