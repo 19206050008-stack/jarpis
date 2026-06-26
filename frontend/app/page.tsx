@@ -55,6 +55,7 @@ export default function Home() {
   const [isAiSpeaking, setIsAiSpeaking] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const orbRef = useRef<HTMLDivElement | null>(null);
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
 
   const voices = useMemo(() => [
@@ -70,22 +71,78 @@ export default function Home() {
     { id: "andi", label: "Andi — Pria" },
   ], []);
 
-  // Update AI speaking state based on audio playback
+  // Realtime, lightweight Web Audio analyser for the Jarvis orb.
   useEffect(() => {
     const el = audioRef.current;
-    if (!el) return;
-    const playHandler = () => setIsAiSpeaking(true);
-    const pauseHandler = () => setIsAiSpeaking(false);
-    const endedHandler = () => setIsAiSpeaking(false);
-    
-    el.addEventListener("play", playHandler);
-    el.addEventListener("pause", pauseHandler);
-    el.addEventListener("ended", endedHandler);
-    
+    const orb = orbRef.current;
+    if (!el || !orb || !audioUrl) return;
+
+    let raf = 0;
+    let source: MediaElementAudioSourceNode | null = null;
+    const audioContext = new AudioContext();
+    const analyser = audioContext.createAnalyser();
+    analyser.fftSize = 128; // ponytail: small FFT, enough for visual feedback.
+    analyser.smoothingTimeConstant = 0.75;
+
+    try {
+      source = audioContext.createMediaElementSource(el);
+      source.connect(analyser);
+      analyser.connect(audioContext.destination);
+    } catch (err) {
+      console.error("Audio analyser failed", err);
+      return;
+    }
+
+    const data = new Uint8Array(analyser.frequencyBinCount);
+    const avg = (from: number, to: number) => {
+      let sum = 0;
+      for (let i = from; i < to; i++) sum += data[i] || 0;
+      return sum / Math.max(1, to - from) / 255;
+    };
+
+    const tick = () => {
+      analyser.getByteFrequencyData(data);
+      const bass = avg(0, 8);
+      const mid = avg(8, 24);
+      const high = avg(24, data.length);
+      const energy = Math.max(bass, mid, high);
+
+      orb.style.setProperty("--bass", String(1 + bass * 0.45));
+      orb.style.setProperty("--mid", String(1 + mid * 0.35));
+      orb.style.setProperty("--high", String(1 + high * 0.25));
+      orb.style.setProperty("--glow", String(35 + energy * 90));
+      setIsAiSpeaking(!el.paused && !el.ended);
+
+      if (!el.paused && !el.ended) raf = requestAnimationFrame(tick);
+    };
+
+    const start = async () => {
+      await audioContext.resume();
+      setIsAiSpeaking(true);
+      raf = requestAnimationFrame(tick);
+    };
+    const stop = () => {
+      setIsAiSpeaking(false);
+      cancelAnimationFrame(raf);
+      orb.style.setProperty("--bass", "1");
+      orb.style.setProperty("--mid", "1");
+      orb.style.setProperty("--high", "1");
+      orb.style.setProperty("--glow", "35");
+    };
+
+    el.addEventListener("play", start);
+    el.addEventListener("pause", stop);
+    el.addEventListener("ended", stop);
+    if (!el.paused) void start();
+
     return () => {
-      el.removeEventListener("play", playHandler);
-      el.removeEventListener("pause", pauseHandler);
-      el.removeEventListener("ended", endedHandler);
+      el.removeEventListener("play", start);
+      el.removeEventListener("pause", stop);
+      el.removeEventListener("ended", stop);
+      cancelAnimationFrame(raf);
+      source?.disconnect();
+      analyser.disconnect();
+      void audioContext.close();
     };
   }, [audioUrl]);
 
@@ -196,7 +253,7 @@ export default function Home() {
     <main className="jarvis-desktop">
       {/* Background Equalizer Visualizer */}
       <div className="center-container">
-        <div className={`orb-equalizer ${isAiSpeaking ? 'active' : ''}`}>
+        <div ref={orbRef} className={`orb-equalizer ${isAiSpeaking ? 'active' : ''}`}>
           <div className="ring ring-1"></div>
           <div className="ring ring-2"></div>
           <div className="ring ring-3"></div>
@@ -301,7 +358,7 @@ export default function Home() {
       )}
 
       {/* Hidden Audio Player for TTS */}
-      {audioUrl && <audio ref={audioRef} src={audioUrl} autoPlay style={{ display: "none" }} />}
+      {audioUrl && <audio key={audioUrl} ref={audioRef} src={audioUrl} autoPlay style={{ display: "none" }} />}
     </main>
   );
 }
