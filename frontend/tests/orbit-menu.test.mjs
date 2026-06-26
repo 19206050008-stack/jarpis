@@ -43,11 +43,24 @@ try {
   await page.waitForSelector('.dock.popup-dock', { timeout: 30000 });
   const open = await page.evaluate(() => {
     const r = document.querySelector('.dock.popup-dock').getBoundingClientRect();
-    return { x: r.x, y: r.y, w: r.width, h: r.height, bottomGap: innerHeight - r.bottom, row: getComputedStyle(document.querySelector('.dock.popup-dock')).flexDirection };
+    const b = document.querySelector('.dock.popup-dock button').getBoundingClientRect();
+    const cs = getComputedStyle(document.querySelector('.dock.popup-dock button'));
+    return { x: r.x, y: r.y, w: r.width, h: r.height, bw: b.width, bh: b.height, radius: cs.borderRadius, row: getComputedStyle(document.querySelector('.dock.popup-dock')).flexDirection };
   });
-  if (open.y < 650 || open.row !== 'row') throw new Error(`Popup dock did not return to bottom dock: ${JSON.stringify(open)}`);
+  if (open.row !== 'column' || open.radius !== '50%' || open.bw > 36) throw new Error(`Desktop popup controls must stay round beside orb: ${JSON.stringify(open)}`);
 
-  console.log('✓ Orbit menu: tiny detached round buttons right of orb, no connector lines, docked when popup opens');
+  const mobile = await browser.newPage({ viewport: { width: 390, height: 780 } });
+  await mobile.goto(BASE_URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
+  await mobile.click('.dock.orbit-menu button[title="AI Chat"]');
+  await mobile.waitForSelector('.dock.popup-dock', { timeout: 30000 });
+  const m = await mobile.evaluate(() => {
+    const r = document.querySelector('.dock.popup-dock').getBoundingClientRect();
+    return { y: r.y, row: getComputedStyle(document.querySelector('.dock.popup-dock')).flexDirection };
+  });
+  await mobile.close();
+  if (m.y < 650 || m.row !== 'row') throw new Error(`Mobile popup controls did not become bottom dock: ${JSON.stringify(m)}`);
+
+  console.log('✓ Orbit menu: desktop stays round beside orb; mobile popup becomes dock');
 } finally {
   await browser.close();
 }

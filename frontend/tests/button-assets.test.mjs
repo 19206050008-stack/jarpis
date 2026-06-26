@@ -3,7 +3,7 @@ import { chromium } from 'playwright';
 
 const BASE_URL = process.env.TEST_URL || 'http://localhost:3000';
 const browser = await chromium.launch({ headless: true });
-const page = await browser.newPage({ viewport: { width: 1365, height: 900 } });
+const page = await browser.newPage({ viewport: { width: 390, height: 780 } });
 
 try {
   await page.goto(BASE_URL, { waitUntil: 'domcontentloaded', timeout: 60000 });

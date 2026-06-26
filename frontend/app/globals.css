@@ -251,3 +251,13 @@
 }
 .dock.orbit-menu{top:calc(50% - 81px)}
 @media(max-width:800px){.dock.orbit-menu{top:calc(50% - 70px)!important}}
+
+/* Desktop keeps round orbit controls even with popups; only mobile turns them into dock. */
+@media(min-width:801px){
+  .dock.popup-dock{left:calc(50% + 166px);top:calc(50% - 81px);bottom:auto;right:auto;transform:translateY(-50%);display:flex;flex-direction:column;gap:20px;padding:0;background:transparent;border:0;box-shadow:none;clip-path:none;z-index:12}
+  .dock.popup-dock:before{display:none!important}
+  .dock.popup-dock button{width:34px;height:34px;padding:0;border-radius:50%;clip-path:none;border:1px solid #67e8f9;color:#dffbff;background:radial-gradient(circle at 38% 30%,#e0fbff 0 5%,#67e8f9 10%,#22d3ee55 38%,#083344dd 72%,#020617 100%);box-shadow:0 0 0 2px #22d3ee22,0 0 14px #22d3ee99,inset 0 0 10px #67e8f933;overflow:hidden;animation:button-orbit-float 3s ease-in-out infinite}
+  .dock.popup-dock button:nth-child(2){transform:translateX(0);animation-delay:-1.1s}
+  .dock.popup-dock button:before,.dock.popup-dock button:after{display:none!important}
+  .dock.popup-dock button svg{width:13px;height:13px;stroke:#e0fbff;filter:drop-shadow(0 0 7px #e0fbff) drop-shadow(0 0 15px #22d3ee)}
+}
