@@ -98,6 +98,7 @@ export default function Home() {
   const [orbSide, setOrbSide] = useState("center");
   const [orbOffset, setOrbOffset] = useState({ x: 0, y: 0 });
   const [orbShake, setOrbShake] = useState(false);
+  const [orbDragging, setOrbDragging] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const orbRef = useRef<HTMLDivElement | null>(null);
@@ -229,8 +230,19 @@ export default function Home() {
       "Jarpis idle. Tapi otak kecilku masih muter seperti kipas laptop pejuang.",
       "Kalau kamu diam terlalu lama, aku akan menganggap ini adegan kontemplatif.",
     ];
-    const timer = window.setTimeout(() => {
-      const line = lines[Math.floor(Math.random() * lines.length)];
+    const timer = window.setTimeout(async () => {
+      let line = lines[Math.floor(Math.random() * lines.length)];
+      if (apiUrl && Math.random() > 0.45) {
+        try {
+          const res = await fetch(`${apiUrl}/news?q=${encodeURIComponent("berita hari ini olahraga teknologi dunia")}`);
+          if (res.ok) {
+            const item = (await res.json())[0];
+            if (item?.title) line = `Aku barusan mengigau dari internet: ${item.title}. Dunia memang suka membuat plot twist.`;
+          }
+        } catch {}
+      }
+      const modes = ["spin", "slime", "melt", "creature", "bounce"];
+      setOrbMode(modes[Math.floor(Math.random() * modes.length)]);
       void speakLine(line);
     }, 30000);
     return () => window.clearTimeout(timer);
@@ -276,6 +288,7 @@ export default function Home() {
   }
 
   function startOrbDrag(e: PointerEvent<HTMLDivElement>) {
+    setOrbDragging(true);
     dragRef.current = { active: true, moved: false, x: e.clientX, y: e.clientY, ox: orbOffset.x, oy: orbOffset.y };
     e.currentTarget.setPointerCapture(e.pointerId);
   }
@@ -286,14 +299,22 @@ export default function Home() {
     const dx = e.clientX - drag.x;
     const dy = e.clientY - drag.y;
     if (Math.abs(dx) + Math.abs(dy) > 6) drag.moved = true;
+    orbRef.current?.style.setProperty("--pull-x", String(Math.min(1.35, 1 + Math.abs(dx) / 420)));
+    orbRef.current?.style.setProperty("--pull-y", String(Math.max(0.72, 1 - Math.abs(dx) / 900)));
     setOrbOffset({ x: drag.ox + dx, y: drag.oy + dy });
   }
 
   function stopOrbDrag(e: PointerEvent<HTMLDivElement>) {
     const drag = dragRef.current;
     dragRef.current.active = false;
+    setOrbDragging(false);
     e.currentTarget.releasePointerCapture(e.pointerId);
-    if (!drag.moved) {
+    orbRef.current?.style.setProperty("--pull-x", "1");
+    orbRef.current?.style.setProperty("--pull-y", "1");
+    if (drag.moved) {
+      const lines = ["Aww... itu menyakitkan. Aku ini orb, bukan adonan cilok.", "Itu tidak lucu. Tapi baiklah, posisi baru diterima.", "Pelan-pelan. Aku punya perasaan digital juga."];
+      void speakLine(lines[Math.floor(Math.random() * lines.length)]);
+    } else {
       setOrbShake(true);
       window.setTimeout(() => setOrbShake(false), 450);
     }
@@ -519,7 +540,7 @@ export default function Home() {
       <div className={`center-container ${orbSide}`} style={{ "--orb-x": `${orbOffset.x}px`, "--orb-y": `${orbOffset.y}px` } as CSSProperties}>
         <div
           ref={orbRef}
-          className={`orb-equalizer ${orbMode} ${orbShake ? 'shake' : ''} ${isAiSpeaking ? 'active' : ''}`}
+          className={`orb-equalizer ${orbMode} ${orbDragging ? 'dragging' : ''} ${orbShake ? 'shake' : ''} ${isAiSpeaking ? 'active' : ''}`}
           onPointerDown={startOrbDrag}
           onPointerMove={moveOrb}
           onPointerUp={stopOrbDrag}
