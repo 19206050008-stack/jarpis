@@ -405,9 +405,10 @@ export default function Home() {
     const playTypingEffect = () => {
       setSubtitle(""); 
       let i = 0;
-      // Split by sentences (period/newline) for better pacing
-      const sentences = clean.split(/(?<=[.!?\n])\s+/).filter(s => s.trim());
-      const words = clean.split(" ");
+      // Capitalize first letter and ensure period at end
+      const formatted = clean.charAt(0).toUpperCase() + clean.slice(1);
+      const withPeriod = formatted.endsWith(".") || formatted.endsWith("!") || formatted.endsWith("?") ? formatted : formatted + ".";
+      const words = withPeriod.split(" ");
       
       const intervalTyping = setInterval(() => {
         if (i >= words.length) {
@@ -1134,6 +1135,22 @@ export default function Home() {
         
         // Speak it with intro + content + outro
         void speakLine(fullSpeech);
+        
+        // Reopen chat when speaking finishes
+        const reopenChat = () => {
+          setChatState('open');
+          if (audioRef.current) {
+            audioRef.current.removeEventListener("ended", reopenChat);
+          }
+        };
+        if (audioRef.current) {
+          audioRef.current.addEventListener("ended", reopenChat);
+        } else {
+          // If no audio (TTS not available), reopen after estimated reading time
+          const estimatedMs = fullSpeech.split(" ").length * 250;
+          setTimeout(() => setChatState('open'), estimatedMs);
+        }
+        
         await saveMessage("ai", fullSpeech);
         await saveMemory("conversation", `User: ${text}\nAnta: ${fullSpeech}`);
         return;
