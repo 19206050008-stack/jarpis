@@ -1059,21 +1059,32 @@ export default function Home() {
     if (bukaMatch) {
       const target = bukaMatch[1].trim();
       
-      // "browser", "google", "internet" = open google.com
+      // Browser lives inside Anta. Google itself blocks iframe/proxy, so show Anta search shell.
       const browserKeywords = ["browser", "brows", "internet", "google", "web"];
       if (browserKeywords.some(k => target.includes(k))) {
-        const targetUrl = "https://www.google.com";
-        if (!apiUrl) {
-          window.open(targetUrl, "_blank", "noopener,noreferrer");
-          return `Saya membuka Google di tab baru.`;
-        }
-        window.open(targetUrl, "_blank", "noopener,noreferrer");
-        return `Saya membuka Google di tab baru.`;
+        setViewerLoading(false);
+        setArticleText("");
+        setNews([]);
+        setVideos([]);
+        setView({ title: "Browser", url: "", note: "Browser Anta siap. Ketik: cari [kata kunci], berita [topik], atau buka [website]." });
+        setViewerState('open');
+        autoMinimizeChat();
+        return `Saya buka browser di dalam Anta.`;
       }
       
       // Check if it looks like a URL/website (has dot or known domain)
       if (target.includes(".") || /^(https?:\/\/|www\.)/.test(target)) {
         const targetUrl = withProtocol(target);
+        if (/^https?:\/\/(www\.)?google\./i.test(targetUrl)) {
+          setViewerLoading(false);
+          setArticleText("");
+          setNews([]);
+          setVideos([]);
+          setView({ title: "Google", url: "", note: "Google tidak bisa ditanam langsung. Pakai pencarian Anta: ketik cari [kata kunci]." });
+          setViewerState('open');
+          autoMinimizeChat();
+          return `Saya buka pencarian Anta di viewer.`;
+        }
         if (!apiUrl) {
           window.open(targetUrl, "_blank", "noopener,noreferrer");
           return `Saya membuka ${target} di tab baru (proxy backend tidak tersedia).`;
@@ -1394,6 +1405,8 @@ export default function Home() {
             
             {view.url && <iframe src={view.url} className="viewer-frame" title={view.title} onLoad={() => setViewerLoading(false)} />}
             
+            {!view.url && !articleText && news.length === 0 && videos.length === 0 && <div className="browser-empty">Ketik di chat: cari sesuatu, berita hari ini, atau buka example.com.</div>}
+
             {articleText && <article className="article-view">{articleText}</article>}
 
             {!articleText && news.length > 0 && (
@@ -1401,8 +1414,19 @@ export default function Home() {
                 {news.map((item, i) => {
                   const localFile = files.find((f) => f.path === item.title);
                   return (
-                    <a key={i} href={localFile ? "#" : item.link} target={localFile ? undefined : "_blank"} rel="noreferrer" className="news-item" onClick={(e) => { if (localFile) { e.preventDefault(); void openLocalFile(localFile); } }}>
-                      <h4>{item.title}</h4>
+                    <a key={i} href="#" className="news-item" onClick={async (e) => {
+                      e.preventDefault();
+                      if (localFile) return void openLocalFile(localFile);
+                      setViewerLoading(true);
+                      try {
+                        const article = apiUrl ? await fetch(`${apiUrl}/article?url=${encodeURIComponent(item.link)}`).then((r) => r.ok ? r.json() : null) : null;
+                        setArticleText(article?.text || "");
+                        setView({ title: item.title, url: "", note: article?.text ? `Artikel dari ${item.source}` : "Artikel tidak bisa diambil. Pakai sumber asli jika perlu." });
+                      } finally {
+                        setViewerLoading(false);
+                      }
+                    }}>
+                      <h4>{i + 1}. {item.title}</h4>
                       <span>{item.source} {item.pubDate ? `• ${item.pubDate}` : ""}</span>
                     </a>
                   );
