@@ -418,10 +418,24 @@ export default function Home() {
 
   useEffect(() => {
     if (loading || isAiSpeaking || listening) return;
-    const modes = ["idle", "slime", "melt", "bounce", "spin", "fast", "creature"];
-    const timer = window.setInterval(() => {
-      setOrbMode(modes[Math.floor(Math.random() * modes.length)]);
-    }, 9000);
+    const timer = window.setInterval(async () => {
+      try {
+        const response = await askPollinations(
+          `Kamu adalah orb AI hidup. Pilih SATU mood/gerakan untuk dirimu sekarang. Pilihan: idle, slime, melt, bounce, spin, fast, creature. Dan pilih posisi: center, left, right. Jawab HANYA dalam format: mode:posisi (contoh: slime:center atau bounce:right). Jangan tambahkan kata lain.`,
+          "mistral"
+        );
+        const clean = response.trim().toLowerCase().replace(/[^a-z:]/g, "");
+        const [mode, side] = clean.split(":");
+        const validModes = ["idle", "slime", "melt", "bounce", "spin", "fast", "creature"];
+        const validSides = ["center", "left", "right"];
+        if (validModes.includes(mode)) setOrbMode(mode);
+        if (validSides.includes(side)) setOrbSide(side);
+      } catch {
+        // Fallback random if AI fails
+        const modes = ["idle", "slime", "melt", "bounce", "spin", "fast", "creature"];
+        setOrbMode(modes[Math.floor(Math.random() * modes.length)]);
+      }
+    }, 12000);
     return () => window.clearInterval(timer);
   }, [loading, isAiSpeaking, listening]);
 
