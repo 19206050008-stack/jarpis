@@ -174,7 +174,7 @@ export default function Home() {
     return text
       .replace(/\\n/g, "\n") // replace escaped literal newlines \\n with real newlines
       .replace(/[\*\#\"`]/g, "") // strip markdown * # ` "
-      .replace(/\/[a-zA-Z0-9_\-]+/g, "") // strip debug commands like /debug
+      .replace(/\/(?=[a-zA-Z])/g, "") // strip forward slash before letters (command-like)
       .trim();
   }
 
