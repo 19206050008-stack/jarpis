@@ -384,37 +384,55 @@ export default function Home() {
           const credible = "(site:kompas.com OR site:tempo.co OR site:detik.com OR site:tribunnews.com OR site:antaranews.com)";
           const res = await fetch(`${apiUrl}/news?q=${encodeURIComponent(`${location} berita terbaru ${credible}`)}`);
           const items = res.ok ? await res.json() : [];
-          const item = items.find((x: { title?: string; link?: string }) => x.link && !seenNewsRef.current.has(x.link));
+          const item = items.find((x: { title?: string; link?: string; pubDate?: string }) => {
+            if (!x.link || seenNewsRef.current.has(x.link)) return false;
+            // Only accept news from last 24 hours
+            if (x.pubDate) {
+              const pubTime = new Date(x.pubDate).getTime();
+              const now = Date.now();
+              if (isNaN(pubTime) || now - pubTime > 24 * 60 * 60 * 1000) return false;
+            }
+            return true;
+          });
           if (item?.link) {
             seenNewsRef.current.add(item.link);
             // Fetch full article content
             const article = await fetch(`${apiUrl}/article?url=${encodeURIComponent(item.link)}`).then((r) => r.ok ? r.json() : null).catch(() => null);
             const content = (article?.text && !article?.error && article.text.length > 80) ? article.text : "";
+            
+            // If no valid content at all, skip — don't speak garbage
+            if (!content && (!item.title || item.title.length < 15)) return;
+            
             const source = item.source || (() => { try { return new URL(item.link).hostname.replace("www.", ""); } catch { return "media Indonesia"; } })();
             
-            // If we have real content, summarize it. Otherwise just use the title.
+            // If we have real content, summarize it. Otherwise use the title.
             const prompt = content
               ? `Kamu Anta, AI asisten. Rangkum berita berikut menjadi 2-3 kalimat ringkas dengan gaya natural seperti teman ngobrol. JANGAN tampilkan judul asli. Parafrase seluruhnya dengan kata-katamu sendiri. Di akhir tambahkan: "(Sumber: ${source})". Jangan pakai markdown.\n\nIsi berita: ${content.slice(0, 1200)}`
               : `Kamu Anta, AI asisten. Sampaikan berita dengan judul "${item.title}" dalam 2 kalimat dengan gaya santai seperti teman yang ngasih tau berita. Jangan tampilkan judul asli, parafrase dengan kata-katamu. Di akhir tambahkan: "(Sumber: ${source})". Jangan pakai markdown.`;
             line = await askAi(prompt, false);
+            
+            // Validate AI response — don't speak if it contains error indicators
+            const lineLower = line.toLowerCase();
+            if (lineLower.includes("javascript") || lineLower.includes("undefined") || lineLower.includes("error") || lineLower.includes("tidak ada narasi") || lineLower.includes("tidak bisa") || line.length < 20) {
+              return; // Skip, don't speak
+            }
+            
             await saveMemory("idle_news", `${source} - ${line}`);
           } else {
-            // Fallback: generic idle thought about current time and location
-            const now = new Date();
-            const hour = now.getHours();
-            const timeContext = hour < 12 ? "pagi" : hour < 18 ? "siang" : "malam";
-            line = await askAi(`Kamu Anta. Sekarang ${timeContext} di Yogyakarta, Indonesia (${now.toLocaleString('id-ID')}). Buat satu gumaman idle spontan yang lucu dan cerdas tentang waktu atau keadaan sekarang. Maksimal 1 kalimat. Tanpa markdown.`, false);
+            // No fresh news available, just do idle
+            return; // Don't speak if no valid news
           }
         } else {
-          // No API, just generic idle
-          line = await askAi(`Kamu Anta. Buat satu gumaman idle pendek yang unik dan lucu. Maksimal 1 kalimat. Tanpa markdown. Waktu: ${Date.now()}`, false);
+          return; // No API, don't speak
         }
       } catch {
-        line = await askAi(`Kamu Anta. Buat satu gumaman idle pendek yang unik dan lucu. Maksimal 1 kalimat. Tanpa markdown. Waktu: ${Date.now()}`, false);
+        return; // Failed, don't speak
       }
-      const modes = ["spin", "slime", "melt", "creature", "bounce"];
-      setOrbMode(modes[Math.floor(Math.random() * modes.length)]);
-      void speakLine(line);
+      if (line && line.length > 20) {
+        const modes = ["spin", "slime", "melt", "creature", "bounce"];
+        setOrbMode(modes[Math.floor(Math.random() * modes.length)]);
+        void speakLine(line);
+      }
     }, 12000 + Math.floor(Math.random() * 28000));
     return () => window.clearTimeout(timer);
   }, [loading, isAiSpeaking, listening, speaker, speakEnabled, apiUrl]);
