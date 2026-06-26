@@ -34,7 +34,7 @@ SUPERTONIC_VOICES = {
     "andi":  (9, "Andi — Pria",    "Indonesia"),
 }
 
-app = FastAPI(title="Jarpis AI + TTS")
+app = FastAPI(title="Anta AI + TTS")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=os.getenv("CORS_ORIGINS", "*").split(","),
@@ -120,11 +120,11 @@ def chat(payload: dict):
     if not message:
         raise HTTPException(status_code=400, detail="message is required")
 
-    system = "Kamu Jarpis, asisten AI universal yang cerdas dan berpikir global. Jawab ringkas, objektif, dan berguna."
+    system = "Kamu Anta, asisten AI universal yang cerdas dan berpikir global. Jawab ringkas, objektif, dan berguna."
     prompt = f"""{system}
 
 User: {message}
-Jarpis:"""
+Anta:"""
 
     async def pollinations_generate():
         import urllib.parse
@@ -141,8 +141,8 @@ Jarpis:"""
                 headers={
                     "Authorization": f"Bearer {OPENROUTER_API_KEY}",
                     "Content-Type": "application/json",
-                    "HTTP-Referer": os.getenv("APP_URL", "https://jarpis-chi.vercel.app"),
-                    "X-Title": "Jarpis",
+                    "HTTP-Referer": os.getenv("APP_URL", "https://antasiar.web.id"),
+                    "X-Title": "Anta",
                 },
                 json={
                     "model": OPENROUTER_MODEL,
@@ -170,7 +170,7 @@ Jarpis:"""
 
     def local_generate():
         if not lock.acquire(blocking=False):
-            yield "Jarpis masih memproses pesan sebelumnya. Coba lagi sebentar."
+            yield "Anta masih memproses pesan sebelumnya. Coba lagi sebentar."
             return
         try:
             for chunk in llm(
@@ -219,7 +219,7 @@ async def web_proxy(url: str):
                 content = base_tag + content
             return Response(content=content, media_type="text/html")
         except Exception as e:
-            return Response(content=f"<h3>Gagal memuat halaman via Jarpis Secure Proxy:</h3><p>{e}</p>", status_code=500)
+            return Response(content=f"<h3>Gagal memuat halaman via Anta Secure Proxy:</h3><p>{e}</p>", status_code=500)
 
 
 @app.get("/news")

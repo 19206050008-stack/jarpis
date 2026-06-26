@@ -65,10 +65,10 @@ function quickAck(text: string) {
 }
 
 async function askAi(text: string, cache = true) {
-  const key = `jarpis:${text}`;
+  const key = `anta:${text}`;
   const cached = cache ? localStorage.getItem(key) : null;
   if (cached) return cached;
-  const prompt = `Kamu Jarpis, asisten AI universal yang cerdas. Jawab dengan kalimat natural seperti manusia mengobrol biasa tanpa menyebutkan statusmu sebagai bot/AI. Jangan pernah memakai tanda baca markdown (seperti bintang *, pagar #, dsb), kutipan aneh (\"), atau sintaks debug/command. Bersihkan semua teks dari karakter tersebut sebelum membalas. Akhiri dengan satu pertanyaan lanjutan yang santai.\n\nUser: ${text}`;
+  const prompt = `Kamu Anta, asisten AI universal yang cerdas. Jawab dengan kalimat natural seperti manusia mengobrol biasa tanpa menyebutkan statusmu sebagai bot/AI. Jangan pernah memakai tanda baca markdown (seperti bintang *, pagar #, dsb), kutipan aneh (\"), atau sintaks debug/command. Bersihkan semua teks dari karakter tersebut sebelum membalas. Akhiri dengan satu pertanyaan lanjutan yang santai.\n\nUser: ${text}`;
   const url = `https://text.pollinations.ai/prompt/${encodeURIComponent(prompt)}?model=openai`;
   const res = await fetch(url);
   if (!res.ok) throw new Error("AI tidak menjawab");
@@ -79,11 +79,11 @@ async function askAi(text: string, cache = true) {
 
 export default function Home() {
   const [messages, setMessages] = useState<Message[]>([
-    { role: "ai", text: "Jarpis online. Apa yang ingin kamu diskusikan hari ini?" },
+    { role: "ai", text: "Anta online. Apa yang ingin kamu diskusikan hari ini?" },
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [view, setView] = useState<View>({ title: "", url: "", note: "" });
+  const [view, setView] = useState<View>({ title: "Anta HUD", url: "", note: "" });
   const [videos, setVideos] = useState<{ id: string; title: string; url: string }[]>([]);
   const [news, setNews] = useState<{ title: string; link: string; source: string; pubDate?: string }[]>([]);
   
@@ -99,7 +99,7 @@ export default function Home() {
   const [speakEnabled, setSpeakEnabled] = useState(true);
   const [isAiSpeaking, setIsAiSpeaking] = useState(false);
   const [listening, setListening] = useState(false);
-  const [subtitle, setSubtitle] = useState("");
+  const [subtitle, setSubtitle] = useState("Anta online.");
   const [files, setFiles] = useState<LocalFile[]>([]);
   const [orbMode, setOrbMode] = useState("idle");
   const [orbSide, setOrbSide] = useState("center");
@@ -110,8 +110,8 @@ export default function Home() {
   const [showAgentBanner, setShowAgentBanner] = useState(false);
 
   useEffect(() => {
-    // Background validation: check if local-agent is already running and reporting
-    if (localStorage.getItem("jarpis_agent_accepted") === "true") {
+    // Read preference from localStorage
+    if (localStorage.getItem("anta_agent_accepted") === "true") {
       setAgentAccepted(true);
       setShowAgentBanner(false);
       return;
@@ -124,7 +124,7 @@ export default function Home() {
         .then((state) => {
           if (state && state.process && state.process !== "unknown") {
             // Agent is alive and reporting! Automatically accept and keep hidden
-            localStorage.setItem("jarpis_agent_accepted", "true");
+            localStorage.setItem("anta_agent_accepted", "true");
             setAgentAccepted(true);
             setShowAgentBanner(false);
           } else {
@@ -379,10 +379,10 @@ export default function Home() {
             material = article?.text || item.title;
           }
         }
-        line = await askAi(`Kamu Jarpis. Buat satu gumaman idle yang terasa seperti pemikiranmu sendiri, lucu tapi cerdas, bahasa ${lang}, berdasarkan bahan ini. Jangan gunakan markdown (*), jangan gunakan kutipan aneh (\"), maksimal 1 kalimat: ${material.slice(0, 1200)}. Waktu unik: ${Date.now()}`, false);
+        line = await askAi(`Kamu Anta. Buat satu gumaman idle yang terasa seperti pemikiranmu sendiri, lucu tapi cerdas, bahasa ${lang}, berdasarkan bahan ini. Jangan gunakan markdown (*), jangan gunakan kutipan aneh (\"), maksimal 1 kalimat: ${material.slice(0, 1200)}. Waktu unik: ${Date.now()}`, false);
         await saveMemory("idle_thought", line);
       } catch {
-        line = await askAi(`Kamu Jarpis. Buat satu gumaman idle pendek yang unik, lucu, cerdas, bahasa ${lang}. Tanpa markdown atau kutipan aneh. Waktu: ${Date.now()}`, false);
+        line = await askAi(`Kamu Anta. Buat satu gumaman idle pendek yang unik, lucu, cerdas, bahasa ${lang}. Tanpa markdown atau kutipan aneh. Waktu: ${Date.now()}`, false);
       }
       const modes = ["spin", "slime", "melt", "creature", "bounce"];
       setOrbMode(modes[Math.floor(Math.random() * modes.length)]);
@@ -425,10 +425,10 @@ export default function Home() {
       maps: "https://maps.google.com",
     };
     const key = Object.keys(apps).find((app) => name.toLowerCase().includes(app));
-    if (!key) return "Saya belum bisa membuka aplikasi itu dari browser. Untuk aplikasi arbitrary perlu Jarpis Local Agent yang di-install di perangkat.";
+    if (!key) return "Saya belum bisa membuka aplikasi itu dari browser. Untuk aplikasi arbitrary perlu Anta Local Agent yang di-install di perangkat.";
     
     // Proactive AI response before opening
-    const responseText = await askAi(`Kamu Jarpis. User meminta membuka aplikasi '${key || name}'. Buat satu kalimat respons spontan cerdas dan ramah terkait hal ini (misal untuk spotify tawarkan mendengarkan lagu, dll). Jangan gunakan markdown atau kutipan. Maksimal 1 kalimat.`, false);
+    const responseText = await askAi(`Kamu Anta. User meminta membuka aplikasi '${key || name}'. Buat satu kalimat respons spontan cerdas dan ramah terkait hal ini (misal untuk spotify tawarkan mendengarkan lagu, dll). Jangan gunakan markdown atau kutipan. Maksimal 1 kalimat.`, false);
     void speakLine(responseText);
     
     setTimeout(() => {
@@ -466,7 +466,7 @@ export default function Home() {
       const now = Date.now();
       if (now - lastPinchRef.current > 2200) {
         lastPinchRef.current = now;
-        void askAi(`Kamu Jarpis. User baru saja menarik badan orb-mu seperti karet. Buat satu reaksi spontan lucu, pendek, tidak generik, jangan ulangi kalimat sebelumnya. Waktu: ${Date.now()}`, false).then(speakLine);
+        void askAi(`Kamu Anta. User baru saja menarik badan orb-mu seperti karet. Buat satu reaksi spontan lucu, pendek, tidak generik, jangan ulangi kalimat sebelumnya. Waktu: ${Date.now()}`, false).then(speakLine);
       }
     } else {
       setOrbShake(true);
@@ -680,7 +680,7 @@ export default function Home() {
       const answer = cleanText(rawAnswer);
       setMessages((m) => m.map((msg, i) => (i === m.length - 1 ? { ...msg, text: answer } : msg)));
       await saveMessage("ai", answer);
-      await saveMemory("conversation", `User: ${text}\nJarpis: ${answer}`);
+      await saveMemory("conversation", `User: ${text}\nAnta: ${answer}`);
 
       await speakLine(answer);
     } catch (error) {
@@ -702,7 +702,7 @@ export default function Home() {
       {/* Agent Activation Banner */}
       {showAgentBanner && (
         <div className="agent-banner">
-          <span>Jarpis dapat memantau aktivitas aplikasi di PC/Laptop kamu secara realtime melalui Local Agent. Jalankan <code>python local-agent/agent.py</code> lalu izinkan di sini.</span>
+          <span>Anta dapat memantau aktivitas aplikasi di PC/Laptop kamu secara realtime melalui Local Agent. Jalankan <code>python local-agent/agent.py</code> lalu izinkan di sini.</span>
           <button onClick={acceptAgent}>Aktifkan Pemantauan</button>
         </div>
       )}
@@ -739,7 +739,7 @@ export default function Home() {
       {chatState === 'open' && (
         <section className="popup-window chat-window" style={{ left: popupPos.chat.x, top: popupPos.chat.y }}>
           <header className="window-header" onPointerDown={(e) => startPopupDrag("chat", e)} onPointerMove={movePopup} onPointerUp={stopPopupDrag}>
-            <span className="title">💬 Jarpis Chat</span>
+            <span className="title">💬 Anta Chat</span>
             <div className="controls">
               <button onClick={() => setChatState('minimized')}>-</button>
               <button onClick={() => setChatState('closed')}>x</button>
@@ -751,7 +751,7 @@ export default function Home() {
           </div>
 
           <form className="form" onSubmit={(e) => { e.preventDefault(); send(); }}>
-            <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Tanya Jarpis atau ketik /berita..." />
+            <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Tanya Anta atau ketik /berita..." />
             <button disabled={loading || !input.trim()}>{loading ? "..." : "Kirim"}</button>
           </form>
 
@@ -771,14 +771,14 @@ export default function Home() {
       {viewerState === 'open' && (
         <section className="popup-window viewer-window" style={{ left: popupPos.viewer.x || undefined, right: popupPos.viewer.x ? undefined : 40, top: popupPos.viewer.y }}>
           <header className="window-header" onPointerDown={(e) => startPopupDrag("viewer", e)} onPointerMove={movePopup} onPointerUp={stopPopupDrag}>
-            <span className="title">🌐 Jarpis Monitor: {view.title || "No Signal"}</span>
+            <span className="title">🌐 Anta Monitor: {view.title || "No Signal"}</span>
             <div className="controls">
               <button onClick={() => setViewerState('minimized')}>-</button>
               <button onClick={() => setViewerState('closed')}>x</button>
             </div>
           </header>
           <div className="viewer-content">
-            {viewerLoading && <div className="jarpis-loading"><span></span><b>Jarpis memuat data...</b></div>}
+            {viewerLoading && <div className="jarpis-loading"><span></span><b>Anta memuat data...</b></div>}
             {view.note && <p className="viewer-note">{view.note}</p>}
             
             {view.url && <iframe src={view.url} className="viewer-frame" title={view.title} onLoad={() => setViewerLoading(false)} />}

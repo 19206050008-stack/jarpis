@@ -1,8 +1,11 @@
 import "./globals.css";
 
 export const metadata = {
-  title: "Jarpis",
+  title: "Anta",
   description: "Asisten AI penulisan novel",
+  icons: {
+    icon: "/favicon.png",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
