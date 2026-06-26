@@ -333,11 +333,17 @@ export default function Home() {
     // instant visual trigger
     setIsAiSpeaking(true);
     
+    // Wait 2 seconds before starting subtitle display
+    await new Promise(r => setTimeout(r, 2000));
+    
     // Auxiliary function to run when audio starts playing
     const playTypingEffect = () => {
       setSubtitle(""); 
       let i = 0;
+      // Split by sentences (period/newline) for better pacing
+      const sentences = clean.split(/(?<=[.!?\n])\s+/).filter(s => s.trim());
       const words = clean.split(" ");
+      
       const intervalTyping = setInterval(() => {
         if (i >= words.length) {
           clearInterval(intervalTyping);
@@ -345,7 +351,7 @@ export default function Home() {
         }
         setSubtitle((prev) => (prev ? prev + " " + words[i] : words[i]));
         i++;
-      }, 180);
+      }, 220);
 
       // Store in ref or handle cleanup on stop/ended
       const cleanup = () => {
@@ -1111,7 +1117,7 @@ export default function Home() {
           <div className="ring ring-4"></div>
           <div className="core"></div>
         </div>
-        {subtitle && <div className="subtitle-bubble">{subtitle}</div>}
+        {subtitle && <div className={`subtitle-bubble ${/^\d/.test(subtitle.trim()) ? 'align-left' : ''}`}>{subtitle}</div>}
       </div>
 
       {/* Floating System Dock (Icons only) */}
