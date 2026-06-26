@@ -177,36 +177,60 @@ async function askPollinationsChat(prompt: string, model = "openai"): Promise<st
   return res.text();
 }
 
+// OpenRouter API — primary AI provider (faster, more reliable)
+const OPENROUTER_KEY = process.env.NEXT_PUBLIC_OPENROUTER_KEY || "";
+
+async function askOpenRouter(prompt: string, model = "qwen/qwen3-0.6b-04-28:free"): Promise<string> {
+  if (!OPENROUTER_KEY) throw new Error("No OpenRouter key");
+  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${OPENROUTER_KEY}`,
+      "Content-Type": "application/json",
+      "HTTP-Referer": "https://antasiar.web.id",
+      "X-Title": "Anta AI"
+    },
+    body: JSON.stringify({
+      model,
+      messages: [
+        { role: "system", content: "Kamu Anta, asisten AI yang natural dan ramah. Jawab dengan gaya bicara santai seperti teman ngobrol biasa. Jangan gunakan markdown, jangan sebut dirimu sebagai AI/bot. Jawab langsung sesuai konteks." },
+        { role: "user", content: prompt }
+      ],
+      max_tokens: 500,
+      temperature: 0.7
+    }),
+    signal: AbortSignal.timeout(30000)
+  });
+  if (!res.ok) throw new Error(`OpenRouter error ${res.status}`);
+  const data = await res.json();
+  const content = data?.choices?.[0]?.message?.content;
+  if (!content) throw new Error("OpenRouter empty response");
+  return content;
+}
+
 async function askAi(text: string, cache = true) {
   const key = `anta:${text}`;
   const cached = cache ? localStorage.getItem(key) : null;
   if (cached) return cached;
-  
-  const systemPrompt = `Kamu Anta, asisten AI yang natural dan ramah. Jawab dengan gaya bicara santai seperti teman ngobrol biasa. Jangan gunakan markdown, jangan sebut dirimu sebagai AI/bot. Jawab langsung sesuai konteks.
 
-User: ${text}`;
-
-  // Sequential fallback with delay between retries (avoid rate limit)
-  const models = ["openai", "mistral", "command-r-plus"];
+  // Strategy: OpenRouter first (reliable), Pollinations as fallback
+  const strategies = [
+    () => askOpenRouter(text, "qwen/qwen3-0.6b-04-28:free"),
+    () => askOpenRouter(text, "mistralai/mistral-small-3.1-24b-instruct:free"),
+    () => askPollinations(`Kamu Anta, asisten AI yang natural dan ramah. Jawab dengan gaya bicara santai seperti teman ngobrol biasa. Jangan gunakan markdown, jangan sebut dirimu sebagai AI/bot. Jawab langsung sesuai konteks.\n\nUser: ${text}`, "openai"),
+  ];
   
-  for (let attempt = 0; attempt < 3; attempt++) {
-    const model = models[attempt % models.length];
+  for (let i = 0; i < strategies.length; i++) {
     try {
-      // Alternate between GET and POST
-      let answer = "";
-      if (attempt % 2 === 0) {
-        answer = await askPollinations(systemPrompt, model);
-      } else {
-        answer = await askPollinationsChat(text, model);
-      }
+      const answer = await strategies[i]();
       if (answer && answer.length >= 2) {
         if (cache) localStorage.setItem(key, answer.slice(0, 4000));
         return answer;
       }
     } catch { /* try next */ }
     
-    // Wait before retry to avoid rate limit
-    if (attempt < 2) await new Promise(r => setTimeout(r, 3000));
+    // Wait before retry
+    if (i < strategies.length - 1) await new Promise(r => setTimeout(r, 2000));
   }
 
   throw new Error("Anta belum bisa merespons. Coba lagi sebentar.");
