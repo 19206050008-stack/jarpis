@@ -138,11 +138,38 @@ export default function Home() {
   ], []);
 
   async function speakLine(text: string) {
-    setSubtitle(text); // instant subtitle; audio may arrive after TTS generation.
-    if (!speakEnabled || !apiUrl) return;
+    setSubtitle(text);
+    // Start instant mock equalizer movement to hide TTS API latency
+    setIsAiSpeaking(true);
+    let mockTick = 0;
+    const orb = orbRef.current;
+    const interval = setInterval(() => {
+      if (!orb || !audioRef.current?.paused) {
+        clearInterval(interval);
+        return;
+      }
+      mockTick++;
+      const bass = 0.2 + Math.sin(mockTick * 0.5) * 0.15;
+      const mid = 0.2 + Math.cos(mockTick * 0.3) * 0.15;
+      const high = 0.1 + Math.sin(mockTick * 0.8) * 0.1;
+      orb.style.setProperty("--bass", String(1 + bass));
+      orb.style.setProperty("--mid", String(1 + mid));
+      orb.style.setProperty("--high", String(1 + high));
+      orb.style.setProperty("--glow", String(50 + bass * 80));
+    }, 100);
+
+    if (!speakEnabled || !apiUrl) {
+      setTimeout(() => {
+        clearInterval(interval);
+        setIsAiSpeaking(false);
+        setSubtitle("");
+      }, Math.max(1500, text.length * 60));
+      return;
+    }
     const key = `${speaker}:${text}`;
     const cached = ttsCacheRef.current.get(key);
     if (cached) {
+      clearInterval(interval);
       setAudioUrl(cached);
       return;
     }
@@ -152,13 +179,20 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: text.slice(0, 700), speaker }),
       });
+      clearInterval(interval);
       if (speakRes.ok) {
         const blob = await speakRes.blob();
         const url = URL.createObjectURL(blob);
         ttsCacheRef.current.set(key, url);
         setAudioUrl(url);
+      } else {
+        setIsAiSpeaking(false);
+        setSubtitle("");
       }
     } catch (ttsErr) {
+      clearInterval(interval);
+      setIsAiSpeaking(false);
+      setSubtitle("");
       console.error("TTS failed", ttsErr);
     }
   }
