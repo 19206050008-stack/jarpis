@@ -36,6 +36,11 @@ async function saveMessage(role: string, text: string) {
   await supabase.from("chat_messages").insert({ role, content: text });
 }
 
+async function saveMemory(kind: string, content: string) {
+  if (!supabase) return;
+  await supabase.from("memories").insert({ kind, content }).then(() => {}, () => {});
+}
+
 function withProtocol(url: string) {
   return /^https?:\/\//i.test(url) ? url : `https://${url}`;
 }
@@ -58,15 +63,16 @@ function quickAck(text: string) {
   return "Baik, saya proses. Saya akan jawab singkat lalu tanya langkah berikutnya.";
 }
 
-async function askAi(text: string) {
-  const cached = localStorage.getItem(`jarpis:${text}`);
+async function askAi(text: string, cache = true) {
+  const key = `jarpis:${text}`;
+  const cached = cache ? localStorage.getItem(key) : null;
   if (cached) return cached;
   const prompt = `Kamu Jarpis, asisten AI penulisan novel berbahasa Indonesia. Jawab ringkas, praktis, dan berguna. Akhiri dengan satu pertanyaan lanjutan yang relevan.\n\nUser: ${text}`;
   const url = `https://text.pollinations.ai/prompt/${encodeURIComponent(prompt)}?model=openai`;
   const res = await fetch(url);
   if (!res.ok) throw new Error("AI tidak menjawab");
   const answer = await res.text();
-  localStorage.setItem(`jarpis:${text}`, answer.slice(0, 4000));
+  if (cache) localStorage.setItem(key, answer.slice(0, 4000));
   return answer;
 }
 
@@ -223,28 +229,24 @@ export default function Home() {
 
   useEffect(() => {
     if (loading || isAiSpeaking || listening) return;
-    const lines = [
-      "Hmm... aku sedang menghitung kemungkinan, tapi hasilnya cuma ingin minum kopi digital.",
-      "Mode siaga aktif. Kalau ada drama cerita, panggil aku sebelum tokohnya kabur.",
-      "Aku barusan mengecek sunyi. Hasilnya: sunyi juga butuh subtitle.",
-      "Jarpis idle. Tapi otak kecilku masih muter seperti kipas laptop pejuang.",
-      "Kalau kamu diam terlalu lama, aku akan menganggap ini adegan kontemplatif.",
-    ];
     const timer = window.setTimeout(async () => {
-      let line = lines[Math.floor(Math.random() * lines.length)];
-      if (apiUrl && Math.random() > 0.45) {
-        try {
+      const lang = ["Indonesia", "English", "日本語", "Español"][Math.floor(Math.random() * 4)];
+      const seed = `${Date.now()}-${Math.random()}`;
+      let line = "Jarpis sedang mikir... mungkin terlalu keras sampai kipas imajiner berputar.";
+      try {
+        let topic = "kehidupan digital dan menulis novel";
+        if (apiUrl && Math.random() > 0.35) {
           const res = await fetch(`${apiUrl}/news?q=${encodeURIComponent("berita hari ini olahraga teknologi dunia")}`);
-          if (res.ok) {
-            const item = (await res.json())[0];
-            if (item?.title) line = `Aku barusan mengigau dari internet: ${item.title}. Dunia memang suka membuat plot twist.`;
-          }
-        } catch {}
-      }
+          const item = res.ok ? (await res.json())[0] : null;
+          if (item?.title) topic = item.title;
+        }
+        line = await askAi(`Buat satu kalimat idle lucu, cerdas, tidak sama, bahasa ${lang}, tentang: ${topic}. Seed: ${seed}`, false);
+        await saveMemory("idle_thought", line);
+      } catch {}
       const modes = ["spin", "slime", "melt", "creature", "bounce"];
       setOrbMode(modes[Math.floor(Math.random() * modes.length)]);
       void speakLine(line);
-    }, 30000);
+    }, 22000 + Math.floor(Math.random() * 18000));
     return () => window.clearTimeout(timer);
   }, [loading, isAiSpeaking, listening, speaker, speakEnabled, apiUrl]);
 
@@ -524,6 +526,7 @@ export default function Home() {
       const answer = await handle(text);
       setMessages((m) => m.map((msg, i) => (i === m.length - 1 ? { ...msg, text: answer } : msg)));
       await saveMessage("ai", answer);
+      await saveMemory("conversation", `User: ${text}\nJarpis: ${answer}`);
 
       await speakLine(answer);
     } catch (error) {
