@@ -57,6 +57,20 @@
     transform:none!important;
   }
   .center-container.orb-chat-open {
+    position:fixed!important;
+    inset:auto!important;
+    top:6px!important;
+    bottom:auto!important;
+    right:auto!important;
+    left:50%!important;
+    width:auto!important;
+    height:auto!important;
+    transform:translateX(-50%) scale(0.25)!important;
+    transform-origin:top center!important;
+    opacity:0.8!important;
+    z-index:160!important;
+  }
+  .center-container.orb-chat-open .subtitle-bubble {
     display:none!important;
   }
   .orb-equalizer {
