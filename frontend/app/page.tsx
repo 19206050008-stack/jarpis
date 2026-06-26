@@ -1368,6 +1368,10 @@ export default function Home() {
           onPointerMove={moveOrb}
           onPointerUp={stopOrbDrag}
         >
+          <div className="ring ring-4" />
+          <div className="ring ring-3" />
+          <div className="ring ring-2" />
+          <div className="ring ring-1" />
           <AntaOrb3D active={isAiSpeaking} level={audioLevel} />
         </div>
         {subtitle && <div className={`subtitle-bubble ${isOrderedText(subtitle) ? 'align-left' : ''}`}>{subtitle}</div>}
