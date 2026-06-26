@@ -9,14 +9,14 @@
     left:0!important;
     right:0!important;
     top:0!important;
-    bottom:68px!important;
+    bottom:60px!important;
     position:fixed!important;
     border-radius:0!important;
     z-index:150!important;
     padding-bottom:0!important;
   }
   .chat-window .form {
-    padding-bottom: 8px!important;
+    padding-bottom: 0!important;
     margin-bottom: 0!important;
   }
   .viewer-window{
