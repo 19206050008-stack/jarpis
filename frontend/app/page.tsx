@@ -67,7 +67,7 @@ async function askAi(text: string, cache = true) {
   const key = `jarpis:${text}`;
   const cached = cache ? localStorage.getItem(key) : null;
   if (cached) return cached;
-  const prompt = `Kamu Jarpis, asisten AI penulisan novel berbahasa Indonesia. Jawab ringkas, praktis, dan berguna. Akhiri dengan satu pertanyaan lanjutan yang relevan.\n\nUser: ${text}`;
+  const prompt = `Kamu Jarpis, asisten AI universal yang cerdas dan berpikir global. Jawab ringkas, praktis, dan berguna. Akhiri dengan satu pertanyaan lanjutan yang relevan.\n\nUser: ${text}`;
   const url = `https://text.pollinations.ai/prompt/${encodeURIComponent(prompt)}?model=openai`;
   const res = await fetch(url);
   if (!res.ok) throw new Error("AI tidak menjawab");
@@ -78,7 +78,7 @@ async function askAi(text: string, cache = true) {
 
 export default function Home() {
   const [messages, setMessages] = useState<Message[]>([
-    { role: "ai", text: "Jarpis online. Masukkan perintah suara atau teks melalui ikon di sekeliling saya." },
+    { role: "ai", text: "Jarpis online. Mode universal aktif. Apa yang ingin kamu diskusikan hari ini?" },
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);

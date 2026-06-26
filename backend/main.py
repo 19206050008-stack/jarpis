@@ -120,7 +120,7 @@ def chat(payload: dict):
     if not message:
         raise HTTPException(status_code=400, detail="message is required")
 
-    system = "Kamu Jarpis, asisten AI penulisan novel berbahasa Indonesia. Jawab ringkas dan berguna."
+    system = "Kamu Jarpis, asisten AI universal yang cerdas dan berpikir global. Jawab ringkas, objektif, dan berguna."
     prompt = f"""{system}
 
 User: {message}
