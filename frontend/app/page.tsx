@@ -172,6 +172,7 @@ export default function Home() {
   function cleanText(text: string) {
     if (!text || text === "undefined" || text.includes("undefined")) return "";
     return text
+      .replace(/\\n/g, "\n") // replace escaped literal newlines \\n with real newlines
       .replace(/[\*\#\"`]/g, "") // strip markdown * # ` "
       .replace(/\/[a-zA-Z0-9_\-]+/g, "") // strip debug commands like /debug
       .trim();
@@ -676,23 +677,22 @@ export default function Home() {
     setInput("");
     setLoading(true);
     setChatState('open');
-    const rawAck = quickAck(text);
-    const ack = cleanText(rawAck);
-    setSubtitle(ack);
-    setMessages((m) => [...m, { role: "user", text }, { role: "ai", text: ack }]);
+    // ponytail: removed temporary placeholder message / quick ack to reply directly & fast
+    setMessages((m) => [...m, { role: "user", text }]);
     await saveMessage("user", text);
 
     try {
       const rawAnswer = await handle(text);
       const answer = cleanText(rawAnswer);
-      setMessages((m) => m.map((msg, i) => (i === m.length - 1 ? { ...msg, text: answer } : msg)));
+      setMessages((m) => [...m, { role: "ai", text: answer }]);
+      setSubtitle(answer);
       await saveMessage("ai", answer);
       await saveMemory("conversation", `User: ${text}\nAnta: ${answer}`);
 
       await speakLine(answer);
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Error tidak diketahui";
-      setMessages((m) => m.map((item, i) => (i === m.length - 1 ? { role: "ai", text: msg } : item)));
+      setMessages((m) => [...m, { role: "ai", text: msg }]);
     } finally {
       setLoading(false);
     }
