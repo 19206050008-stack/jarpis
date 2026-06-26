@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useMemo, useState, useRef, useEffect, type CSSProperties, type PointerEvent } from "react";
 import { createClient } from "@supabase/supabase-js";
@@ -43,7 +43,7 @@ async function saveMemory(kind: string, content: string) {
   await supabase.from("memories").insert({ kind, content }).then(() => {}, () => {});
 }
 
-// News Bank â€” store summarized news for today, auto-clean yesterday's
+// News Bank — store summarized news for today, auto-clean yesterday's
 // Works with Supabase if available, localStorage as fallback
 async function cleanOldNews() {
   // Clean localStorage news bank if date changed
@@ -135,7 +135,7 @@ function withProtocol(url: string) {
 
 
 function isOrderedText(text: string) {
-  return /(^|\n)\s*(\d+[.)]|[-â€¢])\s+/.test(text);
+  return /(^|\n)\s*(\d+[.)]|[-•])\s+/.test(text);
 }
 
 function numberFromText(text: string) {
@@ -172,7 +172,7 @@ async function askPollinationsChat(prompt: string, model = "openai"): Promise<st
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       messages: [
-        { role: "system", content: "Kamu Anta, asisten AI. Jawab langsung, ringkas, natural. Jangan pakai awalan seperti Baik/Tentu/Oke. Jangan pakai akhiran tanya. Langsung ke inti. Jangan pakai markdown." },
+        { role: "system", content: "Kamu Anta, asisten AI yang natural dan ramah. Jawab dengan gaya bicara santai. Jangan gunakan markdown. Jawab langsung sesuai konteks." },
         { role: "user", content: prompt }
       ],
       model,
@@ -184,7 +184,7 @@ async function askPollinationsChat(prompt: string, model = "openai"): Promise<st
   return res.text();
 }
 
-// OpenRouter API â€” primary AI provider (faster, more reliable)
+// OpenRouter API — primary AI provider (faster, more reliable)
 const OPENROUTER_KEYS = [
   process.env.NEXT_PUBLIC_OPENROUTER_KEY || "",
   process.env.NEXT_PUBLIC_OPENROUTER_KEY2 || "",
@@ -214,7 +214,7 @@ async function askOpenRouter(prompt: string, model = "qwen/qwen3-0.6b-04-28:free
     body: JSON.stringify({
       model,
       messages: [
-        { role: "system", content: "Kamu Anta, asisten AI. Jawab langsung, ringkas, natural. Jangan pakai awalan seperti Baik/Tentu/Oke. Jangan pakai akhiran tanya. Langsung ke inti. Jangan pakai markdown." },
+        { role: "system", content: "Kamu Anta, asisten AI yang natural dan ramah. Jawab dengan gaya bicara santai seperti teman ngobrol biasa. Jangan gunakan markdown, jangan sebut dirimu sebagai AI/bot. Jawab langsung sesuai konteks." },
         { role: "user", content: prompt }
       ],
       max_tokens: 500,
@@ -240,7 +240,7 @@ async function askOpenAgentic(prompt: string, model = "gpt-4o-mini"): Promise<st
     body: JSON.stringify({
       model,
       messages: [
-        { role: "system", content: "Kamu Anta, asisten AI. Jawab langsung, ringkas, natural. Jangan pakai awalan seperti Baik/Tentu/Oke. Jangan pakai akhiran tanya. Langsung ke inti. Jangan pakai markdown." },
+        { role: "system", content: "Kamu Anta, asisten AI yang natural dan ramah. Jawab dengan gaya bicara santai seperti teman ngobrol biasa. Jangan gunakan markdown, jangan sebut dirimu sebagai AI/bot. Jawab langsung sesuai konteks." },
         { role: "user", content: prompt }
       ],
       max_tokens: 500,
@@ -271,7 +271,7 @@ async function askZenmux(prompt: string, model = "claude-sonnet-4-20250514"): Pr
     body: JSON.stringify({
       model,
       messages: [
-        { role: "system", content: "Kamu Anta, asisten AI. Jawab langsung, ringkas, natural. Jangan pakai awalan seperti Baik/Tentu/Oke. Jangan pakai akhiran tanya. Langsung ke inti. Jangan pakai markdown." },
+        { role: "system", content: "Kamu Anta, asisten AI yang natural dan ramah. Jawab dengan gaya bicara santai seperti teman ngobrol biasa. Jangan gunakan markdown, jangan sebut dirimu sebagai AI/bot. Jawab langsung sesuai konteks." },
         { role: "user", content: prompt }
       ],
       max_tokens: 500,
@@ -297,7 +297,7 @@ async function askZyloo(prompt: string, model = "zyloo/gpt-5.4"): Promise<string
     body: JSON.stringify({
       model,
       messages: [
-        { role: "system", content: "Kamu Anta, asisten AI. Jawab langsung, ringkas, natural. Jangan pakai awalan seperti Baik/Tentu/Oke. Jangan pakai akhiran tanya. Langsung ke inti. Jangan pakai markdown." },
+        { role: "system", content: "Kamu Anta, asisten AI yang natural dan ramah. Jawab dengan gaya bicara santai seperti teman ngobrol biasa. Jangan gunakan markdown, jangan sebut dirimu sebagai AI/bot. Jawab langsung sesuai konteks." },
         { role: "user", content: prompt }
       ],
       max_tokens: 500,
@@ -323,7 +323,7 @@ async function askMistral(prompt: string, model = "mistral-small-latest"): Promi
     body: JSON.stringify({
       model,
       messages: [
-        { role: "system", content: "Kamu Anta, asisten AI. Jawab langsung, ringkas, natural. Jangan pakai awalan seperti Baik/Tentu/Oke. Jangan pakai akhiran tanya. Langsung ke inti. Jangan pakai markdown." },
+        { role: "system", content: "Kamu Anta, asisten AI yang natural dan ramah. Jawab dengan gaya bicara santai seperti teman ngobrol biasa. Jangan gunakan markdown, jangan sebut dirimu sebagai AI/bot. Jawab langsung sesuai konteks." },
         { role: "user", content: prompt }
       ],
       max_tokens: 500,
@@ -374,7 +374,7 @@ async function askAi(text: string, cache = true) {
   // Browser should not call AI vendors directly: CORS/403 noise. Backend handles providers.
   const strategies = [
     () => askBackendChat(text),
-    () => askPollinations(`Kamu Anta, asisten AI. Jawab langsung, ringkas, natural. Jangan pakai awalan seperti Baik/Tentu/Oke. Jangan pakai akhiran tanya. Langsung ke inti. Jangan pakai markdown.\n\nUser: ${text}`, "openai"),
+    () => askPollinations(`Kamu Anta, asisten AI yang natural dan ramah. Jawab dengan gaya bicara santai seperti teman ngobrol biasa. Jangan gunakan markdown, jangan sebut dirimu sebagai AI/bot. Jawab langsung sesuai konteks.\n\nUser: ${text}`, "openai"),
   ];
   
   for (let i = 0; i < strategies.length; i++) {
@@ -387,7 +387,7 @@ async function askAi(text: string, cache = true) {
     } catch { /* try next */ }
     
     // Wait before retry
-    if (i < strategies.length - 1) await new Promise(r => setTimeout(r, 500));
+    if (i < strategies.length - 1) await new Promise(r => setTimeout(r, 1500));
   }
 
   throw new Error("Anta belum bisa merespons. Coba lagi sebentar.");
@@ -488,16 +488,16 @@ export default function Home() {
   const lastActiveAppRef = useRef("");
 
   const voices = useMemo(() => [
-    { id: "sari", label: "Sari â€” Wanita" },
-    { id: "dewi", label: "Dewi â€” Wanita" },
-    { id: "ayu", label: "Ayu â€” Wanita" },
-    { id: "rina", label: "Rina â€” Wanita" },
-    { id: "maya", label: "Maya â€” Wanita" },
-    { id: "budi", label: "Budi â€” Pria" },
-    { id: "agus", label: "Agus â€” Pria" },
-    { id: "bayu", label: "Bayu â€” Pria" },
-    { id: "dimas", label: "Dimas â€” Pria" },
-    { id: "andi", label: "Andi â€” Pria" },
+    { id: "sari", label: "Sari — Wanita" },
+    { id: "dewi", label: "Dewi — Wanita" },
+    { id: "ayu", label: "Ayu — Wanita" },
+    { id: "rina", label: "Rina — Wanita" },
+    { id: "maya", label: "Maya — Wanita" },
+    { id: "budi", label: "Budi — Pria" },
+    { id: "agus", label: "Agus — Pria" },
+    { id: "bayu", label: "Bayu — Pria" },
+    { id: "dimas", label: "Dimas — Pria" },
+    { id: "andi", label: "Andi — Pria" },
   ], []);
 
   function cleanText(text: string) {
@@ -519,7 +519,9 @@ export default function Home() {
     // instant visual trigger
     setIsAiSpeaking(true);
     
-    // Start subtitle immediately â€” no delay
+    // Wait 2 seconds before starting subtitle display
+    await new Promise(r => setTimeout(r, 2000));
+    
     // Auxiliary function to run when audio starts playing
     const playTypingEffect = () => {
       setSubtitle(""); 
@@ -537,7 +539,7 @@ export default function Home() {
         const word = words[i++];
         if (!word) return;
         setSubtitle((prev) => (prev ? prev + " " + word : word));
-      }, 120);
+      }, 220);
 
       // Store in ref or handle cleanup on stop/ended
       const cleanup = () => {
@@ -586,7 +588,6 @@ export default function Home() {
         const blob = await speakRes.ok ? await speakRes.blob() : null;
         if (!blob) {
           setIsAiSpeaking(false);
-          setSubtitle("");
           return;
         }
         const url = URL.createObjectURL(blob);
@@ -595,27 +596,16 @@ export default function Home() {
         setTimeout(() => {
           playTypingEffect();
         }, 50);
-        // Safety timeout: clear subtitle after max duration in case audio events don't fire
-        setTimeout(() => {
-          setSubtitle("");
-          setIsAiSpeaking(false);
-        }, Math.max(8000, clean.length * 150));
       } else {
-        // TTS failed - use offline fallback
-        playTypingEffect();
-        setTimeout(() => {
-          setIsAiSpeaking(false);
-          setSubtitle("");
-        }, Math.max(1500, clean.length * 60));
+        setIsAiSpeaking(false);
       }
     } catch (ttsErr) {
       setIsAiSpeaking(false);
-      setSubtitle("");
       console.error("TTS failed", ttsErr);
     }
   }
 
-  // Startup greeting â€” orb says hello after mount
+  // Startup greeting — orb says hello after mount
   useEffect(() => {
     const timer = setTimeout(() => {
       void speakLine("Anta online. Siap membantu.");
@@ -722,9 +712,9 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [apiUrl, speaker, speakEnabled, agentAccepted]);
 
-  // Orb stays idle â€” gentle breathing animation only, no random mode switching
+  // Orb stays idle — gentle breathing animation only, no random mode switching
 
-  // Timer 1: News Fetcher â€” every ~5 min, fetch new news if bank is low
+  // Timer 1: News Fetcher — every ~5 min, fetch new news if bank is low
   useEffect(() => {
     if (!apiUrl) return;
     const fetchNews = async () => {
@@ -780,13 +770,13 @@ export default function Home() {
       } catch { /* silent */ }
     };
     
-    // First fetch after 10s, then every 5 min (Â± 1 min random)
+    // First fetch after 10s, then every 5 min (± 1 min random)
     const firstTimer = window.setTimeout(fetchNews, 10000);
     const interval = window.setInterval(fetchNews, 300000 + Math.floor(Math.random() * 60000));
     return () => { window.clearTimeout(firstTimer); window.clearInterval(interval); };
   }, [apiUrl]);
 
-  // Timer 2: News Speaker â€” every ~25-45 sec, speak one unspoken news from bank
+  // Timer 2: News Speaker — every ~25-45 sec, speak one unspoken news from bank
   useEffect(() => {
     if (loading || isAiSpeaking || listening) return;
     const timer = window.setTimeout(async () => {
@@ -802,6 +792,7 @@ export default function Home() {
           // Keep only last 50 IDs
           localStorage.setItem("anta_spoken_ids", JSON.stringify(spokenIds.slice(-50)));
           
+          void speakLine(unspoken.summary);
           void speakLine(unspoken.summary);
         }
       } catch { /* silent */ }
@@ -1016,7 +1007,7 @@ export default function Home() {
     }
 
     if ((lower.includes("ganti suara") || lower.includes("ubah suara") || lower.includes("daftar suara") || lower.includes("suara siapa") || lower.includes("list suara")) && !voice) {
-      const list = voices.map((v) => `â€¢ ${v.label}`).join("\n");
+      const list = voices.map((v) => `• ${v.label}`).join("\n");
       return `Berikut daftar suara yang tersedia:\n${list}\n\nKetik "ganti suara [nama]" untuk mengganti.`;
     }
 
@@ -1061,7 +1052,7 @@ export default function Home() {
       return askAi(`Buat balasan singkat untuk pesan ini:\n${rest}`);
     }
 
-    // buka website â€” natural: "buka youtube.com", "open google.com", "buk browser"
+    // buka website — natural: "buka youtube.com", "open google.com", "buk browser"
     // Also handle typos: "buk" = "buka", "brows" = "browser"
     const bukaMatch = lower.match(/(?:buk[a]?[k]?[an]?|open|tampilkan|bukakan|tolong\s*buka?)\s+(.+)/);
     if (bukaMatch) {
@@ -1115,7 +1106,7 @@ export default function Home() {
       }
     }
 
-    // berita â€” natural: "berita hari ini", "carikan berita", "cari berita teknologi"
+    // berita — natural: "berita hari ini", "carikan berita", "cari berita teknologi"
     const beritaMatch = lower.match(/(?:carikan|cari|tampilkan|kasih|beri|tolong.*?(?:cari|carikan))?\s*berita\s*(.*)/i);
     if (beritaMatch || cmd === "berita") {
       const query = beritaMatch ? (beritaMatch[1] || "Indonesia hari ini").trim() : (rest || "Indonesia hari ini");
@@ -1138,7 +1129,7 @@ export default function Home() {
       return `Maaf, saya gagal mencari berita. Coba lagi nanti ya.`;
     }
 
-    // lagu/musik â€” natural: "lagu dewa 19", "carikan lagu jazz", "putar musik pop"
+    // lagu/musik — natural: "lagu dewa 19", "carikan lagu jazz", "putar musik pop"
     const laguMatch = lower.match(/(?:carikan|cari|putar|putarkan|tolong.*?(?:cari|putar))?\s*(?:lagu|musik|video|song)\s*(.*)/i);
     if (laguMatch) {
       const query = (laguMatch[1] || "").trim() || "Indonesia populer";
@@ -1160,7 +1151,7 @@ export default function Home() {
       return `Maaf, saya gagal mencari video tentang ${query}.`;
     }
 
-    // cari/web/gambar â€” natural: "cari resep nasi goreng", "gambar kucing lucu"
+    // cari/web/gambar — natural: "cari resep nasi goreng", "gambar kucing lucu"
     const cariMatch = lower.match(/(?:carikan|cari|search|tolong.*?cari)\s+(.+)/i);
     const gambarMatch = lower.match(/(?:gambar|image|foto)\s+(.+)/i);
     if (gambarMatch || cariMatch) {
@@ -1182,7 +1173,7 @@ export default function Home() {
       }
     }
 
-    // bacakan/baca â€” user asks Anta to read something aloud
+    // bacakan/baca — user asks Anta to read something aloud
     const bacaMatch = lower.match(/(?:bacakan|baca|tolong\s*baca(?:kan)?|coba\s*baca(?:kan)?)\s+(.+)/);
     if (bacaMatch) {
       const topic = bacaMatch[1].trim();
@@ -1226,7 +1217,7 @@ export default function Home() {
     try {
       const rawAnswer = await handle(text);
       if (rawAnswer.startsWith("__SPEAK__:")) {
-        // Bacakan topic â€” get AI answer for the topic
+        // Bacakan topic — get AI answer for the topic
         const topic = rawAnswer.slice(10);
         const answer = cleanText(await askAi(topic));
         setMessages((m) => [...m, { role: "ai", text: answer }]);
@@ -1268,7 +1259,7 @@ export default function Home() {
       if (answer.startsWith("__SPEAK__:")) {
         const topic = answer.replace("__SPEAK__:", "");
         
-        // Replace typing indicator with "searching" message â€” keep chat open
+        // Replace typing indicator with "searching" message — keep chat open
         setMessages((m) => [...m.slice(0, -1), { role: "ai", text: `Oke, saya akan membacakan ${topic}. Tunggu sebentar...` }, { role: "ai", text: "Anta sedang mengetik . . ." }]);
         
         // Generate content with numbered format and intro/outro
@@ -1312,7 +1303,7 @@ export default function Home() {
         const outro = `Sudah saya bacakan terkait ${topic}. Apakah ada lagi yang bisa saya bantu?`;
         const fullSpeech = `${intro}\n\n${cleanContent}\n\n${outro}`;
         
-        // Data ready â€” show content in chat with notice
+        // Data ready — show content in chat with notice
         setMessages((m) => [...m.slice(0, -1), { role: "ai", text: fullSpeech }, { role: "ai", text: "Saya akan mulai membacakannya..." }]);
         setLoading(false);
         
@@ -1387,7 +1378,7 @@ export default function Home() {
         </div>
         {subtitle && <div className={`subtitle-bubble ${isOrderedText(subtitle) ? 'align-left' : ''}`}>{subtitle}</div>}
 
-        {/* Orbit Menu â€” inside center-container so it follows orb animations */}
+        {/* Orbit Menu — inside center-container so it follows orb animations */}
         <nav className={`dock ${chatState === 'closed' && viewerState === 'closed' ? 'orbit-menu' : 'popup-dock'}`}>
           <button className={chatState === 'open' ? 'active' : ''} onClick={() => setChatState(chatState === 'open' ? 'closed' : 'open')} title="AI Chat">
             <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
@@ -1402,9 +1393,9 @@ export default function Home() {
       {chatState === 'open' && (
         <section className="popup-window chat-window" style={{ left: popupPos.chat.x, top: popupPos.chat.y }}>
           <header className="window-header" onPointerDown={(e) => { if (window.innerWidth > 800 && !(e.target instanceof Element && e.target.closest('.controls'))) startPopupDrag("chat", e); }} onPointerMove={movePopup} onPointerUp={stopPopupDrag}>
-            <span className="title">ðŸ’¬ Anta Chat</span>
+            <span className="title">Anta Chat</span>
             <div className="controls">
-              <button onClick={(e) => { e.stopPropagation(); setChatState('closed'); }} type="button">Ã—</button>
+              <button onClick={(e) => { e.stopPropagation(); setChatState('closed'); }} type="button">×</button>
             </div>
           </header>
           
@@ -1424,10 +1415,10 @@ export default function Home() {
       {viewerState === 'open' && (
         <section className={`popup-window viewer-window ${viewerFullscreen ? 'viewer-fullscreen' : ''}`} style={viewerFullscreen ? undefined : { left: popupPos.viewer.x || undefined, right: popupPos.viewer.x ? undefined : 40, top: popupPos.viewer.y }}>
           <header className="window-header" onPointerDown={(e) => { if (window.innerWidth > 800 && !viewerFullscreen && !(e.target instanceof Element && e.target.closest('.controls'))) startPopupDrag("viewer", e); }} onPointerMove={movePopup} onPointerUp={stopPopupDrag}>
-            <span className="title">ðŸŒ Anta Monitor: {view.title || "No Signal"}</span>
+            <span className="title">Anta Monitor: {view.title || "No Signal"}</span>
             <div className="controls">
-              <button onClick={(e) => { e.stopPropagation(); setViewerFullscreen(!viewerFullscreen); }} type="button" title="Fullscreen">â›¶</button>
-              <button onClick={(e) => { e.stopPropagation(); setViewerFullscreen(false); setViewerState('closed'); }} type="button">Ã—</button>
+              <button onClick={(e) => { e.stopPropagation(); setViewerFullscreen(!viewerFullscreen); }} type="button" title="Fullscreen">⛶</button>
+              <button onClick={(e) => { e.stopPropagation(); setViewerFullscreen(false); setViewerState('closed'); }} type="button">×</button>
             </div>
           </header>
           <div className="viewer-content">
@@ -1458,7 +1449,7 @@ export default function Home() {
                       }
                     }}>
                       <h4>{i + 1}. {item.title}</h4>
-                      <span>{item.source} {item.pubDate ? `â€¢ ${item.pubDate}` : ""}</span>
+                      <span>{item.source} {item.pubDate ? `• ${item.pubDate}` : ""}</span>
                     </a>
                   );
                 })}
