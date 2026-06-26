@@ -6,14 +6,11 @@
   .chat-window{
     width:100vw!important;
     height:auto!important;
-    left:0!important;
-    right:0!important;
-    top:0!important;
-    bottom:76px!important;
     position:fixed!important;
+    inset:0 0 59px!important;
     border-radius:0!important;
     z-index:150!important;
-    padding-bottom:0!important;
+    padding-bottom:9px!important;
   }
   .chat-window .form {
     padding-bottom: 0!important;
