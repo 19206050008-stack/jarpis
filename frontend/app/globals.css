@@ -193,13 +193,12 @@
 .dock button:hover,.dock button.active{background:linear-gradient(180deg,#0a76bf 0%,#04306f 55%,#00a6d6 100%);color:white;box-shadow:0 0 24px #00d9ff,inset 0 0 18px #9ffbff55;transform:translateY(-2px)}
 .dock button.active svg{stroke:#fff;filter:drop-shadow(0 0 7px #fff) drop-shadow(0 0 16px #00e5ff)}
 
-/* Subtitle HUD: box sits under orb, stretches with text, with speaking connector. */
-.subtitle-bubble{margin-top:70px;width:auto;min-width:120px;max-width:min(420px,72vw);padding:14px 18px 12px;border:1px solid #50ddff;border-radius:0;clip-path:none;background:linear-gradient(180deg,#061827f2 0%,#03101bee 100%);box-shadow:0 0 0 1px #bdf8ff22 inset,0 0 20px #00c8ff66,0 10px 28px #000b;text-align:center;color:#dffbff;line-height:1.5;letter-spacing:.25px;transform:none;animation:none;word-wrap:break-word;overflow-wrap:break-word;white-space:pre-wrap}
-.subtitle-bubble:before{content:"ANTA SEDANG BICARA";position:absolute;left:50%;top:-13px;inset:auto auto auto 50%;width:130px;height:18px;display:grid;place-items:center;transform:translateX(-50%);border:1px solid #50ddff;border-radius:0;clip-path:polygon(10px 0,calc(100% - 10px) 0,100% 50%,calc(100% - 10px) 100%,10px 100%,0 50%);background:linear-gradient(90deg,#06366d,#00aeea 50%,#06366d);box-shadow:0 0 14px #00d9ff99;color:white;font-size:6px;font-weight:900;text-shadow:0 0 7px #fff;letter-spacing:.7px}
-.subtitle-bubble:after{content:"";position:absolute;right:18px;top:-50px;width:40px;height:40px;border-top:1px solid #70eaff;border-right:1px solid #70eaff;filter:drop-shadow(0 0 5px #00d9ff);opacity:.9}
-.center-container:not(:has(.orb-equalizer.active)) .subtitle-bubble:after{opacity:.35}
+/* Subtitle HUD: box sits under orb, stretches with text, clean box without title. */
+.subtitle-bubble{margin-top:70px;width:auto;min-width:120px;max-width:min(420px,72vw);padding:10px 16px;border:1px solid #50ddff;border-radius:0;clip-path:none;background:linear-gradient(180deg,#061827f2 0%,#03101bee 100%);box-shadow:0 0 0 1px #bdf8ff22 inset,0 0 20px #00c8ff66,0 10px 28px #000b;text-align:center;color:#dffbff;line-height:1.5;letter-spacing:.25px;transform:none;animation:none;word-wrap:break-word;overflow-wrap:break-word;white-space:pre-wrap;pointer-events:none}
+.subtitle-bubble:before{display:none}
+.subtitle-bubble:after{display:none}
 .subtitle-bubble.align-left{text-align:left}
-@media(max-width:800px){.subtitle-bubble{margin-top:56px!important;min-width:100px;max-width:86vw;padding:12px 12px 10px;font-size:9px}.subtitle-bubble:after{right:14px;top:-38px;width:30px;height:30px}.subtitle-bubble:before{width:110px;font-size:5.5px;height:16px}}
+@media(max-width:800px){.subtitle-bubble{margin-top:56px!important;min-width:100px;max-width:86vw;padding:8px 12px;font-size:9px}}
 
 /* Orbit menu: round magnetic buttons beside orb; positioned relative to orb inside center-container. */
 .dock.orbit-menu{position:absolute;left:calc(50% + 84px);top:calc(50% - 40px);bottom:auto;right:auto;transform:none;display:flex;flex-direction:column;gap:12px;padding:0;background:transparent;border:0;box-shadow:none;clip-path:none;z-index:12;pointer-events:auto}

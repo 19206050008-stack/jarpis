@@ -418,7 +418,7 @@ export default function Home() {
   const [isAiSpeaking, setIsAiSpeaking] = useState(false);
   const [audioLevel, setAudioLevel] = useState(0);
   const [listening, setListening] = useState(false);
-  const [subtitle, setSubtitle] = useState("Anta online.");
+  const [subtitle, setSubtitle] = useState("");
   const [files, setFiles] = useState<LocalFile[]>([]);
   const [orbMode, setOrbMode] = useState("idle");
   const [orbSide, setOrbSide] = useState("center");
@@ -1384,7 +1384,7 @@ export default function Home() {
         >
           <AntaOrb3D active={isAiSpeaking} level={audioLevel} />
         </div>
-        {subtitle && <div className={`subtitle-bubble ${isOrderedText(subtitle) ? 'align-left' : ''}`}>{subtitle}</div>}
+        {isAiSpeaking && subtitle && <div className={`subtitle-bubble ${isOrderedText(subtitle) ? 'align-left' : ''}`}>{subtitle}</div>}
 
         {/* Orbit Menu — inside center-container so it follows orb animations */}
         <nav className={`dock ${chatState === 'closed' && viewerState === 'closed' ? 'orbit-menu' : 'popup-dock'}`}>
