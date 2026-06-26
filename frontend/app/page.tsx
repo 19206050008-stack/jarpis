@@ -724,7 +724,6 @@ export default function Home() {
     setInput("");
     setLoading(true);
     setChatState('open');
-    // ponytail: removed temporary placeholder message / quick ack to reply directly & fast
     setMessages((m) => [...m, { role: "user", text }]);
     await saveMessage("user", text);
 
@@ -736,7 +735,8 @@ export default function Home() {
       await saveMessage("ai", answer);
       await saveMemory("conversation", `User: ${text}\nAnta: ${answer}`);
 
-      await speakLine(answer);
+      // Don't auto-play TTS in text chat mode
+      // User can manually enable TTS via checkbox
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Error tidak diketahui";
       setMessages((m) => [...m, { role: "ai", text: msg }]);
@@ -792,7 +792,7 @@ export default function Home() {
       {/* Popup 1: AI Chat */}
       {chatState === 'open' && (
         <section className="popup-window chat-window" style={{ left: popupPos.chat.x, top: popupPos.chat.y }}>
-          <header className="window-header" onPointerDown={(e) => { if (window.innerWidth > 800 && !e.target.closest('.controls')) startPopupDrag("chat", e); }} onPointerMove={movePopup} onPointerUp={stopPopupDrag}>
+          <header className="window-header" onPointerDown={(e) => { if (window.innerWidth > 800 && !(e.target instanceof Element && e.target.closest('.controls'))) startPopupDrag("chat", e); }} onPointerMove={movePopup} onPointerUp={stopPopupDrag}>
             <span className="title">💬 Anta Chat</span>
             <div className="controls">
               <button onClick={(e) => { e.stopPropagation(); setChatState('closed'); }} type="button">×</button>
@@ -823,7 +823,7 @@ export default function Home() {
       {/* Popup 2: Website & Media Viewer */}
       {viewerState === 'open' && (
         <section className="popup-window viewer-window" style={{ left: popupPos.viewer.x || undefined, right: popupPos.viewer.x ? undefined : 40, top: popupPos.viewer.y }}>
-          <header className="window-header" onPointerDown={(e) => { if (window.innerWidth > 800 && !e.target.closest('.controls')) startPopupDrag("viewer", e); }} onPointerMove={movePopup} onPointerUp={stopPopupDrag}>
+          <header className="window-header" onPointerDown={(e) => { if (window.innerWidth > 800 && !(e.target instanceof Element && e.target.closest('.controls'))) startPopupDrag("viewer", e); }} onPointerMove={movePopup} onPointerUp={stopPopupDrag}>
             <span className="title">🌐 Anta Monitor: {view.title || "No Signal"}</span>
             <div className="controls">
               <button onClick={(e) => { e.stopPropagation(); setViewerState('closed'); }} type="button">×</button>
