@@ -342,20 +342,28 @@ async function askMimo(prompt: string): Promise<string> {
   return data.content;
 }
 
+async function askBackendChat(prompt: string): Promise<string> {
+  if (!apiUrl) throw new Error("No API URL");
+  const res = await fetch(`${apiUrl}/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message: prompt }),
+    signal: AbortSignal.timeout(60000)
+  });
+  if (!res.ok) throw new Error(`Backend chat error ${res.status}`);
+  const text = await res.text();
+  if (!text.trim()) throw new Error("Backend chat empty response");
+  return text;
+}
+
 async function askAi(text: string, cache = true) {
   const key = `anta:${text}`;
   const cached = cache ? localStorage.getItem(key) : null;
   if (cached) return cached;
 
-  // Strategy: rotate between providers for speed and reliability
+  // Browser should not call AI vendors directly: CORS/403 noise. Backend handles providers.
   const strategies = [
-    () => askZenmux(text, "claude-sonnet-4-20250514"),
-    () => askZyloo(text, "zyloo/gpt-5.4"),
-    () => askMistral(text, "mistral-small-latest"),
-    () => askOpenRouter(text, "qwen/qwen3-0.6b-04-28:free"),
-    () => askOpenAgentic(text, "gpt-4o-mini"),
-    () => askMimo(text),
-    () => askOpenRouter(text, "mistralai/mistral-small-3.1-24b-instruct:free"),
+    () => askBackendChat(text),
     () => askPollinations(`Kamu Anta, asisten AI yang natural dan ramah. Jawab dengan gaya bicara santai seperti teman ngobrol biasa. Jangan gunakan markdown, jangan sebut dirimu sebagai AI/bot. Jawab langsung sesuai konteks.\n\nUser: ${text}`, "openai"),
   ];
   
