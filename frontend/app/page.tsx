@@ -1090,15 +1090,24 @@ export default function Home() {
           return `Saya buka pencarian Anta di viewer.`;
         }
         if (!apiUrl) {
-          window.open(targetUrl, "_blank", "noopener,noreferrer");
-          return `Saya membuka ${target} di tab baru (proxy backend tidak tersedia).`;
+          setViewerLoading(false);
+          setArticleText("");
+          setNews([]);
+          setVideos([]);
+          setView({ title: `Buka: ${target}`, url: "", note: "Backend proxy belum tersedia, jadi website tidak bisa dimuat di dalam Anta." });
+          setViewerState('open');
+          autoMinimizeChat();
+          return `Saya tampilkan di viewer Anta, tapi proxy backend belum tersedia.`;
         }
         const proxied = `${apiUrl}/proxy?url=${encodeURIComponent(targetUrl)}`;
         setViewerLoading(true);
-        setView({ title: `Buka: ${target}`, url: proxied, note: "Website dimuat via Anta Secure Proxy." });
+        setArticleText("");
+        setNews([]);
+        setVideos([]);
+        setView({ title: `Buka: ${target}`, url: proxied, note: "Website dimuat di dalam Anta. Jika situs memblokir embed, pakai cari [topik] agar Anta tampilkan hasil/teksnya." });
         setViewerState('open');
         autoMinimizeChat();
-        return `Saya membuka website ${target} di viewer Anta.`;
+        return `Saya membuka website ${target} di dalam Anta.`;
       }
     }
 
