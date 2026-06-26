@@ -30,6 +30,7 @@ declare global {
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
+const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
 
 async function saveMessage(role: string, text: string) {
   if (!supabase) return;
@@ -147,7 +148,6 @@ export default function Home() {
   const ttsCacheRef = useRef(new Map<string, string>());
   const seenNewsRef = useRef(new Set<string>());
   const lastActiveAppRef = useRef("");
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
 
   const voices = useMemo(() => [
     { id: "sari", label: "Sari — Wanita" },
