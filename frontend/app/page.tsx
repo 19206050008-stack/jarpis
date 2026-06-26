@@ -186,33 +186,28 @@ async function askAi(text: string, cache = true) {
 
 User: ${text}`;
 
-  // Retry up to 3 rounds before giving up
+  // Sequential fallback with delay between retries (avoid rate limit)
+  const models = ["openai", "mistral", "command-r-plus"];
+  
   for (let attempt = 0; attempt < 3; attempt++) {
+    const model = models[attempt % models.length];
     try {
-      const providers = [
-        askPollinations(systemPrompt, "openai"),
-        askPollinationsChat(text, "mistral"),
-        askPollinations(systemPrompt, "mistral"),
-      ];
-      const answer = await Promise.any(providers);
+      // Alternate between GET and POST
+      let answer = "";
+      if (attempt % 2 === 0) {
+        answer = await askPollinations(systemPrompt, model);
+      } else {
+        answer = await askPollinationsChat(text, model);
+      }
       if (answer && answer.length >= 2) {
         if (cache) localStorage.setItem(key, answer.slice(0, 4000));
         return answer;
       }
-    } catch { /* retry */ }
+    } catch { /* try next */ }
     
-    // Wait a bit before retrying
-    if (attempt < 2) await new Promise(r => setTimeout(r, 2000));
+    // Wait before retry to avoid rate limit
+    if (attempt < 2) await new Promise(r => setTimeout(r, 3000));
   }
-
-  // Final fallback attempt
-  try {
-    const answer = await askPollinations(systemPrompt, "command-r-plus");
-    if (answer && answer.length >= 2) {
-      if (cache) localStorage.setItem(key, answer.slice(0, 4000));
-      return answer;
-    }
-  } catch { /* ignore */ }
 
   throw new Error("Anta belum bisa merespons. Coba lagi sebentar.");
 }
@@ -515,20 +510,28 @@ export default function Home() {
 
   useEffect(() => {
     if (loading || isAiSpeaking || listening) return;
+    let callCount = 0;
     const timer = window.setInterval(async () => {
-      try {
-        const response = await askPollinations(
-          `Kamu adalah orb AI hidup. Pilih SATU mood/gerakan untuk dirimu sekarang. Pilihan: idle, slime, melt, bounce, spin, fast, creature. Dan pilih posisi: center, left, right. Jawab HANYA dalam format: mode:posisi (contoh: slime:center atau bounce:right). Jangan tambahkan kata lain.`,
-          "mistral"
-        );
-        const clean = response.trim().toLowerCase().replace(/[^a-z:]/g, "");
-        const [mode, side] = clean.split(":");
-        const validModes = ["idle", "slime", "melt", "bounce", "spin", "fast", "creature"];
-        const validSides = ["center", "left", "right"];
-        if (validModes.includes(mode)) setOrbMode(mode);
-        if (validSides.includes(side)) setOrbSide(side);
-      } catch {
-        // Fallback random if AI fails
+      callCount++;
+      // Only ask AI every 5th cycle (~60s), otherwise random
+      if (callCount % 5 === 0) {
+        try {
+          const response = await askPollinations(
+            `Kamu adalah orb AI hidup. Pilih SATU mood/gerakan untuk dirimu sekarang. Pilihan: idle, slime, melt, bounce, spin, fast, creature. Dan pilih posisi: center, left, right. Jawab HANYA dalam format: mode:posisi (contoh: slime:center atau bounce:right). Jangan tambahkan kata lain.`,
+            "mistral"
+          );
+          const clean = response.trim().toLowerCase().replace(/[^a-z:]/g, "");
+          const [mode, side] = clean.split(":");
+          const validModes = ["idle", "slime", "melt", "bounce", "spin", "fast", "creature"];
+          const validSides = ["center", "left", "right"];
+          if (validModes.includes(mode)) setOrbMode(mode);
+          if (validSides.includes(side)) setOrbSide(side);
+        } catch {
+          const modes = ["idle", "slime", "melt", "bounce", "spin", "fast", "creature"];
+          setOrbMode(modes[Math.floor(Math.random() * modes.length)]);
+        }
+      } else {
+        // Local random — no API call
         const modes = ["idle", "slime", "melt", "bounce", "spin", "fast", "creature"];
         setOrbMode(modes[Math.floor(Math.random() * modes.length)]);
       }
@@ -582,6 +585,9 @@ export default function Home() {
           
             await saveNewsToBank(item.title || "", source, item.link, summary);
             addedAny = true;
+            
+            // Delay between items to avoid rate limiting
+            await new Promise(r => setTimeout(r, 5000));
           }
           
           if (addedAny) break; // Got some news, stop trying more topics
