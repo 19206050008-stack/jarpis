@@ -850,7 +850,7 @@ export default function Home() {
           </div>
 
           <form className="form" onSubmit={(e) => { e.preventDefault(); send(); }}>
-            <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Tanya Anta atau ketik /berita..." />
+            <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ketik pesan, berita, lagu, cari..." />
             <button disabled={loading || !input.trim()}>{loading ? "..." : "Kirim"}</button>
           </form>
 
