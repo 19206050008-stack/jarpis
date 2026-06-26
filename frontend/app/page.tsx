@@ -292,7 +292,7 @@ export default function Home() {
     window.open(URL.createObjectURL(blob), "_blank");
   }
 
-  function openKnownApp(name: string) {
+  async function openKnownApp(name: string) {
     const apps: Record<string, string> = {
       whatsapp: "whatsapp://",
       spotify: "spotify://",
@@ -304,8 +304,16 @@ export default function Home() {
     };
     const key = Object.keys(apps).find((app) => name.toLowerCase().includes(app));
     if (!key) return "Saya belum bisa membuka aplikasi itu dari browser. Untuk aplikasi arbitrary perlu Jarpis Local Agent yang di-install di perangkat.";
-    window.location.href = apps[key];
-    return `Saya coba buka ${key}. Jika tidak terbuka, aplikasi itu belum terdaftar sebagai URL scheme di perangkat ini.`;
+    
+    // Proactive AI response before opening
+    const responseText = await askAi(`Kamu Jarpis. User meminta membuka aplikasi '${key || name}'. Buat satu kalimat respons spontan cerdas dan ramah terkait hal ini (misal untuk spotify tawarkan mendengarkan lagu, dll). Jangan gunakan markdown atau kutipan. Maksimal 1 kalimat.`, false);
+    void speakLine(responseText);
+    
+    setTimeout(() => {
+      window.location.href = apps[key!];
+    }, 1500);
+
+    return responseText;
   }
 
   function startOrbDrag(e: PointerEvent<HTMLDivElement>) {
