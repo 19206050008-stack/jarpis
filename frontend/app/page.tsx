@@ -100,29 +100,35 @@ async function askAi(text: string, cache = true) {
 
 User: ${text}`;
 
-  // Race multiple providers - first valid response wins
-  const providers = [
-    askPollinations(systemPrompt, "openai"),
-    askPollinationsChat(text, "mistral"),
-    askPollinations(systemPrompt, "mistral"),
-  ];
-
-  let answer = "";
-  try {
-    // Use Promise.any - first one to resolve wins
-    answer = await Promise.any(providers);
-  } catch {
-    // All failed, try one more time with a simple fallback
+  // Retry up to 3 rounds before giving up
+  for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      answer = await askPollinations(systemPrompt, "command-r-plus");
-    } catch {
-      throw new Error("Semua AI provider gagal merespons");
-    }
+      const providers = [
+        askPollinations(systemPrompt, "openai"),
+        askPollinationsChat(text, "mistral"),
+        askPollinations(systemPrompt, "mistral"),
+      ];
+      const answer = await Promise.any(providers);
+      if (answer && answer.length >= 2) {
+        if (cache) localStorage.setItem(key, answer.slice(0, 4000));
+        return answer;
+      }
+    } catch { /* retry */ }
+    
+    // Wait a bit before retrying
+    if (attempt < 2) await new Promise(r => setTimeout(r, 2000));
   }
 
-  if (!answer || answer.length < 2) throw new Error("AI tidak menjawab");
-  if (cache) localStorage.setItem(key, answer.slice(0, 4000));
-  return answer;
+  // Final fallback attempt
+  try {
+    const answer = await askPollinations(systemPrompt, "command-r-plus");
+    if (answer && answer.length >= 2) {
+      if (cache) localStorage.setItem(key, answer.slice(0, 4000));
+      return answer;
+    }
+  } catch { /* ignore */ }
+
+  throw new Error("Anta belum bisa merespons. Coba lagi sebentar.");
 }
 
 export default function Home() {
