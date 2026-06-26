@@ -134,9 +134,16 @@ export default function Home() {
           }
         })
         .catch(() => {
+          // If fetch fails (backend or agent not run), don't show the banner unless they haven't accepted it before.
+          // Since localStorage is checked above, if it gets here we show it.
           setAgentAccepted(false);
           setShowAgentBanner(true);
         });
+    } else {
+      // If no apiUrl, rely on localStorage setting to decide
+      const accepted = localStorage.getItem("anta_agent_accepted") === "true";
+      setAgentAccepted(accepted);
+      setShowAgentBanner(!accepted);
     }
   }, [apiUrl]);
 
