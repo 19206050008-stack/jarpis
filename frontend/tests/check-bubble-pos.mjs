@@ -3,7 +3,7 @@ import { chromium } from 'playwright';
 const b = await chromium.launch({ headless: true });
 const p = await b.newPage({ viewport: { width: 1365, height: 900 } });
 await p.goto('https://antasiar.my.id', { waitUntil: 'domcontentloaded', timeout: 30000 });
-await p.waitForTimeout(5000);
+await p.waitForTimeout(8000);
 const d = await p.evaluate(() => {
   const bubble = document.querySelector('.subtitle-bubble');
   const orb = document.querySelector('.orb-equalizer');
