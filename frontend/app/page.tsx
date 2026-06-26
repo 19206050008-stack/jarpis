@@ -92,6 +92,8 @@ export default function Home() {
   const [listening, setListening] = useState(false);
   const [subtitle, setSubtitle] = useState("Jarpis online. Sistem santai tapi siap.");
   const [files, setFiles] = useState<LocalFile[]>([]);
+  const [orbMode, setOrbMode] = useState("idle");
+  const [orbSide, setOrbSide] = useState("center");
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const orbRef = useRef<HTMLDivElement | null>(null);
@@ -267,6 +269,21 @@ export default function Home() {
     setVideos([]);
     setNews([]);
 
+    if (lower.includes("mode bulat") || lower.includes("mode orb") || lower.includes("jadi slime") || lower.includes("meleleh") || lower.includes("memantul") || lower.includes("berputar") || lower.includes("bergerak cepat") || lower.includes("ke kiri") || lower.includes("ke kanan") || lower.includes("ke tengah")) {
+      if (lower.includes("slime")) setOrbMode("slime");
+      else if (lower.includes("meleleh")) setOrbMode("melt");
+      else if (lower.includes("memantul")) setOrbMode("bounce");
+      else if (lower.includes("berputar")) setOrbMode("spin");
+      else if (lower.includes("cepat")) setOrbMode("fast");
+      else if (lower.includes("hewan")) setOrbMode("creature");
+      else setOrbMode("idle");
+
+      if (lower.includes("kiri")) setOrbSide("left");
+      if (lower.includes("kanan")) setOrbSide("right");
+      if (lower.includes("tengah")) setOrbSide("center");
+      return "Baik, bentuk dan gerakan inti Jarpis saya ubah.";
+    }
+
     if (lower.includes("izin folder") || lower.includes("akses folder")) return askFolderPermission();
 
     if ((lower.includes("cari file") || lower.includes("temukan file")) && files.length) {
@@ -435,8 +452,8 @@ export default function Home() {
   return (
     <main className="jarvis-desktop">
       {/* Background Equalizer Visualizer */}
-      <div className="center-container">
-        <div ref={orbRef} className={`orb-equalizer ${isAiSpeaking ? 'active' : ''}`}>
+      <div className={`center-container ${orbSide}`}>
+        <div ref={orbRef} className={`orb-equalizer ${orbMode} ${isAiSpeaking ? 'active' : ''}`}>
           <div className="ring ring-1"></div>
           <div className="ring ring-2"></div>
           <div className="ring ring-3"></div>
