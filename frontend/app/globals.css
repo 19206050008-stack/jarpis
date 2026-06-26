@@ -183,3 +183,20 @@
   .center-container.orb-chat-open .hud-readout,
   .center-container.orb-chat-open .jarvis-glow{display:none!important}
 }
+
+/* Reference button icon skin: blue beveled HUD chips. */
+.dock{gap:18px;padding:13px 20px;background:linear-gradient(90deg,#02050b,#031f50 22%,#085bbf 50%,#031f50 78%,#02050b);border:1px solid #155ca8;box-shadow:0 0 0 1px #42dfff33 inset,0 0 28px #006dff88;clip-path:polygon(20px 0,calc(100% - 20px) 0,100% 50%,calc(100% - 20px) 100%,20px 100%,0 50%)}
+.dock button{position:relative;width:62px;height:46px;padding:0;border:1px solid #2ab6ff;border-radius:0;color:#bff8ff;background:linear-gradient(180deg,#07366d 0%,#02142e 54%,#063b86 100%);clip-path:polygon(12px 0,100% 0,calc(100% - 12px) 100%,0 100%);box-shadow:0 0 14px #008cff88,inset 0 0 16px #00d9ff33;overflow:hidden}
+.dock button:before{content:"";position:absolute;inset:4px 8px auto;height:3px;background:linear-gradient(90deg,transparent,#74f6ff,transparent);box-shadow:0 0 10px #41e8ff}
+.dock button:after{content:"";position:absolute;inset:auto 8px 5px;height:2px;background:linear-gradient(90deg,transparent,#006dff,#78f7ff,transparent);opacity:.8}
+.dock button svg{width:24px;height:24px;stroke:#dffbff;filter:drop-shadow(0 0 5px #7df6ff) drop-shadow(0 0 12px #008cff)}
+.dock button:hover,.dock button.active{background:linear-gradient(180deg,#0a76bf 0%,#04306f 55%,#00a6d6 100%);color:white;box-shadow:0 0 24px #00d9ff,inset 0 0 18px #9ffbff55;transform:translateY(-2px)}
+.dock button.active svg{stroke:#fff;filter:drop-shadow(0 0 7px #fff) drop-shadow(0 0 16px #00e5ff)}
+
+/* Subtitle HUD: box sits under orb, stretches with text, with speaking connector. */
+.subtitle-bubble{margin-top:112px;width:max-content;min-width:180px;max-width:min(560px,78vw);padding:18px 22px 14px;border:1px solid #50ddff;border-radius:0;clip-path:polygon(14px 0,calc(100% - 14px) 0,100% 14px,100% calc(100% - 10px),calc(50% + 22px) calc(100% - 10px),50% 100%,calc(50% - 22px) calc(100% - 10px),0 calc(100% - 10px),0 14px);background:linear-gradient(180deg,#061827f2 0%,#03101bee 100%);box-shadow:0 0 0 1px #bdf8ff22 inset,0 0 20px #00c8ff66,0 10px 28px #000b;text-align:center;color:#dffbff;line-height:1.45;letter-spacing:.25px;transform:none;animation:none}
+.subtitle-bubble:before{content:"ANTA SEDANG BICARA";position:absolute;left:50%;top:-13px;inset:auto auto auto 50%;width:170px;height:20px;display:grid;place-items:center;transform:translateX(-50%);border:1px solid #50ddff;border-radius:0;clip-path:polygon(12px 0,calc(100% - 12px) 0,100% 50%,calc(100% - 12px) 100%,12px 100%,0 50%);background:linear-gradient(90deg,#06366d,#00aeea 50%,#06366d);box-shadow:0 0 14px #00d9ff99;color:white;font-size:7px;font-weight:900;text-shadow:0 0 7px #fff;letter-spacing:.7px}
+.subtitle-bubble:after{content:"";position:absolute;right:24px;top:-72px;width:58px;height:58px;border-top:1px solid #70eaff;border-right:1px solid #70eaff;filter:drop-shadow(0 0 5px #00d9ff);opacity:.9}
+.center-container:not(:has(.orb-equalizer.active)) .subtitle-bubble:after{opacity:.35}
+.subtitle-bubble.align-left{text-align:left}
+@media(max-width:800px){.subtitle-bubble{margin-top:86px!important;min-width:150px;max-width:86vw;padding:16px 14px 12px;font-size:9px}.subtitle-bubble:after{right:18px;top:-54px;width:42px;height:42px}.subtitle-bubble:before{width:142px;font-size:6px}}
