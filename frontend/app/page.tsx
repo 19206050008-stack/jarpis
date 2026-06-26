@@ -65,17 +65,62 @@ function quickAck(text: string) {
   return "Baik, saya proses. Saya akan jawab singkat lalu tanya langkah berikutnya.";
 }
 
+// Multiple free AI providers - hybrid/parallel approach
+async function askPollinations(prompt: string, model = "openai"): Promise<string> {
+  const url = `https://text.pollinations.ai/prompt/${encodeURIComponent(prompt)}?model=${model}`;
+  const res = await fetch(url, { signal: AbortSignal.timeout(30000) });
+  if (!res.ok) throw new Error("Pollinations error");
+  return res.text();
+}
+
+async function askPollinationsChat(prompt: string, model = "openai"): Promise<string> {
+  const res = await fetch("https://text.pollinations.ai/", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      messages: [
+        { role: "system", content: "Kamu Anta, asisten AI yang natural dan ramah. Jawab dengan gaya bicara santai. Jangan gunakan markdown. Jawab langsung sesuai konteks." },
+        { role: "user", content: prompt }
+      ],
+      model,
+      stream: false
+    }),
+    signal: AbortSignal.timeout(30000)
+  });
+  if (!res.ok) throw new Error("Pollinations chat error");
+  return res.text();
+}
+
 async function askAi(text: string, cache = true) {
   const key = `anta:${text}`;
   const cached = cache ? localStorage.getItem(key) : null;
   if (cached) return cached;
-  const prompt = `Kamu Anta, asisten AI yang natural dan ramah. Jawab dengan gaya bicara santai seperti teman ngobrol biasa. Jangan gunakan markdown, jangan sebut dirimu sebagai AI/bot. Jawab langsung sesuai konteks.
+  
+  const systemPrompt = `Kamu Anta, asisten AI yang natural dan ramah. Jawab dengan gaya bicara santai seperti teman ngobrol biasa. Jangan gunakan markdown, jangan sebut dirimu sebagai AI/bot. Jawab langsung sesuai konteks.
 
 User: ${text}`;
-  const url = `https://text.pollinations.ai/prompt/${encodeURIComponent(prompt)}?model=openai`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error("AI tidak menjawab");
-  const answer = await res.text();
+
+  // Race multiple providers - first valid response wins
+  const providers = [
+    askPollinations(systemPrompt, "openai"),
+    askPollinationsChat(text, "mistral"),
+    askPollinations(systemPrompt, "mistral"),
+  ];
+
+  let answer = "";
+  try {
+    // Use Promise.any - first one to resolve wins
+    answer = await Promise.any(providers);
+  } catch {
+    // All failed, try one more time with a simple fallback
+    try {
+      answer = await askPollinations(systemPrompt, "command-r-plus");
+    } catch {
+      throw new Error("Semua AI provider gagal merespons");
+    }
+  }
+
+  if (!answer || answer.length < 2) throw new Error("AI tidak menjawab");
   if (cache) localStorage.setItem(key, answer.slice(0, 4000));
   return answer;
 }
