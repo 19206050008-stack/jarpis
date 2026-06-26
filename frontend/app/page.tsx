@@ -59,7 +59,7 @@ function quickAck(text: string) {
   if (lower.startsWith("/berita")) return "Baik, saya cari berita terbaru. Setelah muncul, saya bisa bantu ringkas atau bacakan.";
   if (lower.startsWith("/lagu")) return "Baik, saya cari lagu/video yang cocok. Sebentar.";
   if (lower.startsWith("/gambar")) return "Baik, saya cari gambar yang relevan. Sebentar.";
-  if (lower.includes("ganti suara") || lower.includes("ubah suara")) return "Baik, saya ganti suara Jarpis.";
+  if (lower.includes("ganti suara") || lower.includes("ubah suara")) return "Baik, saya ganti suara Anta.";
   if (lower.startsWith("/buka")) return "Baik, saya buka websitenya di monitor.";
   return "Baik, saya proses. Saya akan jawab singkat lalu tanya langkah berikutnya.";
 }
@@ -352,7 +352,7 @@ export default function Home() {
           if (state.process && state.process !== "unknown" && state.process !== lastActiveAppRef.current) {
             lastActiveAppRef.current = state.process;
             // Generate custom response based on the active app detected
-            const phrase = await askAi(`Kamu Jarpis. User baru saja membuka/fokus ke aplikasi '${state.process}' (judul window: '${state.title}'). Buat satu kalimat sapaan cerdas dan humoris terkait hal ini secara spontan. Jangan pakai markdown/kutipan. Maksimal 1 kalimat.`, false);
+            const phrase = await askAi(`Kamu Anta. User baru saja membuka/fokus ke aplikasi '${state.process}' (judul window: '${state.title}'). Buat satu kalimat sapaan cerdas dan humoris terkait hal ini secara spontan. Jangan pakai markdown/kutipan. Maksimal 1 kalimat.`, false);
             void speakLine(phrase);
           }
         }
@@ -535,7 +535,7 @@ export default function Home() {
       if (lower.includes("kiri")) setOrbSide("left");
       if (lower.includes("kanan")) setOrbSide("right");
       if (lower.includes("tengah")) setOrbSide("center");
-      return "Baik, bentuk dan gerakan inti Jarpis saya ubah.";
+      return "Baik, bentuk dan gerakan inti Anta saya ubah.";
     }
 
     if (lower.includes("izin folder") || lower.includes("akses folder")) return askFolderPermission();
@@ -565,7 +565,7 @@ export default function Home() {
     const voice = voices.find((v) => lower.includes(v.id) || lower.includes(v.label.toLowerCase().split(" ")[0]));
     if ((lower.includes("ganti suara") || lower.includes("ubah suara")) && voice) {
       setSpeaker(voice.id);
-      return `Baik, suara Jarpis saya ganti ke ${voice.label}.`;
+      return `Baik, suara Anta saya ganti ke ${voice.label}.`;
     }
 
     if (lower.includes("minimize") || lower.includes("kecilkan")) {
@@ -605,7 +605,7 @@ export default function Home() {
       const targetUrl = withProtocol(rest);
       const proxied = `${apiUrl}/proxy?url=${encodeURIComponent(targetUrl)}`;
       setViewerLoading(true);
-      setView({ title: `Buka: ${rest}`, url: proxied, note: "Website dimuat via Jarpis Secure Proxy." });
+      setView({ title: `Buka: ${rest}`, url: proxied, note: "Website dimuat via Anta Secure Proxy." });
       setViewerState('open');
       return `Saya membuka website ${rest} di panel kanan.`;
     }
@@ -657,7 +657,7 @@ export default function Home() {
       const query = isImageSearch ? rest.replace(/^gambar\s*/i, "") : rest;
       const targetUrl = searchUrl(kind, query, apiUrl);
       setViewerLoading(true);
-      setView({ title: `${kind.toUpperCase()}: ${query}`, url: targetUrl, note: "Pencarian dimuat via Jarpis Secure Proxy." });
+      setView({ title: `${kind.toUpperCase()}: ${query}`, url: targetUrl, note: "Pencarian dimuat via Anta Secure Proxy." });
       setViewerState('open');
       return `Oke, saya carikan ${kind} tentang ${query}. Apakah kamu ingin saya membacakan atau melihat hasil yang sudah muncul?`;
     }
@@ -824,7 +824,7 @@ export default function Home() {
             </div>
           </header>
           <div className="viewer-content">
-            {viewerLoading && <div className="jarpis-loading"><span></span><b>Anta memuat data...</b></div>}
+            {viewerLoading && <div className="anta-loading"><span></span><b>Anta memuat data...</b></div>}
             {view.note && <p className="viewer-note">{view.note}</p>}
             
             {view.url && <iframe src={view.url} className="viewer-frame" title={view.title} onLoad={() => setViewerLoading(false)} />}
