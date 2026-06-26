@@ -110,6 +110,9 @@ export default function Home() {
   const orbRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef({ active: false, moved: false, x: 0, y: 0, ox: 0, oy: 0 });
   const popupDragRef = useRef({ key: "", x: 0, y: 0, ox: 0, oy: 0 });
+  const lastPinchRef = useRef(0);
+  const ttsCacheRef = useRef(new Map<string, string>());
+  const seenNewsRef = useRef(new Set<string>());
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
 
   const voices = useMemo(() => [
@@ -126,17 +129,25 @@ export default function Home() {
   ], []);
 
   async function speakLine(text: string) {
-    setSubtitle(text);
+    setSubtitle(text); // instant subtitle; audio may arrive after TTS generation.
     if (!speakEnabled || !apiUrl) return;
+    const key = `${speaker}:${text}`;
+    const cached = ttsCacheRef.current.get(key);
+    if (cached) {
+      setAudioUrl(cached);
+      return;
+    }
     try {
       const speakRes = await fetch(`${apiUrl}/speak`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, speaker }),
+        body: JSON.stringify({ text: text.slice(0, 700), speaker }),
       });
       if (speakRes.ok) {
         const blob = await speakRes.blob();
-        setAudioUrl(URL.createObjectURL(blob));
+        const url = URL.createObjectURL(blob);
+        ttsCacheRef.current.set(key, url);
+        setAudioUrl(url);
       }
     } catch (ttsErr) {
       console.error("TTS failed", ttsErr);
@@ -231,18 +242,25 @@ export default function Home() {
     if (loading || isAiSpeaking || listening) return;
     const timer = window.setTimeout(async () => {
       const lang = ["Indonesia", "English", "日本語", "Español"][Math.floor(Math.random() * 4)];
-      const seed = `${Date.now()}-${Math.random()}`;
-      let line = "Jarpis sedang mikir... mungkin terlalu keras sampai kipas imajiner berputar.";
+      let line = "";
       try {
-        let topic = "kehidupan digital dan menulis novel";
-        if (apiUrl && Math.random() > 0.35) {
-          const res = await fetch(`${apiUrl}/news?q=${encodeURIComponent("berita hari ini olahraga teknologi dunia")}`);
-          const item = res.ok ? (await res.json())[0] : null;
-          if (item?.title) topic = item.title;
+        let material = "observasi sunyi di layar utama Jarpis";
+        if (apiUrl) {
+          const credible = "(site:kompas.com OR site:tempo.co OR site:antaranews.com OR site:bbc.com OR site:cnnindonesia.com)";
+          const res = await fetch(`${apiUrl}/news?q=${encodeURIComponent(`berita hari ini ${credible}`)}`);
+          const items = res.ok ? await res.json() : [];
+          const item = items.find((x: { title?: string; link?: string }) => x.link && !seenNewsRef.current.has(x.link));
+          if (item?.link) {
+            seenNewsRef.current.add(item.link);
+            const article = await fetch(`${apiUrl}/article?url=${encodeURIComponent(item.link)}`).then((r) => r.ok ? r.json() : null).catch(() => null);
+            material = article?.text || item.title;
+          }
         }
-        line = await askAi(`Buat satu kalimat idle lucu, cerdas, tidak sama, bahasa ${lang}, tentang: ${topic}. Seed: ${seed}`, false);
+        line = await askAi(`Kamu Jarpis. Buat satu gumaman idle yang terasa seperti pemikiranmu sendiri, lucu tapi cerdas, bahasa ${lang}, berdasarkan bahan ini. Jangan hardcode, jangan ulangi, maksimal 1 kalimat: ${material.slice(0, 1200)}. Waktu unik: ${Date.now()}`, false);
         await saveMemory("idle_thought", line);
-      } catch {}
+      } catch {
+        line = await askAi(`Kamu Jarpis. Buat satu gumaman idle pendek yang unik, lucu, cerdas, bahasa ${lang}. Jangan ulangi. Waktu: ${Date.now()}`, false);
+      }
       const modes = ["spin", "slime", "melt", "creature", "bounce"];
       setOrbMode(modes[Math.floor(Math.random() * modes.length)]);
       void speakLine(line);
@@ -314,8 +332,11 @@ export default function Home() {
     orbRef.current?.style.setProperty("--pull-x", "1");
     orbRef.current?.style.setProperty("--pull-y", "1");
     if (drag.moved) {
-      const lines = ["Aww... itu menyakitkan. Aku ini orb, bukan adonan cilok.", "Itu tidak lucu. Tapi baiklah, posisi baru diterima.", "Pelan-pelan. Aku punya perasaan digital juga."];
-      void speakLine(lines[Math.floor(Math.random() * lines.length)]);
+      const now = Date.now();
+      if (now - lastPinchRef.current > 2200) {
+        lastPinchRef.current = now;
+        void askAi(`Kamu Jarpis. User baru saja menarik badan orb-mu seperti karet. Buat satu reaksi spontan lucu, pendek, tidak generik, jangan ulangi kalimat sebelumnya. Waktu: ${Date.now()}`, false).then(speakLine);
+      }
     } else {
       setOrbShake(true);
       window.setTimeout(() => setOrbShake(false), 450);

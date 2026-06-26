@@ -229,6 +229,22 @@ async def get_news(q: str):
             raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/article")
+async def get_article(url: str):
+    import re
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+    async with httpx.AsyncClient(follow_redirects=True, timeout=20) as client:
+        try:
+            res = await client.get(url, headers=headers)
+            html = res.text
+            html = re.sub(r"(?is)<(script|style|nav|header|footer|aside).*?>.*?</\\1>", " ", html)
+            text = re.sub(r"(?s)<[^>]+>", " ", html)
+            text = re.sub(r"\\s+", " ", text).strip()
+            return {"url": url, "text": text[:8000]}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/videos")
 async def search_videos(q: str):
     import urllib.parse
@@ -278,7 +294,7 @@ def speak(req: SpeakRequest):
             tts = _get_supertonic()
             gen = sherpa_onnx.GenerationConfig()
             gen.sid = sid
-            gen.num_steps = 8
+            gen.num_steps = int(os.getenv("TTS_STEPS", "4"))
             gen.speed = speed
             gen.extra["lang"] = "id"
             out = tts.generate(text, gen)
