@@ -77,7 +77,7 @@ export default function Home() {
   const [news, setNews] = useState<{ title: string; link: string; source: string; pubDate?: string }[]>([]);
   
   // Popup States: 'closed' | 'open' | 'minimized'
-  const [chatState, setChatState] = useState<'closed' | 'open' | 'minimized'>('open');
+  const [chatState, setChatState] = useState<'closed' | 'open' | 'minimized'>('minimized');
   const [viewerState, setViewerState] = useState<'closed' | 'open' | 'minimized'>('closed');
   
   // Audio States
@@ -86,6 +86,7 @@ export default function Home() {
   const [speakEnabled, setSpeakEnabled] = useState(true);
   const [isAiSpeaking, setIsAiSpeaking] = useState(false);
   const [listening, setListening] = useState(false);
+  const [subtitle, setSubtitle] = useState("Jarpis online. Sistem santai tapi siap.");
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const orbRef = useRef<HTMLDivElement | null>(null);
@@ -103,6 +104,24 @@ export default function Home() {
     { id: "dimas", label: "Dimas — Pria" },
     { id: "andi", label: "Andi — Pria" },
   ], []);
+
+  async function speakLine(text: string) {
+    setSubtitle(text);
+    if (!speakEnabled || !apiUrl) return;
+    try {
+      const speakRes = await fetch(`${apiUrl}/speak`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, speaker }),
+      });
+      if (speakRes.ok) {
+        const blob = await speakRes.blob();
+        setAudioUrl(URL.createObjectURL(blob));
+      }
+    } catch (ttsErr) {
+      console.error("TTS failed", ttsErr);
+    }
+  }
 
   // Realtime, lightweight Web Audio analyser for the Jarvis orb.
   useEffect(() => {
@@ -178,6 +197,22 @@ export default function Home() {
       void audioContext.close();
     };
   }, [audioUrl]);
+
+  useEffect(() => {
+    if (loading || isAiSpeaking || listening) return;
+    const lines = [
+      "Hmm... aku sedang menghitung kemungkinan, tapi hasilnya cuma ingin minum kopi digital.",
+      "Mode siaga aktif. Kalau ada drama cerita, panggil aku sebelum tokohnya kabur.",
+      "Aku barusan mengecek sunyi. Hasilnya: sunyi juga butuh subtitle.",
+      "Jarpis idle. Tapi otak kecilku masih muter seperti kipas laptop pejuang.",
+      "Kalau kamu diam terlalu lama, aku akan menganggap ini adegan kontemplatif.",
+    ];
+    const timer = window.setTimeout(() => {
+      const line = lines[Math.floor(Math.random() * lines.length)];
+      void speakLine(line);
+    }, 30000);
+    return () => window.clearTimeout(timer);
+  }, [loading, isAiSpeaking, listening, speaker, speakEnabled, apiUrl]);
 
   async function handle(text: string) {
     const lower = text.toLowerCase();
@@ -311,7 +346,9 @@ export default function Home() {
     setInput("");
     setLoading(true);
     setChatState('open');
-    setMessages((m) => [...m, { role: "user", text }, { role: "ai", text: quickAck(text) }]);
+    const ack = quickAck(text);
+    setSubtitle(ack);
+    setMessages((m) => [...m, { role: "user", text }, { role: "ai", text: ack }]);
     await saveMessage("user", text);
 
     try {
@@ -319,22 +356,7 @@ export default function Home() {
       setMessages((m) => m.map((msg, i) => (i === m.length - 1 ? { ...msg, text: answer } : msg)));
       await saveMessage("ai", answer);
 
-      if (speakEnabled && apiUrl) {
-        try {
-          const speakRes = await fetch(`${apiUrl}/speak`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ text: answer, speaker }),
-          });
-          if (speakRes.ok) {
-            const blob = await speakRes.blob();
-            const url = URL.createObjectURL(blob);
-            setAudioUrl(url);
-          }
-        } catch (ttsErr) {
-          console.error("TTS failed", ttsErr);
-        }
-      }
+      await speakLine(answer);
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Error tidak diketahui";
       setMessages((m) => m.map((item, i) => (i === m.length - 1 ? { role: "ai", text: msg } : item)));
@@ -354,6 +376,7 @@ export default function Home() {
           <div className="ring ring-4"></div>
           <div className="core"></div>
         </div>
+        {subtitle && <div className="subtitle-bubble">{subtitle}</div>}
       </div>
 
       {/* Floating System Dock (Icons only) */}
