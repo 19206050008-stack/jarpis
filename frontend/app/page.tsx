@@ -883,14 +883,9 @@ export default function Home() {
       // Check if this is a speak command
       if (answer.startsWith("__SPEAK__:")) {
         const topic = answer.replace("__SPEAK__:", "");
-        setMessages((m) => [...m, { role: "ai", text: `Oke, saya bacakan ${topic}...` }]);
         
-        // Show typing indicator
-        setMessages((m) => [...m.slice(0, -1), { role: "ai", text: `Oke, saya bacakan ${topic}...` }, { role: "ai", text: "Anta sedang mengetik . . ." }]);
-        setLoading(false);
-        
-        // Auto minimize chat on mobile
-        autoMinimizeChat();
+        // Replace typing indicator with "searching" message — keep chat open
+        setMessages((m) => [...m.slice(0, -1), { role: "ai", text: `Oke, saya carikan dan bacakan ${topic}...` }, { role: "ai", text: "Anta sedang mengetik . . ." }]);
         
         // Generate content — use specific prompt that forces AI to output the full text
         let cleanContent = "";
@@ -924,8 +919,12 @@ export default function Home() {
           return;
         }
         
-        // Replace typing indicator with actual content
+        // Data ready — show content in chat first
         setMessages((m) => [...m.slice(0, -1), { role: "ai", text: cleanContent }]);
+        setLoading(false);
+        
+        // NOW minimize chat and speak (after content is ready)
+        autoMinimizeChat();
         
         // Speak it
         void speakLine(cleanContent);
