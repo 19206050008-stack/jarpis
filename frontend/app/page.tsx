@@ -1220,6 +1220,11 @@ export default function Home() {
 
     try {
       const rawAnswer = await handle(text);
+      if (rawAnswer.startsWith("__SPEAK__:")) {
+        setLoading(false);
+        await send(text);
+        return;
+      }
       const answer = cleanText(rawAnswer);
       setSubtitle(answer);
       await saveMessage("ai", answer);
