@@ -545,6 +545,10 @@ export default function Home() {
     try { e.currentTarget.releasePointerCapture(e.pointerId); } catch {}
   }
 
+  function autoMinimizeChat() {
+    if (window.innerWidth <= 800) setChatState('closed');
+  }
+
   async function handle(text: string) {
     const lower = text.toLowerCase();
     const parts = text.split(/\s+/);
@@ -663,7 +667,7 @@ export default function Home() {
         setViewerLoading(true);
         setView({ title: `Google`, url: proxied, note: "Google dimuat via Anta Secure Proxy." });
         setViewerState('open');
-        setChatState('closed');
+        autoMinimizeChat();
         return `Saya membuka Google di viewer Anta.`;
       }
       
@@ -678,7 +682,7 @@ export default function Home() {
         setViewerLoading(true);
         setView({ title: `Buka: ${target}`, url: proxied, note: "Website dimuat via Anta Secure Proxy." });
         setViewerState('open');
-        setChatState('closed');
+        autoMinimizeChat();
         return `Saya membuka website ${target} di viewer Anta.`;
       }
     }
@@ -696,7 +700,7 @@ export default function Home() {
           setNews(list);
           setView({ title: `Berita: ${searchQuery}`, url: "", note: "Menampilkan berita terhangat." });
           setViewerState('open');
-          setChatState('closed');
+        autoMinimizeChat();
           return `Oke, saya buka jendela browser untuk menampilkan berita tentang "${searchQuery}".`;
         }
       } catch (err) {
@@ -718,7 +722,7 @@ export default function Home() {
           setVideos(list);
           setView({ title: `Lagu/Video: ${query}`, url: "", note: "Pilih video untuk diputar langsung di panel." });
           setViewerState('open');
-          setChatState('closed');
+        autoMinimizeChat();
           return `Oke, saya carikan lagu/video tentang "${query}".`;
         }
       } catch (err) {
@@ -739,7 +743,7 @@ export default function Home() {
       setViewerLoading(true);
       setView({ title: `${kind.toUpperCase()}: ${query}`, url: targetUrl, note: "Pencarian dimuat via Anta Secure Proxy." });
       setViewerState('open');
-      setChatState('closed');
+        autoMinimizeChat();
       return `Saya carikan ${kind} tentang "${query}" di viewer Anta.`;
     }
 
