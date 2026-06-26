@@ -105,14 +105,39 @@ export default function Home() {
   const [orbOffset, setOrbOffset] = useState({ x: 0, y: 0 });
   const [orbShake, setOrbShake] = useState(false);
   const [orbDragging, setOrbDragging] = useState(false);
-  const [agentAccepted, setAgentAccepted] = useState(false);
+  const [agentAccepted, setAgentAccepted] = useState(true); // default to true (hidden) to prevent layout shift / background check first
+  const [showAgentBanner, setShowAgentBanner] = useState(false);
 
   useEffect(() => {
-    // Read preference from localStorage
+    // Background validation: check if local-agent is already running and reporting
     if (localStorage.getItem("jarpis_agent_accepted") === "true") {
       setAgentAccepted(true);
+      setShowAgentBanner(false);
+      return;
     }
-  }, []);
+    
+    // Test if backend already has active state from local-agent
+    if (apiUrl) {
+      fetch(`${apiUrl}/agent/state`)
+        .then((r) => r.ok ? r.json() : null)
+        .then((state) => {
+          if (state && state.process && state.process !== "unknown") {
+            // Agent is alive and reporting! Automatically accept and keep hidden
+            localStorage.setItem("jarpis_agent_accepted", "true");
+            setAgentAccepted(true);
+            setShowAgentBanner(false);
+          } else {
+            // No active agent reporting. Show permission banner.
+            setAgentAccepted(false);
+            setShowAgentBanner(true);
+          }
+        })
+        .catch(() => {
+          setAgentAccepted(false);
+          setShowAgentBanner(true);
+        });
+    }
+  }, [apiUrl]);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const orbRef = useRef<HTMLDivElement | null>(null);
@@ -656,12 +681,13 @@ export default function Home() {
   function acceptAgent() {
     localStorage.setItem("jarpis_agent_accepted", "true");
     setAgentAccepted(true);
+    setShowAgentBanner(false);
   }
 
   return (
     <main className="jarvis-desktop">
       {/* Agent Activation Banner */}
-      {!agentAccepted && (
+      {showAgentBanner && (
         <div className="agent-banner">
           <span>Jarpis dapat memantau aktivitas aplikasi di PC/Laptop kamu secara realtime melalui Local Agent. Jalankan <code>python local-agent/agent.py</code> lalu izinkan di sini.</span>
           <button onClick={acceptAgent}>Aktifkan Pemantauan</button>
