@@ -67,7 +67,7 @@ async function askAi(text: string, cache = true) {
   const key = `jarpis:${text}`;
   const cached = cache ? localStorage.getItem(key) : null;
   if (cached) return cached;
-  const prompt = `Kamu Jarpis, asisten AI universal yang cerdas dan berpikir global. Jawab ringkas, praktis, dan berguna. Jangan pernah memakai tanda baca markdown seperti bintang (*), pagar (#), atau kutipan aneh (\"). Buat jawaban bersih. Akhiri dengan satu pertanyaan lanjutan yang relevan.\n\nUser: ${text}`;
+  const prompt = `Kamu Jarpis, asisten AI universal yang cerdas. Jawab dengan kalimat natural seperti manusia mengobrol biasa tanpa menyebutkan statusmu sebagai bot/AI. Jangan pernah memakai tanda baca markdown (seperti bintang *, pagar #, dsb), kutipan aneh (\"), atau sintaks debug/command. Bersihkan semua teks dari karakter tersebut sebelum membalas. Akhiri dengan satu pertanyaan lanjutan yang santai.\n\nUser: ${text}`;
   const url = `https://text.pollinations.ai/prompt/${encodeURIComponent(prompt)}?model=openai`;
   const res = await fetch(url);
   if (!res.ok) throw new Error("AI tidak menjawab");
@@ -78,7 +78,7 @@ async function askAi(text: string, cache = true) {
 
 export default function Home() {
   const [messages, setMessages] = useState<Message[]>([
-    { role: "ai", text: "Jarpis online. Mode universal aktif. Apa yang ingin kamu diskusikan hari ini?" },
+    { role: "ai", text: "Jarpis online. Apa yang ingin kamu diskusikan hari ini?" },
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -137,9 +137,29 @@ export default function Home() {
     { id: "andi", label: "Andi — Pria" },
   ], []);
 
+  function cleanText(text: string) {
+    return text
+      .replace(/[\*\#\"`]/g, "") // strip markdown * # ` "
+      .replace(/\/[a-zA-Z0-9_\-]+/g, "") // strip debug commands like /debug
+      .trim();
+  }
+
   async function speakLine(text: string) {
-    setSubtitle(text);
-    // Start instant mock equalizer movement to hide TTS API latency
+    const clean = cleanText(text);
+    setSubtitle(""); // Reset to start fresh typing effect
+    
+    // Karaoke/typing subtitle animation
+    let i = 0;
+    const words = clean.split(" ");
+    const intervalTyping = setInterval(() => {
+      if (i >= words.length) {
+        clearInterval(intervalTyping);
+        return;
+      }
+      setSubtitle((prev) => (prev ? prev + " " + words[i] : words[i]));
+      i++;
+    }, 180); // ~180ms per word, feels natural like reading lyrics
+
     setIsAiSpeaking(true);
     let mockTick = 0;
     const orb = orbRef.current;
@@ -161,12 +181,13 @@ export default function Home() {
     if (!speakEnabled || !apiUrl) {
       setTimeout(() => {
         clearInterval(interval);
+        clearInterval(intervalTyping);
         setIsAiSpeaking(false);
         setSubtitle("");
-      }, Math.max(1500, text.length * 60));
+      }, Math.max(1500, clean.length * 60));
       return;
     }
-    const key = `${speaker}:${text}`;
+    const key = `${speaker}:${clean}`;
     const cached = ttsCacheRef.current.get(key);
     if (cached) {
       clearInterval(interval);
@@ -177,7 +198,7 @@ export default function Home() {
       const speakRes = await fetch(`${apiUrl}/speak`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: text.slice(0, 700), speaker }),
+        body: JSON.stringify({ text: clean.slice(0, 700), speaker }),
       });
       clearInterval(interval);
       if (speakRes.ok) {
@@ -249,7 +270,7 @@ export default function Home() {
     };
     const stop = () => {
       setIsAiSpeaking(false);
-      setSubtitle(""); // hide subtitle when done speaking
+      // Let the typing animation finish naturally or reset.
       cancelAnimationFrame(raf);
       orb.style.setProperty("--bass", "1");
       orb.style.setProperty("--mid", "1");
@@ -611,13 +632,15 @@ export default function Home() {
     setInput("");
     setLoading(true);
     setChatState('open');
-    const ack = quickAck(text);
+    const rawAck = quickAck(text);
+    const ack = cleanText(rawAck);
     setSubtitle(ack);
     setMessages((m) => [...m, { role: "user", text }, { role: "ai", text: ack }]);
     await saveMessage("user", text);
 
     try {
-      const answer = await handle(text);
+      const rawAnswer = await handle(text);
+      const answer = cleanText(rawAnswer);
       setMessages((m) => m.map((msg, i) => (i === m.length - 1 ? { ...msg, text: answer } : msg)));
       await saveMessage("ai", answer);
       await saveMemory("conversation", `User: ${text}\nJarpis: ${answer}`);
