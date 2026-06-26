@@ -6,6 +6,23 @@ import { createClient } from "@supabase/supabase-js";
 type Message = { role: "user" | "ai"; text: string };
 type View = { title: string; url: string; note: string };
 
+type SpeechRecognitionLike = {
+  lang: string;
+  interimResults: boolean;
+  continuous: boolean;
+  onstart: (() => void) | null;
+  onend: (() => void) | null;
+  onresult: ((event: { results: { [key: number]: { [key: number]: { transcript?: string } } } }) => void) | null;
+  start: () => void;
+};
+
+declare global {
+  interface Window {
+    SpeechRecognition?: new () => SpeechRecognitionLike;
+    webkitSpeechRecognition?: new () => SpeechRecognitionLike;
+  }
+}
+
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
@@ -26,12 +43,26 @@ function searchUrl(kind: string, query: string, apiUrl: string) {
   return `${apiUrl}/proxy?url=${q}`;
 }
 
+function quickAck(text: string) {
+  const lower = text.toLowerCase();
+  if (/^(halo|hai|hello|pagi|siang|malam)\b/.test(lower)) return "Halo. Saya siap. Mau saya bantu apa dulu?";
+  if (lower.startsWith("/berita")) return "Baik, saya cari berita terbaru. Setelah muncul, saya bisa bantu ringkas atau bacakan.";
+  if (lower.startsWith("/lagu")) return "Baik, saya cari lagu/video yang cocok. Sebentar.";
+  if (lower.startsWith("/gambar")) return "Baik, saya cari gambar yang relevan. Sebentar.";
+  if (lower.startsWith("/buka")) return "Baik, saya buka websitenya di monitor.";
+  return "Baik, saya proses. Saya akan jawab singkat lalu tanya langkah berikutnya.";
+}
+
 async function askAi(text: string) {
-  const prompt = `Kamu Jarpis, asisten AI penulisan novel berbahasa Indonesia. Jawab ringkas, praktis, dan berguna.\n\nUser: ${text}`;
+  const cached = localStorage.getItem(`jarpis:${text}`);
+  if (cached) return cached;
+  const prompt = `Kamu Jarpis, asisten AI penulisan novel berbahasa Indonesia. Jawab ringkas, praktis, dan berguna. Akhiri dengan satu pertanyaan lanjutan yang relevan.\n\nUser: ${text}`;
   const url = `https://text.pollinations.ai/prompt/${encodeURIComponent(prompt)}?model=openai`;
   const res = await fetch(url);
   if (!res.ok) throw new Error("AI tidak menjawab");
-  return res.text();
+  const answer = await res.text();
+  localStorage.setItem(`jarpis:${text}`, answer.slice(0, 4000));
+  return answer;
 }
 
 export default function Home() {
@@ -53,6 +84,7 @@ export default function Home() {
   const [speaker, setSpeaker] = useState("sari");
   const [speakEnabled, setSpeakEnabled] = useState(true);
   const [isAiSpeaking, setIsAiSpeaking] = useState(false);
+  const [listening, setListening] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const orbRef = useRef<HTMLDivElement | null>(null);
@@ -211,13 +243,32 @@ export default function Home() {
     return askAi(text);
   }
 
+  function startVoiceInput() {
+    const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!Recognition) {
+      setInput("Browser ini belum mendukung voice input. Ketik perintah saja.");
+      return;
+    }
+    const rec = new Recognition();
+    rec.lang = "id-ID";
+    rec.interimResults = false;
+    rec.continuous = false;
+    rec.onstart = () => setListening(true);
+    rec.onend = () => setListening(false);
+    rec.onresult = (event) => {
+      const text = event.results[0]?.[0]?.transcript || "";
+      if (text) void send(text);
+    };
+    rec.start();
+  }
+
   async function send(value = input) {
     const text = value.trim();
     if (!text || loading) return;
     setInput("");
     setLoading(true);
     setChatState('open');
-    setMessages((m) => [...m, { role: "user", text }, { role: "ai", text: "" }]);
+    setMessages((m) => [...m, { role: "user", text }, { role: "ai", text: quickAck(text) }]);
     await saveMessage("user", text);
 
     try {
@@ -225,7 +276,7 @@ export default function Home() {
       setMessages((m) => m.map((msg, i) => (i === m.length - 1 ? { ...msg, text: answer } : msg)));
       await saveMessage("ai", answer);
 
-      if (speakEnabled && apiUrl && !text.startsWith("/")) {
+      if (speakEnabled && apiUrl) {
         try {
           const speakRes = await fetch(`${apiUrl}/speak`, {
             method: "POST",
@@ -271,6 +322,9 @@ export default function Home() {
           <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
         </button>
         <div className="divider"></div>
+        <button className={listening ? 'active' : ''} onClick={startVoiceInput} title="Perintah Suara">
+          <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+        </button>
         <button onClick={() => setInput("/buka ")} title="Buka URL">
           <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
         </button>
