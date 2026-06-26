@@ -644,28 +644,29 @@ export default function Home() {
       return askAi(`Buat balasan singkat untuk pesan ini:\n${rest}`);
     }
 
-    // buka website
-    if (["buka", "open", "tampilkan"].includes(cmd) && rest) {
-      const targetUrl = withProtocol(rest);
-      if (!apiUrl) {
-        // Fallback: open in new tab if no API URL configured
-        window.open(targetUrl, "_blank", "noopener,noreferrer");
-        return `Saya membuka ${rest} di tab baru (proxy backend tidak tersedia).`;
+    // buka website — natural: "buka youtube.com", "open google.com", "tampilkan detik.com"
+    const bukaMatch = lower.match(/(?:buka|open|tampilkan|bukakan|tolong\s*buka)\s+(.+)/);
+    if (bukaMatch) {
+      const target = bukaMatch[1].trim();
+      // Check if it looks like a URL/website (has dot or known domain)
+      if (target.includes(".") || /^(https?:\/\/|www\.)/.test(target)) {
+        const targetUrl = withProtocol(target);
+        if (!apiUrl) {
+          window.open(targetUrl, "_blank", "noopener,noreferrer");
+          return `Saya membuka ${target} di tab baru (proxy backend tidak tersedia).`;
+        }
+        const proxied = `${apiUrl}/proxy?url=${encodeURIComponent(targetUrl)}`;
+        setViewerLoading(true);
+        setView({ title: `Buka: ${target}`, url: proxied, note: "Website dimuat via Anta Secure Proxy." });
+        setViewerState('open');
+        return `Saya membuka website ${target} di viewer Anta.`;
       }
-      const proxied = `${apiUrl}/proxy?url=${encodeURIComponent(targetUrl)}`;
-      setViewerLoading(true);
-      setView({ title: `Buka: ${rest}`, url: proxied, note: "Website dimuat via Anta Secure Proxy." });
-      setViewerState('open');
-      return `Saya membuka website ${rest} di viewer Anta.`;
     }
 
-    // berita / cari berita — natural language matching
+    // berita — natural: "berita hari ini", "carikan berita", "cari berita teknologi"
     const beritaMatch = lower.match(/(?:carikan|cari|tampilkan|kasih|beri|tolong.*?(?:cari|carikan))?\s*berita\s*(.*)/i);
-    if (beritaMatch || (cmd === "berita" && rest)) {
-      const query = beritaMatch ? (beritaMatch[1] || "Indonesia hari ini").trim() : rest;
-      if (!query) {
-        // fallback query
-      }
+    if (beritaMatch || cmd === "berita") {
+      const query = beritaMatch ? (beritaMatch[1] || "Indonesia hari ini").trim() : (rest || "Indonesia hari ini");
       try {
         const searchQuery = query || "Indonesia hari ini";
         const res = await fetch(`${apiUrl}/news?q=${encodeURIComponent(searchQuery)}`);
@@ -675,7 +676,7 @@ export default function Home() {
           setNews(list);
           setView({ title: `Berita: ${searchQuery}`, url: "", note: "Menampilkan berita terhangat." });
           setViewerState('open');
-          return `Oke, saya buka jendela browser untuk menampilkan berita tentang "${searchQuery}". Orb akan mengecil ke samping.`;
+          return `Oke, saya buka jendela browser untuk menampilkan berita tentang "${searchQuery}".`;
         }
       } catch (err) {
         console.error("News fetch error", err);
@@ -684,9 +685,10 @@ export default function Home() {
       return `Maaf, saya gagal mencari berita. Coba lagi nanti ya.`;
     }
 
-    // /lagu / musik
-    if ((cmd === "lagu" || (cmd === "cari" && rest.toLowerCase().startsWith("lagu"))) && rest) {
-      const query = rest.toLowerCase().startsWith("lagu") ? rest.replace(/^lagu\s*/i, "") : rest;
+    // lagu/musik — natural: "lagu dewa 19", "carikan lagu jazz", "putar musik pop"
+    const laguMatch = lower.match(/(?:carikan|cari|putar|putarkan|tolong.*?(?:cari|putar))?\s*(?:lagu|musik|video|song)\s*(.*)/i);
+    if (laguMatch) {
+      const query = (laguMatch[1] || "").trim() || "Indonesia populer";
       try {
         const res = await fetch(`${apiUrl}/videos?q=${encodeURIComponent(query)}`);
         if (res.ok) {
@@ -695,7 +697,7 @@ export default function Home() {
           setVideos(list);
           setView({ title: `Lagu/Video: ${query}`, url: "", note: "Pilih video untuk diputar langsung di panel." });
           setViewerState('open');
-          return `Oke, saya carikan lagu/video tentang ${query}. Apakah kamu ingin saya membacakan atau melihat lagu yang sudah muncul?`;
+          return `Oke, saya carikan lagu/video tentang "${query}".`;
         }
       } catch (err) {
         console.error("Video fetch error", err);
@@ -704,11 +706,13 @@ export default function Home() {
       return `Maaf, saya gagal mencari video tentang ${query}.`;
     }
 
-    // /cari / web
-    if (["cari", "web", "gambar"].includes(cmd) && rest) {
-      const isImageSearch = cmd === "gambar" || rest.toLowerCase().startsWith("gambar");
-      const kind = isImageSearch ? "gambar" : cmd === "cari" || cmd === "web" ? "web" : cmd;
-      const query = isImageSearch ? rest.replace(/^gambar\s*/i, "") : rest;
+    // cari/web/gambar — natural: "cari resep nasi goreng", "gambar kucing lucu"
+    const cariMatch = lower.match(/(?:carikan|cari|search|tolong.*?cari)\s+(.+)/i);
+    const gambarMatch = lower.match(/(?:gambar|image|foto)\s+(.+)/i);
+    if (gambarMatch || cariMatch) {
+      const isImage = !!gambarMatch;
+      const query = (isImage ? gambarMatch![1] : cariMatch![1]).trim();
+      const kind = isImage ? "gambar" : "web";
       const targetUrl = searchUrl(kind, query, apiUrl);
       setViewerLoading(true);
       setView({ title: `${kind.toUpperCase()}: ${query}`, url: targetUrl, note: "Pencarian dimuat via Anta Secure Proxy." });
