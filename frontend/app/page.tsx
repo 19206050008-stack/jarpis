@@ -389,10 +389,14 @@ export default function Home() {
             seenNewsRef.current.add(item.link);
             // Fetch full article content
             const article = await fetch(`${apiUrl}/article?url=${encodeURIComponent(item.link)}`).then((r) => r.ok ? r.json() : null).catch(() => null);
-            const content = article?.text || item.title;
-            const source = item.source || new URL(item.link).hostname.replace("www.", "");
-            // Summarize the article content first, then speak it with source at the end
-            line = await askAi(`Kamu Anta, AI asisten. Rangkum berita berikut menjadi 2-3 kalimat ringkas dengan gaya natural seperti teman ngobrol. JANGAN menampilkan judul asli berita. Parafrase seluruhnya dengan kata-katamu sendiri. Di akhir tambahkan sumber: "(Sumber: ${source})". Jangan pakai markdown.\n\nJudul: ${item.title}\nIsi: ${content.slice(0, 1500)}`, false);
+            const content = (article?.text && !article?.error && article.text.length > 80) ? article.text : "";
+            const source = item.source || (() => { try { return new URL(item.link).hostname.replace("www.", ""); } catch { return "media Indonesia"; } })();
+            
+            // If we have real content, summarize it. Otherwise just use the title.
+            const prompt = content
+              ? `Kamu Anta, AI asisten. Rangkum berita berikut menjadi 2-3 kalimat ringkas dengan gaya natural seperti teman ngobrol. JANGAN tampilkan judul asli. Parafrase seluruhnya dengan kata-katamu sendiri. Di akhir tambahkan: "(Sumber: ${source})". Jangan pakai markdown.\n\nIsi berita: ${content.slice(0, 1200)}`
+              : `Kamu Anta, AI asisten. Sampaikan berita dengan judul "${item.title}" dalam 2 kalimat dengan gaya santai seperti teman yang ngasih tau berita. Jangan tampilkan judul asli, parafrase dengan kata-katamu. Di akhir tambahkan: "(Sumber: ${source})". Jangan pakai markdown.`;
+            line = await askAi(prompt, false);
             await saveMemory("idle_news", `${source} - ${line}`);
           } else {
             // Fallback: generic idle thought about current time and location

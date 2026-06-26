@@ -257,15 +257,25 @@ async def get_news(q: str):
     import urllib.parse
     import xml.etree.ElementTree as ET
     url = f"https://news.google.com/rss/search?q={urllib.parse.quote(q)}&hl=id&gl=ID&ceid=ID:id"
-    async with httpx.AsyncClient(timeout=15) as client:
+    async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
         try:
             res = await client.get(url)
             root = ET.fromstring(res.text)
             items = []
             for item in root.findall(".//item")[:10]:
+                link = item.find("link").text if item.find("link") is not None else ""
+                # Google News links redirect — try to resolve them
+                if link and "news.google.com" in link:
+                    try:
+                        head_res = await client.head(link, follow_redirects=True)
+                        resolved = str(head_res.url)
+                        if resolved and "news.google.com" not in resolved:
+                            link = resolved
+                    except Exception:
+                        pass
                 items.append({
                     "title": item.find("title").text if item.find("title") is not None else "",
-                    "link": item.find("link").text if item.find("link") is not None else "",
+                    "link": link,
                     "pubDate": item.find("pubDate").text if item.find("pubDate") is not None else "",
                     "source": item.find("source").text if item.find("source") is not None else ""
                 })
@@ -276,18 +286,70 @@ async def get_news(q: str):
 
 @app.get("/article")
 async def get_article(url: str):
-    import re
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+    from bs4 import BeautifulSoup
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "id-ID,id;q=0.9,en;q=0.8",
+    }
     async with httpx.AsyncClient(follow_redirects=True, timeout=20) as client:
         try:
             res = await client.get(url, headers=headers)
             html = res.text
-            html = re.sub(r"(?is)<(script|style|nav|header|footer|aside).*?>.*?</\\1>", " ", html)
-            text = re.sub(r"(?s)<[^>]+>", " ", html)
-            text = re.sub(r"\\s+", " ", text).strip()
-            return {"url": url, "text": text[:8000]}
+            soup = BeautifulSoup(html, "lxml")
+            
+            # Remove unwanted elements
+            for tag in soup.find_all(["script", "style", "nav", "header", "footer", "aside", "iframe", "noscript", "form", "button"]):
+                tag.decompose()
+            
+            # Try to find article content in common selectors
+            article_text = ""
+            
+            # Strategy 1: Look for article/main content tags
+            content_selectors = [
+                soup.find("article"),
+                soup.find("div", class_=lambda c: c and any(x in str(c).lower() for x in ["article", "content", "body-text", "post-content", "entry-content", "read__content"])),
+                soup.find("div", id=lambda i: i and any(x in str(i).lower() for x in ["article", "content", "body"])),
+                soup.find("main"),
+            ]
+            
+            for container in content_selectors:
+                if container:
+                    # Get all paragraph text
+                    paragraphs = container.find_all("p")
+                    if paragraphs:
+                        article_text = " ".join(p.get_text(strip=True) for p in paragraphs if len(p.get_text(strip=True)) > 30)
+                    if len(article_text) > 200:
+                        break
+            
+            # Strategy 2: Fallback to all <p> tags if nothing found
+            if len(article_text) < 200:
+                paragraphs = soup.find_all("p")
+                article_text = " ".join(p.get_text(strip=True) for p in paragraphs if len(p.get_text(strip=True)) > 30)
+            
+            # Strategy 3: Last resort — get all text from body
+            if len(article_text) < 100:
+                body = soup.find("body")
+                if body:
+                    article_text = body.get_text(separator=" ", strip=True)
+            
+            # Clean up
+            import re
+            article_text = re.sub(r"\s+", " ", article_text).strip()
+            
+            # Validate: if text looks like garbage (too much code/JS), return empty
+            if not article_text or len(article_text) < 50:
+                return {"url": url, "text": "", "error": "no_content"}
+            
+            # Check for code/garbage indicators
+            code_indicators = ["function(", "var ", "const ", "window.", "document.", "{\"", "};", "createElement"]
+            code_count = sum(1 for ind in code_indicators if ind in article_text[:500])
+            if code_count >= 3:
+                return {"url": url, "text": "", "error": "code_content"}
+            
+            return {"url": url, "text": article_text[:6000]}
         except Exception as e:
-            raise HTTPException(status_code=500, detail=str(e))
+            return {"url": url, "text": "", "error": str(e)}
 
 
 @app.get("/videos")
