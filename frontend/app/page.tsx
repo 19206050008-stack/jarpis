@@ -105,6 +105,14 @@ export default function Home() {
   const [orbOffset, setOrbOffset] = useState({ x: 0, y: 0 });
   const [orbShake, setOrbShake] = useState(false);
   const [orbDragging, setOrbDragging] = useState(false);
+  const [agentAccepted, setAgentAccepted] = useState(false);
+
+  useEffect(() => {
+    // Read preference from localStorage
+    if (localStorage.getItem("jarpis_agent_accepted") === "true") {
+      setAgentAccepted(true);
+    }
+  }, []);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const orbRef = useRef<HTMLDivElement | null>(null);
@@ -232,7 +240,7 @@ export default function Home() {
   }, [audioUrl]);
 
   useEffect(() => {
-    if (!apiUrl) return;
+    if (!apiUrl || !agentAccepted) return;
     const interval = setInterval(async () => {
       try {
         const res = await fetch(`${apiUrl}/agent/state`);
@@ -250,7 +258,7 @@ export default function Home() {
       }
     }, 4000);
     return () => clearInterval(interval);
-  }, [apiUrl, speaker, speakEnabled]);
+  }, [apiUrl, speaker, speakEnabled, agentAccepted]);
 
   useEffect(() => {
     if (loading || isAiSpeaking || listening) return;
@@ -287,7 +295,7 @@ export default function Home() {
       const modes = ["spin", "slime", "melt", "creature", "bounce"];
       setOrbMode(modes[Math.floor(Math.random() * modes.length)]);
       void speakLine(line);
-    }, 22000 + Math.floor(Math.random() * 18000));
+    }, 8000 + Math.floor(Math.random() * 32000));
     return () => window.clearTimeout(timer);
   }, [loading, isAiSpeaking, listening, speaker, speakEnabled, apiUrl]);
 
@@ -589,8 +597,21 @@ export default function Home() {
     }
   }
 
+  function acceptAgent() {
+    localStorage.setItem("jarpis_agent_accepted", "true");
+    setAgentAccepted(true);
+  }
+
   return (
     <main className="jarvis-desktop">
+      {/* Agent Activation Banner */}
+      {!agentAccepted && (
+        <div className="agent-banner">
+          <span>Jarpis dapat memantau aktivitas aplikasi di PC/Laptop kamu secara realtime melalui Local Agent. Jalankan <code>python local-agent/agent.py</code> lalu izinkan di sini.</span>
+          <button onClick={acceptAgent}>Aktifkan Pemantauan</button>
+        </div>
+      )}
+
       {/* Background Equalizer Visualizer */}
       <div className={`center-container ${orbSide}`} style={{ "--orb-x": `${orbOffset.x}px`, "--orb-y": `${orbOffset.y}px` } as CSSProperties}>
         <div
