@@ -81,7 +81,7 @@ export default function Home() {
   const [news, setNews] = useState<{ title: string; link: string; source: string; pubDate?: string }[]>([]);
   
   // Popup States: 'closed' | 'open' | 'minimized'
-  const [chatState, setChatState] = useState<'closed' | 'open' | 'minimized'>('minimized');
+  const [chatState, setChatState] = useState<'closed' | 'open' | 'minimized'>('closed');
   const [viewerState, setViewerState] = useState<'closed' | 'open' | 'minimized'>('closed');
   
   // Audio States
@@ -493,8 +493,8 @@ export default function Home() {
       </nav>
 
       {/* Popup 1: AI Chat */}
-      {chatState !== 'closed' && (
-        <section className={`popup-window chat-window ${chatState}`}>
+      {chatState === 'open' && (
+        <section className="popup-window chat-window">
           <header className="window-header">
             <span className="title">💬 Jarpis Chat</span>
             <div className="controls">
@@ -525,8 +525,8 @@ export default function Home() {
       )}
 
       {/* Popup 2: Website & Media Viewer */}
-      {viewerState !== 'closed' && (
-        <section className={`popup-window viewer-window ${viewerState}`}>
+      {viewerState === 'open' && (
+        <section className="popup-window viewer-window">
           <header className="window-header">
             <span className="title">🌐 Jarpis Monitor: {view.title || "No Signal"}</span>
             <div className="controls">
