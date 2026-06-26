@@ -923,16 +923,21 @@ export default function Home() {
         const topic = answer.replace("__SPEAK__:", "");
         
         // Replace typing indicator with "searching" message — keep chat open
-        setMessages((m) => [...m.slice(0, -1), { role: "ai", text: `Oke, saya carikan dan bacakan ${topic}...` }, { role: "ai", text: "Anta sedang mengetik . . ." }]);
+        setMessages((m) => [...m.slice(0, -1), { role: "ai", text: `Oke, saya akan membacakan ${topic}. Tunggu sebentar...` }, { role: "ai", text: "Anta sedang mengetik . . ." }]);
         
-        // Generate content — use specific prompt that forces AI to output the full text
+        // Generate content with numbered format and intro/outro
         let cleanContent = "";
         
-        // Strategy 1: Ask AI directly (it should know common texts like Pancasila, Sumpah Pemuda, etc)
-        const aiContent = await askAi(`Tuliskan isi lengkap dari "${topic}" secara verbatim/persis. Jangan tambahkan penjelasan, komentar, atau kata pembuka. Langsung tulis isinya saja dari awal sampai akhir. Jangan pakai markdown, nomor, atau simbol. Pisahkan dengan baris baru jika perlu. Contoh: jika diminta "Pancasila", langsung tulis "Ketuhanan Yang Maha Esa..." dst.`, false);
+        // Strategy 1: Ask AI directly
+        const aiContent = await askAi(`Tuliskan isi lengkap dari "${topic}". Aturan:
+- Jika isinya berurutan (seperti Pancasila, Sumpah Pemuda, Asmaul Husna dll), tulis dengan format bernomor: "1. ...", "2. ...", dst.
+- Jika isinya paragraf/prosa (seperti doa, puisi, pidato), tulis langsung tanpa nomor.
+- JANGAN tambahkan penjelasan, komentar, atau kata pembuka/penutup.
+- JANGAN pakai markdown atau simbol khusus.
+- Langsung tulis isinya saja dari awal sampai akhir.`, false);
         cleanContent = cleanText(aiContent);
         
-        // Strategy 2: If AI result is too short or looks wrong, try fetching from internet
+        // Strategy 2: If AI result is too short, try fetching from internet
         if (!cleanContent || cleanContent.length < 30) {
           try {
             if (apiUrl) {
@@ -941,8 +946,7 @@ export default function Home() {
               if (searchItems.length > 0 && searchItems[0].link) {
                 const articleRes = await fetch(`${apiUrl}/article?url=${encodeURIComponent(searchItems[0].link)}`).then((r) => r.ok ? r.json() : null).catch(() => null);
                 if (articleRes?.text && articleRes.text.length > 50) {
-                  // Ask AI to extract the relevant part
-                  const extracted = await askAi(`Dari teks berikut, ambil hanya bagian yang berisi "${topic}" secara lengkap. Jangan tambahkan komentar. Langsung tulis isinya saja:\n\n${articleRes.text.slice(0, 2000)}`, false);
+                  const extracted = await askAi(`Dari teks berikut, ambil hanya bagian yang berisi "${topic}" secara lengkap. Jika berurutan, tulis dengan nomor. Jangan tambahkan komentar. Langsung tulis isinya saja:\n\n${articleRes.text.slice(0, 2000)}`, false);
                   cleanContent = cleanText(extracted);
                 }
               }
@@ -957,17 +961,22 @@ export default function Home() {
           return;
         }
         
-        // Data ready — show content in chat first
-        setMessages((m) => [...m.slice(0, -1), { role: "ai", text: cleanContent }]);
+        // Build full speech with intro and outro
+        const intro = `Baik, saya akan membacakan ${topic}.`;
+        const outro = `Sudah saya bacakan terkait ${topic}. Apakah ada lagi yang bisa saya bantu?`;
+        const fullSpeech = `${intro}\n\n${cleanContent}\n\n${outro}`;
+        
+        // Data ready — show content in chat
+        setMessages((m) => [...m.slice(0, -1), { role: "ai", text: fullSpeech }]);
         setLoading(false);
         
-        // NOW minimize chat and speak (after content is ready)
+        // Minimize chat and speak
         autoMinimizeChat();
         
-        // Speak it
-        void speakLine(cleanContent);
-        await saveMessage("ai", cleanContent);
-        await saveMemory("conversation", `User: ${text}\nAnta: ${cleanContent}`);
+        // Speak it with intro + content + outro
+        void speakLine(fullSpeech);
+        await saveMessage("ai", fullSpeech);
+        await saveMemory("conversation", `User: ${text}\nAnta: ${fullSpeech}`);
         return;
       }
       
