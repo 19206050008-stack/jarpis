@@ -83,6 +83,8 @@ export default function Home() {
   // Popup States: 'closed' | 'open' | 'minimized'
   const [chatState, setChatState] = useState<'closed' | 'open' | 'minimized'>('closed');
   const [viewerState, setViewerState] = useState<'closed' | 'open' | 'minimized'>('closed');
+  const [viewerLoading, setViewerLoading] = useState(false);
+  const [popupPos, setPopupPos] = useState({ chat: { x: 40, y: 40 }, viewer: { x: 0, y: 40 } });
   
   // Audio States
   const [audioUrl, setAudioUrl] = useState<string>("");
@@ -100,6 +102,7 @@ export default function Home() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const orbRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef({ active: false, moved: false, x: 0, y: 0, ox: 0, oy: 0 });
+  const popupDragRef = useRef({ key: "", x: 0, y: 0, ox: 0, oy: 0 });
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
 
   const voices = useMemo(() => [
@@ -296,6 +299,24 @@ export default function Home() {
     }
   }
 
+  function startPopupDrag(key: "chat" | "viewer", e: PointerEvent<HTMLElement>) {
+    const pos = popupPos[key];
+    popupDragRef.current = { key, x: e.clientX, y: e.clientY, ox: pos.x, oy: pos.y };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  }
+
+  function movePopup(e: PointerEvent<HTMLElement>) {
+    const drag = popupDragRef.current;
+    if (!drag.key) return;
+    const key = drag.key as "chat" | "viewer";
+    setPopupPos((p) => ({ ...p, [key]: { x: drag.ox + e.clientX - drag.x, y: drag.oy + e.clientY - drag.y } }));
+  }
+
+  function stopPopupDrag(e: PointerEvent<HTMLElement>) {
+    popupDragRef.current.key = "";
+    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch {}
+  }
+
   async function handle(text: string) {
     const lower = text.toLowerCase();
     const parts = text.split(/\s+/);
@@ -325,6 +346,7 @@ export default function Home() {
     if ((lower.includes("cari file") || lower.includes("temukan file")) && files.length) {
       const query = text.replace(/.*?(cari file|temukan file)/i, "").trim().toLowerCase();
       const found = files.filter((f) => f.path.toLowerCase().includes(query)).slice(0, 20);
+      setViewerLoading(false);
       setNews(found.map((f) => ({ title: f.path, link: "#", source: "Local Folder" })));
       setView({ title: `File: ${query}`, url: "", note: `${found.length} file ditemukan dari folder yang kamu izinkan.` });
       setViewerState("open");
@@ -385,6 +407,7 @@ export default function Home() {
     if (["buka", "open", "tampilkan"].includes(cmd) && rest) {
       const targetUrl = withProtocol(rest);
       const proxied = `${apiUrl}/proxy?url=${encodeURIComponent(targetUrl)}`;
+      setViewerLoading(true);
       setView({ title: `Buka: ${rest}`, url: proxied, note: "Website dimuat via Jarpis Secure Proxy." });
       setViewerState('open');
       return `Saya membuka website ${rest} di panel kanan.`;
@@ -397,6 +420,7 @@ export default function Home() {
         const res = await fetch(`${apiUrl}/news?q=${encodeURIComponent(query)}`);
         if (res.ok) {
           const list = await res.json();
+          setViewerLoading(false);
           setNews(list);
           setView({ title: `Berita: ${query}`, url: "", note: "Menampilkan 10 berita terhangat." });
           setViewerState('open');
@@ -405,6 +429,7 @@ export default function Home() {
       } catch (err) {
         console.error("News fetch error", err);
       }
+      setViewerLoading(false);
       return `Maaf, saya gagal mencari berita tentang ${query}.`;
     }
 
@@ -415,6 +440,7 @@ export default function Home() {
         const res = await fetch(`${apiUrl}/videos?q=${encodeURIComponent(query)}`);
         if (res.ok) {
           const list = await res.json();
+          setViewerLoading(false);
           setVideos(list);
           setView({ title: `Lagu/Video: ${query}`, url: "", note: "Pilih video untuk diputar langsung di panel." });
           setViewerState('open');
@@ -423,6 +449,7 @@ export default function Home() {
       } catch (err) {
         console.error("Video fetch error", err);
       }
+      setViewerLoading(false);
       return `Maaf, saya gagal mencari video tentang ${query}.`;
     }
 
@@ -432,6 +459,7 @@ export default function Home() {
       const kind = isImageSearch ? "gambar" : cmd === "cari" || cmd === "web" ? "web" : cmd;
       const query = isImageSearch ? rest.replace(/^gambar\s*/i, "") : rest;
       const targetUrl = searchUrl(kind, query, apiUrl);
+      setViewerLoading(true);
       setView({ title: `${kind.toUpperCase()}: ${query}`, url: targetUrl, note: "Pencarian dimuat via Jarpis Secure Proxy." });
       setViewerState('open');
       return `Oke, saya carikan ${kind} tentang ${query}. Apakah kamu ingin saya membacakan atau melihat hasil yang sudah muncul?`;
@@ -510,34 +538,15 @@ export default function Home() {
         <button className={chatState === 'open' ? 'active' : ''} onClick={() => setChatState(chatState === 'open' ? 'minimized' : 'open')} title="AI Chat">
           <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
         </button>
-        <button className={viewerState === 'open' ? 'active' : ''} onClick={() => setViewerState(viewerState === 'open' ? 'minimized' : 'open')} title="Website Viewer">
-          <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
-        </button>
-        <div className="divider"></div>
         <button className={listening ? 'active' : ''} onClick={startVoiceInput} title="Perintah Suara">
           <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
-        </button>
-        <button onClick={() => send("izin folder")} title="Izinkan Folder">
-          <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none"><path d="M3 7h5l2 2h11v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><path d="M12 13v4"></path><path d="M10 15h4"></path></svg>
-        </button>
-        <button onClick={() => setInput("/buka ")} title="Buka URL">
-          <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
-        </button>
-        <button onClick={() => setInput("/berita ")} title="Cari Berita">
-          <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><path d="M16 8h2M16 12h2M16 16h2M6 8h6v8H6z"></path></svg>
-        </button>
-        <button onClick={() => setInput("/gambar ")} title="Cari Gambar">
-          <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
-        </button>
-        <button onClick={() => setInput("/lagu ")} title="Cari Lagu">
-          <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
         </button>
       </nav>
 
       {/* Popup 1: AI Chat */}
       {chatState === 'open' && (
-        <section className="popup-window chat-window">
-          <header className="window-header">
+        <section className="popup-window chat-window" style={{ left: popupPos.chat.x, top: popupPos.chat.y }}>
+          <header className="window-header" onPointerDown={(e) => startPopupDrag("chat", e)} onPointerMove={movePopup} onPointerUp={stopPopupDrag}>
             <span className="title">💬 Jarpis Chat</span>
             <div className="controls">
               <button onClick={() => setChatState('minimized')}>-</button>
@@ -568,8 +577,8 @@ export default function Home() {
 
       {/* Popup 2: Website & Media Viewer */}
       {viewerState === 'open' && (
-        <section className="popup-window viewer-window">
-          <header className="window-header">
+        <section className="popup-window viewer-window" style={{ left: popupPos.viewer.x || undefined, right: popupPos.viewer.x ? undefined : 40, top: popupPos.viewer.y }}>
+          <header className="window-header" onPointerDown={(e) => startPopupDrag("viewer", e)} onPointerMove={movePopup} onPointerUp={stopPopupDrag}>
             <span className="title">🌐 Jarpis Monitor: {view.title || "No Signal"}</span>
             <div className="controls">
               <button onClick={() => setViewerState('minimized')}>-</button>
@@ -577,9 +586,10 @@ export default function Home() {
             </div>
           </header>
           <div className="viewer-content">
+            {viewerLoading && <div className="jarpis-loading"><span></span><b>Jarpis memuat data...</b></div>}
             {view.note && <p className="viewer-note">{view.note}</p>}
             
-            {view.url && <iframe src={view.url} className="viewer-frame" title={view.title} />}
+            {view.url && <iframe src={view.url} className="viewer-frame" title={view.title} onLoad={() => setViewerLoading(false)} />}
             
             {news.length > 0 && (
               <div className="news-list">
