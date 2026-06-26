@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
 
 type Message = { role: "user" | "ai"; text: string };
@@ -36,21 +36,26 @@ async function askAi(text: string) {
 
 export default function Home() {
   const [messages, setMessages] = useState<Message[]>([
-    { role: "ai", text: "Halo, saya Jarpis. Pakai /buka, /cari, /berita, /gambar, /lagu, atau langsung chat." },
+    { role: "ai", text: "Jarpis online. Masukkan perintah suara atau teks melalui ikon di sekeliling saya." },
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [view, setView] = useState<View>({
-    title: "Jarpis HUD",
-    url: "",
-    note: "Gunakan perintah di panel tengah untuk membuka website/search.",
-  });
+  const [view, setView] = useState<View>({ title: "", url: "", note: "" });
+  const [videos, setVideos] = useState<{ id: string; title: string; url: string }[]>([]);
+  const [news, setNews] = useState<{ title: string; link: string; source: string }[]>([]);
+  
+  // Popup States: 'closed' | 'open' | 'minimized'
+  const [chatState, setChatState] = useState<'closed' | 'open' | 'minimized'>('open');
+  const [viewerState, setViewerState] = useState<'closed' | 'open' | 'minimized'>('closed');
+  
+  // Audio States
   const [audioUrl, setAudioUrl] = useState<string>("");
   const [speaker, setSpeaker] = useState("sari");
   const [speakEnabled, setSpeakEnabled] = useState(true);
-  const [videos, setVideos] = useState<{ id: string; title: string; url: string }[]>([]);
-  const [news, setNews] = useState<{ title: string; link: string; source: string }[]>([]);
-  const [showIframe, setShowIframe] = useState(false);
+  const [isAiSpeaking, setIsAiSpeaking] = useState(false);
+
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
 
   const voices = useMemo(() => [
     { id: "sari", label: "Sari — Wanita" },
@@ -65,74 +70,87 @@ export default function Home() {
     { id: "andi", label: "Andi — Pria" },
   ], []);
 
-  const ttsUrl = process.env.NEXT_PUBLIC_TTS_URL || process.env.NEXT_PUBLIC_API_URL;
-
-  const chips = useMemo(() => ["/buka wikipedia.org", "/berita AI hari ini", "/gambar jarvis hud", "/lagu lofi malam", "Bantu outline novel"], []);
+  // Update AI speaking state based on audio playback
+  useEffect(() => {
+    const el = audioRef.current;
+    if (!el) return;
+    const playHandler = () => setIsAiSpeaking(true);
+    const pauseHandler = () => setIsAiSpeaking(false);
+    const endedHandler = () => setIsAiSpeaking(false);
+    
+    el.addEventListener("play", playHandler);
+    el.addEventListener("pause", pauseHandler);
+    el.addEventListener("ended", endedHandler);
+    
+    return () => {
+      el.removeEventListener("play", playHandler);
+      el.removeEventListener("pause", pauseHandler);
+      el.removeEventListener("ended", endedHandler);
+    };
+  }, [audioUrl]);
 
   async function handle(text: string) {
     const lower = text.toLowerCase();
     const parts = text.split(/\s+/);
     const cmd = parts[0].replace("/", "");
     const rest = text.slice(parts[0].length).trim();
-    const baseApi = apiUrl || "";
 
     setVideos([]);
     setNews([]);
-    setShowIframe(false);
 
+    // /buka website
     if (["buka", "open"].includes(cmd) && rest) {
       const targetUrl = withProtocol(rest);
-      const proxied = `${baseApi}/proxy?url=${encodeURIComponent(targetUrl)}`;
+      const proxied = `${apiUrl}/proxy?url=${encodeURIComponent(targetUrl)}`;
       setView({ title: `Buka: ${rest}`, url: proxied, note: "Website dimuat via Jarpis Secure Proxy." });
-      setShowIframe(true);
-      return `Saya membuka website ${rest} via secure proxy di panel kanan.`;
+      setViewerState('open');
+      return `Saya membuka website ${rest} di panel kanan.`;
     }
 
+    // /berita
     if (cmd === "berita" && rest) {
       try {
-        const res = await fetch(`${baseApi}/news?q=${encodeURIComponent(rest)}`);
+        const res = await fetch(`${apiUrl}/news?q=${encodeURIComponent(rest)}`);
         if (res.ok) {
           const list = await res.json();
           setNews(list);
           setView({ title: `Berita: ${rest}`, url: "", note: "Menampilkan 10 berita terhangat." });
-          return `Berikut berita terhangat terkait '${rest}' di panel kanan.`;
+          setViewerState('open');
+          return `Oke, akan saya cari berita tentang ${rest}. Apakah kamu ingin saya membacakan atau melihat berita yang sudah muncul?`;
         }
       } catch (err) {
         console.error("News fetch error", err);
       }
+      return `Maaf, saya gagal mencari berita tentang ${rest}.`;
     }
 
+    // /lagu / musik
     if (cmd === "lagu" && rest) {
       try {
-        const res = await fetch(`${baseApi}/videos?q=${encodeURIComponent(rest)}`);
+        const res = await fetch(`${apiUrl}/videos?q=${encodeURIComponent(rest)}`);
         if (res.ok) {
           const list = await res.json();
           setVideos(list);
           setView({ title: `Lagu/Video: ${rest}`, url: "", note: "Pilih video untuk diputar langsung di panel." });
-          return `Saya carikan video/lagu terkait '${rest}' di panel kanan.`;
+          setViewerState('open');
+          return `Oke, saya carikan lagu/video tentang ${rest}. Apakah kamu ingin saya membacakan atau melihat lagu yang sudah muncul?`;
         }
       } catch (err) {
         console.error("Video fetch error", err);
       }
+      return `Maaf, saya gagal mencari video tentang ${rest}.`;
     }
 
+    // /cari / web
     if (["cari", "web", "gambar"].includes(cmd) && rest) {
       const kind = cmd === "cari" || cmd === "web" ? "web" : cmd;
-      const targetUrl = searchUrl(kind, rest, baseApi);
+      const targetUrl = searchUrl(kind, rest, apiUrl);
       setView({ title: `${kind.toUpperCase()}: ${rest}`, url: targetUrl, note: "Pencarian dimuat via Jarpis Secure Proxy." });
-      setShowIframe(true);
-      return `Saya cari ${kind} '${rest}' di panel kanan.`;
+      setViewerState('open');
+      return `Oke, saya carikan ${kind} tentang ${rest}. Apakah kamu ingin saya membacakan atau melihat hasil yang sudah muncul?`;
     }
 
-    if (lower.startsWith("buka ")) {
-      const site = text.slice(5).trim();
-      const targetUrl = withProtocol(site);
-      const proxied = `${baseApi}/proxy?url=${encodeURIComponent(targetUrl)}`;
-      setView({ title: `Buka: ${site}`, url: proxied, note: "Website dimuat via Jarpis Secure Proxy." });
-      setShowIframe(true);
-      return `Saya membuka website ${site} via secure proxy.`;
-    }
-
+    // normal chat
     return askAi(text);
   }
 
@@ -141,6 +159,7 @@ export default function Home() {
     if (!text || loading) return;
     setInput("");
     setLoading(true);
+    setChatState('open');
     setMessages((m) => [...m, { role: "user", text }, { role: "ai", text: "" }]);
     await saveMessage("user", text);
 
@@ -149,9 +168,9 @@ export default function Home() {
       setMessages((m) => m.map((msg, i) => (i === m.length - 1 ? { ...msg, text: answer } : msg)));
       await saveMessage("ai", answer);
 
-      if (speakEnabled && ttsUrl && !text.startsWith("/")) {
+      if (speakEnabled && apiUrl && !text.startsWith("/")) {
         try {
-          const speakRes = await fetch(`${ttsUrl}/speak`, {
+          const speakRes = await fetch(`${apiUrl}/speak`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ text: answer, speaker }),
@@ -174,70 +193,115 @@ export default function Home() {
   }
 
   return (
-    <main className="hud">
-      <aside className="side">
-        <div className="logo"><span className="orb" /> JARPIS</div>
-        <button onClick={() => setInput("/buka ")}>Buka Website</button>
-        <button onClick={() => setInput("/berita ")}>Cari Berita</button>
-        <button onClick={() => setInput("/gambar ")}>Cari Gambar</button>
-        <button onClick={() => setInput("/lagu ")}>Cari Lagu</button>
-        <button onClick={() => setInput("Bantu buat outline novel tentang ")}>Novel</button>
-
-        <div className="tts-box">
-          <label>
-            <input type="checkbox" checked={speakEnabled} onChange={(e) => setSpeakEnabled(e.target.checked)} />
-            Suara Jarpis
-          </label>
-          <select value={speaker} onChange={(e) => setSpeaker(e.target.value)}>
-            {voices.map((v) => <option key={v.id} value={v.id}>{v.label}</option>)}
-          </select>
-          {audioUrl && <audio src={audioUrl} autoPlay controls style={{ width: "100%", marginTop: "10px" }} />}
+    <main className="jarvis-desktop">
+      {/* Background Equalizer Visualizer */}
+      <div className="center-container">
+        <div className={`orb-equalizer ${isAiSpeaking ? 'active' : ''}`}>
+          <div className="ring ring-1"></div>
+          <div className="ring ring-2"></div>
+          <div className="ring ring-3"></div>
+          <div className="ring ring-4"></div>
+          <div className="core"></div>
         </div>
-      </aside>
+      </div>
 
-      <section className="center">
-        <div className="scanner"><span /></div>
-        <div className="chat">
-          {messages.map((msg, i) => <div key={i} className={`msg ${msg.role}`}>{msg.text}</div>)}
-        </div>
-        <div className="chips">{chips.map((c) => <button key={c} onClick={() => send(c)}>{c}</button>)}</div>
-        <form className="form" onSubmit={(e) => { e.preventDefault(); send(); }}>
-          <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Perintah atau chat... contoh: /gambar kota futuristik" />
-          <button disabled={loading || !input.trim()}>{loading ? "..." : "Kirim"}</button>
-        </form>
-      </section>
+      {/* Floating System Dock (Icons only) */}
+      <nav className="dock">
+        <button className={chatState === 'open' ? 'active' : ''} onClick={() => setChatState(chatState === 'open' ? 'minimized' : 'open')} title="AI Chat">
+          <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+        </button>
+        <button className={viewerState === 'open' ? 'active' : ''} onClick={() => setViewerState(viewerState === 'open' ? 'minimized' : 'open')} title="Website Viewer">
+          <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+        </button>
+        <div className="divider"></div>
+        <button onClick={() => setInput("/buka ")} title="Buka URL">
+          <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+        </button>
+        <button onClick={() => setInput("/berita ")} title="Cari Berita">
+          <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><path d="M16 8h2M16 12h2M16 16h2M6 8h6v8H6z"></path></svg>
+        </button>
+        <button onClick={() => setInput("/gambar ")} title="Cari Gambar">
+          <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+        </button>
+        <button onClick={() => setInput("/lagu ")} title="Cari Lagu">
+          <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
+        </button>
+      </nav>
 
-      <section className="viewer">
-        <header>
-          <b>{view.title}</b>
-          {view.url && <a href={view.url.includes("proxy?url=") ? decodeURIComponent(view.url.split("proxy?url=")[1]) : view.url} target="_blank" rel="noreferrer">Buka tab</a>}
-        </header>
-        <p>{view.note}</p>
-        
-        {showIframe && view.url && <iframe src={view.url} title={view.title} />}
-        
-        {news.length > 0 && (
-          <div className="news-list">
-            {news.map((item, i) => (
-              <a key={i} href={item.link} target="_blank" rel="noreferrer" className="news-item">
-                <h4>{item.title}</h4>
-                <span>{item.source} • {item.pubDate}</span>
-              </a>
-            ))}
+      {/* Popup 1: AI Chat */}
+      {chatState !== 'closed' && (
+        <section className={`popup-window chat-window ${chatState}`}>
+          <header className="window-header">
+            <span className="title">💬 Jarpis Chat</span>
+            <div className="controls">
+              <button onClick={() => setChatState('minimized')}>-</button>
+              <button onClick={() => setChatState('closed')}>x</button>
+            </div>
+          </header>
+          
+          <div className="chat">
+            {messages.map((msg, i) => <div key={i} className={`msg ${msg.role}`}>{msg.text}</div>)}
           </div>
-        )}
 
-        {videos.length > 0 && (
-          <div className="video-grid">
-            {videos.map((vid, i) => (
-              <div key={i} className="video-item">
-                <iframe src={vid.url} title={vid.title} allowFullScreen />
-                <h5>{vid.title}</h5>
+          <form className="form" onSubmit={(e) => { e.preventDefault(); send(); }}>
+            <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Tanya Jarpis atau ketik /berita..." />
+            <button disabled={loading || !input.trim()}>{loading ? "..." : "Kirim"}</button>
+          </form>
+
+          <div className="tts-dock">
+            <label>
+              <input type="checkbox" checked={speakEnabled} onChange={(e) => setSpeakEnabled(e.target.checked)} />
+              Suara Aktif
+            </label>
+            <select value={speaker} onChange={(e) => setSpeaker(e.target.value)}>
+              {voices.map((v) => <option key={v.id} value={v.id}>{v.label}</option>)}
+            </select>
+          </div>
+        </section>
+      )}
+
+      {/* Popup 2: Website & Media Viewer */}
+      {viewerState !== 'closed' && (
+        <section className={`popup-window viewer-window ${viewerState}`}>
+          <header className="window-header">
+            <span className="title">🌐 Jarpis Monitor: {view.title || "No Signal"}</span>
+            <div className="controls">
+              <button onClick={() => setViewerState('minimized')}>-</button>
+              <button onClick={() => setViewerState('closed')}>x</button>
+            </div>
+          </header>
+          <div className="viewer-content">
+            {view.note && <p className="viewer-note">{view.note}</p>}
+            
+            {view.url && <iframe src={view.url} className="viewer-frame" title={view.title} />}
+            
+            {news.length > 0 && (
+              <div className="news-list">
+                {news.map((item, i) => (
+                  <a key={i} href={item.link} target="_blank" rel="noreferrer" className="news-item">
+                    <h4>{item.title}</h4>
+                    <span>{item.source} • {item.pubDate}</span>
+                  </a>
+                ))}
               </div>
-            ))}
+            )}
+
+            {videos.length > 0 && (
+              <div className="video-grid">
+                {videos.map((vid, i) => (
+                  <div key={i} className="video-item">
+                    <iframe src={vid.url} title={vid.title} allowFullScreen />
+                    <h5>{vid.title}</h5>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-        )}
-      </section>
+        </section>
+      )}
+
+      {/* Hidden Audio Player for TTS */}
+      {audioUrl && <audio ref={audioRef} src={audioUrl} autoPlay style={{ display: "none" }} />}
     </main>
   );
 }
