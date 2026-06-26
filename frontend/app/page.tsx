@@ -737,7 +737,7 @@ export default function Home() {
 
       {/* Floating System Dock (Icons only) */}
       <nav className="dock">
-        <button className={chatState === 'open' ? 'active' : ''} onClick={() => setChatState(chatState === 'open' ? 'minimized' : 'open')} title="AI Chat">
+        <button className={chatState === 'open' ? 'active' : ''} onClick={() => setChatState(chatState === 'open' ? 'closed' : 'open')} title="AI Chat">
           <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
         </button>
         <button className={listening ? 'active' : ''} onClick={startVoiceInput} title="Perintah Suara">
@@ -748,10 +748,9 @@ export default function Home() {
       {/* Popup 1: AI Chat */}
       {chatState === 'open' && (
         <section className="popup-window chat-window" style={{ left: popupPos.chat.x, top: popupPos.chat.y }}>
-          <header className="window-header" onPointerDown={(e) => startPopupDrag("chat", e)} onPointerMove={movePopup} onPointerUp={stopPopupDrag}>
+          <header className="window-header" onPointerDown={(e) => { if (window.innerWidth > 800) startPopupDrag("chat", e); }} onPointerMove={movePopup} onPointerUp={stopPopupDrag}>
             <span className="title">💬 Anta Chat</span>
             <div className="controls">
-              <button onClick={() => setChatState('minimized')}>-</button>
               <button onClick={() => setChatState('closed')}>x</button>
             </div>
           </header>
