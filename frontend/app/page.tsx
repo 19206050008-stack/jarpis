@@ -250,6 +250,34 @@ async function askOpenAgentic(prompt: string, model = "gpt-4o-mini"): Promise<st
 
 const MISTRAL_KEY = process.env.NEXT_PUBLIC_MISTRAL_KEY || "";
 
+const ZYLOO_KEY = process.env.NEXT_PUBLIC_ZYLOO_KEY || "";
+
+async function askZyloo(prompt: string, model = "zyloo/gpt-5.4"): Promise<string> {
+  if (!ZYLOO_KEY) throw new Error("No Zyloo key");
+  const res = await fetch("https://zyloo.io/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${ZYLOO_KEY}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model,
+      messages: [
+        { role: "system", content: "Kamu Anta, asisten AI yang natural dan ramah. Jawab dengan gaya bicara santai seperti teman ngobrol biasa. Jangan gunakan markdown, jangan sebut dirimu sebagai AI/bot. Jawab langsung sesuai konteks." },
+        { role: "user", content: prompt }
+      ],
+      max_tokens: 500,
+      temperature: 0.7
+    }),
+    signal: AbortSignal.timeout(30000)
+  });
+  if (!res.ok) throw new Error(`Zyloo error ${res.status}`);
+  const data = await res.json();
+  const content = data?.choices?.[0]?.message?.content;
+  if (!content) throw new Error("Zyloo empty response");
+  return content;
+}
+
 async function askMistral(prompt: string, model = "mistral-small-latest"): Promise<string> {
   if (!MISTRAL_KEY) throw new Error("No Mistral key");
   const res = await fetch("https://api.mistral.ai/v1/chat/completions", {
@@ -297,6 +325,7 @@ async function askAi(text: string, cache = true) {
 
   // Strategy: rotate between providers for speed and reliability
   const strategies = [
+    () => askZyloo(text, "zyloo/gpt-5.4"),
     () => askMistral(text, "mistral-small-latest"),
     () => askOpenRouter(text, "qwen/qwen3-0.6b-04-28:free"),
     () => askOpenAgentic(text, "gpt-4o-mini"),
