@@ -178,14 +178,28 @@ async function askPollinationsChat(prompt: string, model = "openai"): Promise<st
 }
 
 // OpenRouter API — primary AI provider (faster, more reliable)
-const OPENROUTER_KEY = process.env.NEXT_PUBLIC_OPENROUTER_KEY || "";
+const OPENROUTER_KEYS = [
+  process.env.NEXT_PUBLIC_OPENROUTER_KEY || "",
+  process.env.NEXT_PUBLIC_OPENROUTER_KEY2 || "",
+  process.env.NEXT_PUBLIC_OPENROUTER_KEY3 || "",
+].filter(k => k.length > 0);
+const OPENAGENTIC_KEY = process.env.NEXT_PUBLIC_OPENAGENTIC_KEY || "";
+let _keyIndex = 0;
+
+function getNextOpenRouterKey(): string {
+  if (OPENROUTER_KEYS.length === 0) return "";
+  const key = OPENROUTER_KEYS[_keyIndex % OPENROUTER_KEYS.length];
+  _keyIndex++;
+  return key;
+}
 
 async function askOpenRouter(prompt: string, model = "qwen/qwen3-0.6b-04-28:free"): Promise<string> {
-  if (!OPENROUTER_KEY) throw new Error("No OpenRouter key");
+  const key = getNextOpenRouterKey();
+  if (!key) throw new Error("No OpenRouter key");
   const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
     headers: {
-      "Authorization": `Bearer ${OPENROUTER_KEY}`,
+      "Authorization": `Bearer ${key}`,
       "Content-Type": "application/json",
       "HTTP-Referer": "https://antasiar.web.id",
       "X-Title": "Anta AI"
@@ -208,14 +222,41 @@ async function askOpenRouter(prompt: string, model = "qwen/qwen3-0.6b-04-28:free
   return content;
 }
 
+async function askOpenAgentic(prompt: string, model = "gpt-4o-mini"): Promise<string> {
+  if (!OPENAGENTIC_KEY) throw new Error("No OpenAgentic key");
+  const res = await fetch("https://openagentic.id/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${OPENAGENTIC_KEY}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model,
+      messages: [
+        { role: "system", content: "Kamu Anta, asisten AI yang natural dan ramah. Jawab dengan gaya bicara santai seperti teman ngobrol biasa. Jangan gunakan markdown, jangan sebut dirimu sebagai AI/bot. Jawab langsung sesuai konteks." },
+        { role: "user", content: prompt }
+      ],
+      max_tokens: 500,
+      temperature: 0.7
+    }),
+    signal: AbortSignal.timeout(30000)
+  });
+  if (!res.ok) throw new Error(`OpenAgentic error ${res.status}`);
+  const data = await res.json();
+  const content = data?.choices?.[0]?.message?.content;
+  if (!content) throw new Error("OpenAgentic empty response");
+  return content;
+}
+
 async function askAi(text: string, cache = true) {
   const key = `anta:${text}`;
   const cached = cache ? localStorage.getItem(key) : null;
   if (cached) return cached;
 
-  // Strategy: OpenRouter first (reliable), Pollinations as fallback
+  // Strategy: rotate between providers for speed and reliability
   const strategies = [
     () => askOpenRouter(text, "qwen/qwen3-0.6b-04-28:free"),
+    () => askOpenAgentic(text, "gpt-4o-mini"),
     () => askOpenRouter(text, "mistralai/mistral-small-3.1-24b-instruct:free"),
     () => askPollinations(`Kamu Anta, asisten AI yang natural dan ramah. Jawab dengan gaya bicara santai seperti teman ngobrol biasa. Jangan gunakan markdown, jangan sebut dirimu sebagai AI/bot. Jawab langsung sesuai konteks.\n\nUser: ${text}`, "openai"),
   ];
@@ -230,7 +271,7 @@ async function askAi(text: string, cache = true) {
     } catch { /* try next */ }
     
     // Wait before retry
-    if (i < strategies.length - 1) await new Promise(r => setTimeout(r, 2000));
+    if (i < strategies.length - 1) await new Promise(r => setTimeout(r, 1500));
   }
 
   throw new Error("Anta belum bisa merespons. Coba lagi sebentar.");
