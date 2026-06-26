@@ -375,30 +375,41 @@ export default function Home() {
   useEffect(() => {
     if (loading || isAiSpeaking || listening) return;
     const timer = window.setTimeout(async () => {
-      const lang = ["Indonesia", "English", "日本語", "Español"][Math.floor(Math.random() * 4)];
       let line = "";
       try {
-        let material = "observasi sunyi di layar utama Jarpis";
         if (apiUrl) {
-          const credible = "(site:kompas.com OR site:tempo.co OR site:antaranews.com OR site:bbc.com OR site:cnnindonesia.com)";
-          const res = await fetch(`${apiUrl}/news?q=${encodeURIComponent(`berita hari ini ${credible}`)}`);
+          // Fetch real news from Indonesia/Yogyakarta
+          const location = "Yogyakarta OR Indonesia";
+          const credible = "(site:kompas.com OR site:tempo.co OR site:detik.com OR site:tribunnews.com OR site:antaranews.com)";
+          const res = await fetch(`${apiUrl}/news?q=${encodeURIComponent(`${location} berita terbaru ${credible}`)}`);
           const items = res.ok ? await res.json() : [];
           const item = items.find((x: { title?: string; link?: string }) => x.link && !seenNewsRef.current.has(x.link));
           if (item?.link) {
             seenNewsRef.current.add(item.link);
+            // Fetch full article content
             const article = await fetch(`${apiUrl}/article?url=${encodeURIComponent(item.link)}`).then((r) => r.ok ? r.json() : null).catch(() => null);
-            material = article?.text || item.title;
+            const content = article?.text || item.title;
+            // Generate natural commentary and read the news
+            line = await askAi(`Kamu Anta, AI asisten yang sedang idle. Kamu baru menemukan berita menarik dari ${item.source || 'Indonesia'}: "${item.title}". Sampaikan berita ini dengan gaya natural seperti teman yang ngasih tau berita, lalu kasih komentar singkatmu. Maksimal 2-3 kalimat. Jangan pakai markdown.`, false);
+            await saveMemory("idle_news", `${item.title} - ${line}`);
+          } else {
+            // Fallback: generic idle thought about current time and location
+            const now = new Date();
+            const hour = now.getHours();
+            const timeContext = hour < 12 ? "pagi" : hour < 18 ? "siang" : "malam";
+            line = await askAi(`Kamu Anta. Sekarang ${timeContext} di Yogyakarta, Indonesia (${now.toLocaleString('id-ID')}). Buat satu gumaman idle spontan yang lucu dan cerdas tentang waktu atau keadaan sekarang. Maksimal 1 kalimat. Tanpa markdown.`, false);
           }
+        } else {
+          // No API, just generic idle
+          line = await askAi(`Kamu Anta. Buat satu gumaman idle pendek yang unik dan lucu. Maksimal 1 kalimat. Tanpa markdown. Waktu: ${Date.now()}`, false);
         }
-        line = await askAi(`Kamu Anta. Buat satu gumaman idle yang terasa seperti pemikiranmu sendiri, lucu tapi cerdas, bahasa ${lang}, berdasarkan bahan ini. Jangan gunakan markdown (*), jangan gunakan kutipan aneh (\"), maksimal 1 kalimat: ${material.slice(0, 1200)}. Waktu unik: ${Date.now()}`, false);
-        await saveMemory("idle_thought", line);
       } catch {
-        line = await askAi(`Kamu Anta. Buat satu gumaman idle pendek yang unik, lucu, cerdas, bahasa ${lang}. Tanpa markdown atau kutipan aneh. Waktu: ${Date.now()}`, false);
+        line = await askAi(`Kamu Anta. Buat satu gumaman idle pendek yang unik dan lucu. Maksimal 1 kalimat. Tanpa markdown. Waktu: ${Date.now()}`, false);
       }
       const modes = ["spin", "slime", "melt", "creature", "bounce"];
       setOrbMode(modes[Math.floor(Math.random() * modes.length)]);
       void speakLine(line);
-    }, 8000 + Math.floor(Math.random() * 32000));
+    }, 12000 + Math.floor(Math.random() * 28000));
     return () => window.clearTimeout(timer);
   }, [loading, isAiSpeaking, listening, speaker, speakEnabled, apiUrl]);
 
