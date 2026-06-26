@@ -67,7 +67,7 @@ async function askAi(text: string, cache = true) {
   const key = `jarpis:${text}`;
   const cached = cache ? localStorage.getItem(key) : null;
   if (cached) return cached;
-  const prompt = `Kamu Jarpis, asisten AI universal yang cerdas dan berpikir global. Jawab ringkas, praktis, dan berguna. Akhiri dengan satu pertanyaan lanjutan yang relevan.\n\nUser: ${text}`;
+  const prompt = `Kamu Jarpis, asisten AI universal yang cerdas dan berpikir global. Jawab ringkas, praktis, dan berguna. Jangan pernah memakai tanda baca markdown seperti bintang (*), pagar (#), atau kutipan aneh (\"). Buat jawaban bersih. Akhiri dengan satu pertanyaan lanjutan yang relevan.\n\nUser: ${text}`;
   const url = `https://text.pollinations.ai/prompt/${encodeURIComponent(prompt)}?model=openai`;
   const res = await fetch(url);
   if (!res.ok) throw new Error("AI tidak menjawab");
@@ -98,7 +98,7 @@ export default function Home() {
   const [speakEnabled, setSpeakEnabled] = useState(true);
   const [isAiSpeaking, setIsAiSpeaking] = useState(false);
   const [listening, setListening] = useState(false);
-  const [subtitle, setSubtitle] = useState("Jarpis online. Sistem santai tapi siap.");
+  const [subtitle, setSubtitle] = useState("");
   const [files, setFiles] = useState<LocalFile[]>([]);
   const [orbMode, setOrbMode] = useState("idle");
   const [orbSide, setOrbSide] = useState("center");
@@ -206,6 +206,7 @@ export default function Home() {
     };
     const stop = () => {
       setIsAiSpeaking(false);
+      setSubtitle(""); // hide subtitle when done speaking
       cancelAnimationFrame(raf);
       orb.style.setProperty("--bass", "1");
       orb.style.setProperty("--mid", "1");
@@ -256,10 +257,10 @@ export default function Home() {
             material = article?.text || item.title;
           }
         }
-        line = await askAi(`Kamu Jarpis. Buat satu gumaman idle yang terasa seperti pemikiranmu sendiri, lucu tapi cerdas, bahasa ${lang}, berdasarkan bahan ini. Jangan hardcode, jangan ulangi, maksimal 1 kalimat: ${material.slice(0, 1200)}. Waktu unik: ${Date.now()}`, false);
+        line = await askAi(`Kamu Jarpis. Buat satu gumaman idle yang terasa seperti pemikiranmu sendiri, lucu tapi cerdas, bahasa ${lang}, berdasarkan bahan ini. Jangan gunakan markdown (*), jangan gunakan kutipan aneh (\"), maksimal 1 kalimat: ${material.slice(0, 1200)}. Waktu unik: ${Date.now()}`, false);
         await saveMemory("idle_thought", line);
       } catch {
-        line = await askAi(`Kamu Jarpis. Buat satu gumaman idle pendek yang unik, lucu, cerdas, bahasa ${lang}. Jangan ulangi. Waktu: ${Date.now()}`, false);
+        line = await askAi(`Kamu Jarpis. Buat satu gumaman idle pendek yang unik, lucu, cerdas, bahasa ${lang}. Tanpa markdown atau kutipan aneh. Waktu: ${Date.now()}`, false);
       }
       const modes = ["spin", "slime", "melt", "creature", "bounce"];
       setOrbMode(modes[Math.floor(Math.random() * modes.length)]);
