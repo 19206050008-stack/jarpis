@@ -474,74 +474,70 @@ export default function Home() {
     return () => window.clearInterval(timer);
   }, [loading, isAiSpeaking, listening]);
 
+  // Timer 1: News Fetcher — every ~5 min, fetch new news if bank is low
+  useEffect(() => {
+    if (!apiUrl) return;
+    const fetchNews = async () => {
+      try {
+        await cleanOldNews();
+        const bankCount = await getNewsBankCount();
+        // Only fetch if bank has 5 or fewer unspoken items
+        if (bankCount > 5) return;
+        
+        const topics = ["Indonesia terbaru", "teknologi", "Yogyakarta", "ekonomi Indonesia", "olahraga Indonesia", "hiburan Indonesia"];
+        const topic = topics[Math.floor(Math.random() * topics.length)];
+        const credible = "(site:kompas.com OR site:tempo.co OR site:detik.com OR site:tribunnews.com OR site:antaranews.com)";
+        const res = await fetch(`${apiUrl}/news?q=${encodeURIComponent(`${topic} berita ${credible}`)}`);
+        const items = res.ok ? await res.json() : [];
+        
+        // Only process 2-3 random items per fetch (not too many)
+        const shuffled = items.sort(() => Math.random() - 0.5).slice(0, 3);
+        
+        for (const item of shuffled) {
+          if (!item.link || seenNewsRef.current.has(item.link)) continue;
+          if (item.pubDate) {
+            const pubTime = new Date(item.pubDate).getTime();
+            if (isNaN(pubTime) || Date.now() - pubTime > 24 * 60 * 60 * 1000) continue;
+          }
+          seenNewsRef.current.add(item.link);
+          
+          const article = await fetch(`${apiUrl}/article?url=${encodeURIComponent(item.link)}`).then((r) => r.ok ? r.json() : null).catch(() => null);
+          const content = (article?.text && !article?.error && article.text.length > 80) ? article.text : "";
+          if (!content && (!item.title || item.title.length < 15)) continue;
+          
+          const source = item.source || (() => { try { return new URL(item.link).hostname.replace("www.", ""); } catch { return "media Indonesia"; } })();
+          
+          const prompt = content
+            ? `Kamu Anta, AI asisten. Rangkum berita berikut menjadi 2-3 kalimat ringkas dengan gaya natural seperti teman ngobrol. JANGAN tampilkan judul asli. Parafrase seluruhnya dengan kata-katamu sendiri. Di akhir tambahkan: "(Sumber: ${source})". Jangan pakai markdown.\n\nIsi berita: ${content.slice(0, 1200)}`
+            : `Kamu Anta, AI asisten. Sampaikan berita dengan judul "${item.title}" dalam 2 kalimat dengan gaya santai seperti teman yang ngasih tau berita. Jangan tampilkan judul asli, parafrase dengan kata-katamu. Di akhir tambahkan: "(Sumber: ${source})". Jangan pakai markdown.`;
+          
+          const summary = await askAi(prompt, false);
+          const summaryLower = summary.toLowerCase();
+          if (summaryLower.includes("javascript") || summaryLower.includes("undefined") || summaryLower.includes("error") || summary.length < 20) continue;
+          
+          await saveNewsToBank(item.title || "", source, item.link, summary);
+        }
+      } catch { /* silent */ }
+    };
+    
+    // First fetch after 30s, then every 5 min (± 1 min random)
+    const firstTimer = window.setTimeout(fetchNews, 30000);
+    const interval = window.setInterval(fetchNews, 300000 + Math.floor(Math.random() * 60000));
+    return () => { window.clearTimeout(firstTimer); window.clearInterval(interval); };
+  }, [apiUrl]);
+
+  // Timer 2: News Speaker — every ~25-45 sec, speak one unspoken news from bank
   useEffect(() => {
     if (loading || isAiSpeaking || listening) return;
     const timer = window.setTimeout(async () => {
-      let line = "";
       try {
-        // Clean old news from bank (yesterday's)
-        await cleanOldNews();
-        
-        // Step 1: Check if there's unspoken news in the bank
         const unspoken = await getUnspokenNews();
-        if (unspoken) {
-          line = unspoken.summary;
+        if (unspoken && unspoken.summary.length > 20) {
           await markNewsSpoken(unspoken.id);
-        } else if (apiUrl) {
-          // Step 2: No unspoken news — fetch fresh news, summarize, and save to bank
-          const location = "Yogyakarta OR Indonesia";
-          const credible = "(site:kompas.com OR site:tempo.co OR site:detik.com OR site:tribunnews.com OR site:antaranews.com)";
-          const res = await fetch(`${apiUrl}/news?q=${encodeURIComponent(`${location} berita terbaru ${credible}`)}`);
-          const items = res.ok ? await res.json() : [];
-          
-          // Process multiple news items and save to bank
-          let savedNew = false;
-          for (const item of items.slice(0, 5)) {
-            if (!item.link || seenNewsRef.current.has(item.link)) continue;
-            if (item.pubDate) {
-              const pubTime = new Date(item.pubDate).getTime();
-              if (isNaN(pubTime) || Date.now() - pubTime > 24 * 60 * 60 * 1000) continue;
-            }
-            seenNewsRef.current.add(item.link);
-            
-            // Fetch article content
-            const article = await fetch(`${apiUrl}/article?url=${encodeURIComponent(item.link)}`).then((r) => r.ok ? r.json() : null).catch(() => null);
-            const content = (article?.text && !article?.error && article.text.length > 80) ? article.text : "";
-            if (!content && (!item.title || item.title.length < 15)) continue;
-            
-            const source = item.source || (() => { try { return new URL(item.link).hostname.replace("www.", ""); } catch { return "media Indonesia"; } })();
-            
-            // Summarize
-            const prompt = content
-              ? `Kamu Anta, AI asisten. Rangkum berita berikut menjadi 2-3 kalimat ringkas dengan gaya natural seperti teman ngobrol. JANGAN tampilkan judul asli. Parafrase seluruhnya dengan kata-katamu sendiri. Di akhir tambahkan: "(Sumber: ${source})". Jangan pakai markdown.\n\nIsi berita: ${content.slice(0, 1200)}`
-              : `Kamu Anta, AI asisten. Sampaikan berita dengan judul "${item.title}" dalam 2 kalimat dengan gaya santai seperti teman yang ngasih tau berita. Jangan tampilkan judul asli, parafrase dengan kata-katamu. Di akhir tambahkan: "(Sumber: ${source})". Jangan pakai markdown.`;
-            
-            const summary = await askAi(prompt, false);
-            const summaryLower = summary.toLowerCase();
-            
-            // Validate
-            if (summaryLower.includes("javascript") || summaryLower.includes("undefined") || summaryLower.includes("error") || summary.length < 20) continue;
-            
-            // Save to bank
-            await saveNewsToBank(item.title || "", source, item.link, summary);
-            
-            if (!savedNew) {
-              line = summary; // Use the first one to speak now
-              savedNew = true;
-            }
-          }
-          
-          if (!line) return; // Nothing valid found
-        } else {
-          return;
+          void speakLine(unspoken.summary);
         }
-      } catch {
-        return;
-      }
-      if (line && line.length > 20) {
-        void speakLine(line);
-      }
-    }, 15000 + Math.floor(Math.random() * 25000));
+      } catch { /* silent */ }
+    }, 25000 + Math.floor(Math.random() * 20000));
     return () => window.clearTimeout(timer);
   }, [loading, isAiSpeaking, listening, speaker, speakEnabled, apiUrl]);
 
