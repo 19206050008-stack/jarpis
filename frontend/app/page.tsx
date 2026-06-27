@@ -685,16 +685,15 @@ export default function Home() {
           wakeRec = null;
           // Show user said "Halo Anta", Anta responds, then open mic for 10s
           setVoiceTranscript("Halo Anta");
-          void speakLine("Halo! Ada yang bisa saya bantu?").then(() => {
-            // After greeting finishes, open mic with extended timeout
-            setTimeout(() => {
-              if (active && !loading && !isAiSpeaking) {
-                setVoiceTranscript("");
-                setSubtitle("");
-                startVoiceInputExtended(10000);
-              }
-            }, 500);
-          });
+          void speakLine("Halo! Ada yang bisa saya bantu?");
+          // Wait for Anta to finish speaking (estimate), then open mic
+          setTimeout(() => {
+            if (active && !loading) {
+              setVoiceTranscript("");
+              setSubtitle("");
+              startVoiceInputExtended(10000);
+            }
+          }, 4000); // 4 seconds should be enough for short greeting
         }
       };
       r.onend = () => { 
