@@ -1,66 +1,22 @@
 import os
-import asyncio
 import io
 import wave
-import hashlib
-import platform
-import getpass
 import time
-from collections import OrderedDict
 from threading import Lock
 
 import httpx
 import numpy as np
-import edge_tts
-import psutil
 from fastapi import FastAPI, HTTPException, Response
 
 _start_time = time.time()
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse, JSONResponse
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 MODEL_PATH = os.getenv("MODEL_PATH", "models/Qwen3-0.6B-Q8_0.gguf")
 AI_PROVIDER = os.getenv("AI_PROVIDER", "pollinations")
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "qwen/qwen3-0.6b-04-28:free")
-
-# MiMo (Xiaomi) free AI — reverse engineered
-MIMO_API = "https://api.xiaomimimo.com"
-_mimo_jwt = ""
-_mimo_jwt_time = 0
-_mimo_fingerprint = ""
-
-def _get_mimo_fingerprint() -> str:
-    global _mimo_fingerprint
-    if _mimo_fingerprint:
-        return _mimo_fingerprint
-    # Generate fingerprint like mimo CLI: SHA256(hostname|os|cpu|username)
-    hostname = platform.node()
-    os_name = platform.system()
-    cpu = platform.machine()
-    username = getpass.getuser()
-    raw = f"{hostname}|{os_name}|{cpu}|{username}"
-    _mimo_fingerprint = hashlib.sha256(raw.encode()).hexdigest()
-    return _mimo_fingerprint
-
-async def _get_mimo_jwt() -> str:
-    global _mimo_jwt, _mimo_jwt_time
-    # Reuse if less than 50 minutes old
-    if _mimo_jwt and (time.time() - _mimo_jwt_time) < 3000:
-        return _mimo_jwt
-    fingerprint = _get_mimo_fingerprint()
-    async with httpx.AsyncClient(timeout=15) as client:
-        resp = await client.post(
-            f"{MIMO_API}/api/free-ai/bootstrap",
-            json={"client": fingerprint}
-        )
-        data = resp.json()
-        if "jwt" not in data:
-            raise Exception(f"MiMo bootstrap failed: {data}")
-        _mimo_jwt = data["jwt"]
-        _mimo_jwt_time = time.time()
-        return _mimo_jwt
 
 MODELS_DIR = os.getenv("MODELS_DIR", "models")
 SUPERTONIC_DIR = "sherpa-onnx-supertonic-3-tts-int8-2026-05-11"
@@ -500,53 +456,3 @@ def speak(req: SpeakRequest):
 
     raise HTTPException(status_code=400, detail=f"Suara '{speaker}' tidak dikenal")
 
-
-# MiMo (Xiaomi) free AI endpoint
-@app.post("/mimo/chat")
-async def mimo_chat(payload: dict):
-    message = (payload.get("message") or "").strip()
-    if not message:
-        raise HTTPException(status_code=400, detail="message is required")
-    
-    system = payload.get("system", "Kamu Anta, asisten AI universal yang cerdas. Jawab ringkas, natural, dan berguna. Jangan pakai markdown.")
-    messages = [
-        {"role": "system", "content": f"You are MiMoCode, an interactive CLI tool that helps users with software engineering tasks.\n{system}"},
-        {"role": "user", "content": message}
-    ]
-    
-    try:
-        token = await _get_mimo_jwt()
-        async with httpx.AsyncClient(timeout=60) as client:
-            resp = await client.post(
-                f"{MIMO_API}/api/free-ai/openai/chat",
-                headers={
-                    "authorization": f"Bearer {token}",
-                    "x-mimo-source": "mimocode-cli-free",
-                    "content-type": "application/json",
-                },
-                json={
-                    "model": "mimo-auto",
-                    "max_tokens": 2000,
-                    "temperature": 0.7,
-                    "messages": messages,
-                }
-            )
-            if resp.status_code != 200:
-                raise HTTPException(status_code=resp.status_code, detail=f"MiMo error: {resp.text}")
-            data = resp.json()
-            content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
-            return {"content": content, "model": "mimo-auto", "provider": "xiaomi"}
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=503, detail=f"MiMo unavailable: {str(e)}")
-
-
-@app.get("/mimo/status")
-async def mimo_status():
-    """Check if MiMo is available and JWT is valid"""
-    try:
-        token = await _get_mimo_jwt()
-        return {"ok": True, "fingerprint": _mimo_fingerprint[:12] + "...", "jwt_valid": bool(token)}
-    except Exception as e:
-        return {"ok": False, "error": str(e)}

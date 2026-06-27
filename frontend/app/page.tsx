@@ -44,90 +44,47 @@ async function saveMemory(kind: string, content: string) {
   await supabase.from("memories").insert({ kind, content }).then(() => {}, () => {});
 }
 
-// News Bank — store summarized news for today, auto-clean yesterday's
-// Works with Supabase if available, localStorage as fallback
-async function cleanOldNews() {
-  // Clean localStorage news bank if date changed
+type NewsBankItem = { id: number; title: string; source: string; link: string; summary: string; spoken: boolean };
+
+function readNewsBank(): { date: string; items: NewsBankItem[] } {
+  const today = new Date().toDateString();
   try {
-    const bank = JSON.parse(localStorage.getItem("anta_news_bank") || '{"date":"","items":[]}');
-    if (bank.date !== new Date().toDateString()) {
-      localStorage.setItem("anta_news_bank", JSON.stringify({ date: new Date().toDateString(), items: [] }));
-    }
-  } catch { localStorage.setItem("anta_news_bank", JSON.stringify({ date: new Date().toDateString(), items: [] })); }
-  
-  if (!supabase) return;
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-  await supabase.from("news_bank").delete().lt("created_at", yesterday.toISOString()).then(() => {}, () => {});
+    const bank = JSON.parse(localStorage.getItem("anta_news_bank") || "{}");
+    if (bank.date === today && Array.isArray(bank.items)) return bank;
+  } catch {}
+  const fresh = { date: today, items: [] };
+  localStorage.setItem("anta_news_bank", JSON.stringify(fresh));
+  return fresh;
+}
+
+function writeNewsBank(bank: { date: string; items: NewsBankItem[] }) {
+  localStorage.setItem("anta_news_bank", JSON.stringify(bank));
+}
+
+async function cleanOldNews() {
+  readNewsBank();
 }
 
 async function saveNewsToBank(title: string, source: string, link: string, summary: string) {
-  // Always save to localStorage
-  try {
-    const bank = JSON.parse(localStorage.getItem("anta_news_bank") || '{"date":"","items":[]}');
-    if (bank.date !== new Date().toDateString()) bank.items = [];
-    bank.date = new Date().toDateString();
-    bank.items.push({ id: Date.now(), title, source, link, summary, spoken: false });
-    localStorage.setItem("anta_news_bank", JSON.stringify(bank));
-  } catch {}
-  
-  if (!supabase) return;
-  await supabase.from("news_bank").insert({ title, source, link, summary, spoken: false }).then(() => {}, () => {});
+  const bank = readNewsBank();
+  bank.items.push({ id: Date.now(), title, source, link, summary, spoken: false });
+  writeNewsBank(bank);
 }
 
 async function getUnspokenNews(): Promise<{ id: number; summary: string; source: string } | null> {
-  // Try Supabase first
-  if (supabase) {
-    try {
-      const { data } = await supabase
-        .from("news_bank")
-        .select("id, summary, source")
-        .eq("spoken", false)
-        .order("created_at", { ascending: true })
-        .limit(1);
-      if (data && data.length > 0) return data[0];
-    } catch {}
-  }
-  
-  // Fallback to localStorage
-  try {
-    const bank = JSON.parse(localStorage.getItem("anta_news_bank") || '{"date":"","items":[]}');
-    if (bank.date !== new Date().toDateString()) return null;
-    const item = bank.items.find((x: { spoken: boolean }) => !x.spoken);
-    return item ? { id: item.id, summary: item.summary, source: item.source } : null;
-  } catch {}
-  return null;
+  const item = readNewsBank().items.find((x) => !x.spoken);
+  return item ? { id: item.id, summary: item.summary, source: item.source } : null;
 }
 
 async function markNewsSpoken(id: number) {
-  // Mark in localStorage
-  try {
-    const bank = JSON.parse(localStorage.getItem("anta_news_bank") || '{"date":"","items":[]}');
-    const item = bank.items.find((x: { id: number }) => x.id === id);
-    if (item) item.spoken = true;
-    localStorage.setItem("anta_news_bank", JSON.stringify(bank));
-  } catch {}
-  
-  if (!supabase) return;
-  await supabase.from("news_bank").update({ spoken: true }).eq("id", id).then(() => {}, () => {});
+  const bank = readNewsBank();
+  const item = bank.items.find((x) => x.id === id);
+  if (item) item.spoken = true;
+  writeNewsBank(bank);
 }
 
 async function getNewsBankCount(): Promise<number> {
-  // Try Supabase
-  if (supabase) {
-    try {
-      const { count } = await supabase.from("news_bank").select("*", { count: "exact", head: true }).eq("spoken", false);
-      if (count !== null) return count;
-    } catch {}
-  }
-  
-  // Fallback localStorage
-  try {
-    const bank = JSON.parse(localStorage.getItem("anta_news_bank") || '{"date":"","items":[]}');
-    if (bank.date !== new Date().toDateString()) return 0;
-    return bank.items.filter((x: { spoken: boolean }) => !x.spoken).length;
-  } catch {}
-  return 0;
+  return readNewsBank().items.filter((x) => !x.spoken).length;
 }
 
 function withProtocol(url: string) {
@@ -148,209 +105,13 @@ function numberFromText(text: string) {
   return key ? words[key] : -1;
 }
 
-function quickAck(text: string) {
-  const lower = text.toLowerCase();
-  if (/^(halo|hai|hello|pagi|siang|malam)\b/.test(lower)) return "Halo. Saya siap. Mau saya bantu apa dulu?";
-  if (lower.startsWith("/berita")) return "Baik, saya cari berita terbaru. Setelah muncul, saya bisa bantu ringkas atau bacakan.";
-  if (lower.startsWith("/lagu")) return "Baik, saya cari lagu/video yang cocok. Sebentar.";
-  if (lower.startsWith("/gambar")) return "Baik, saya cari gambar yang relevan. Sebentar.";
-  if (lower.includes("ganti suara") || lower.includes("ubah suara")) return "Baik, saya ganti suara Anta.";
-  if (lower.startsWith("/buka")) return "Baik, saya buka websitenya di monitor.";
-  return "Baik, saya proses. Saya akan jawab singkat lalu tanya langkah berikutnya.";
-}
+const AI_PERSONA = "Kamu Anta, asisten AI yang natural dan ramah. Jawab dengan gaya bicara santai seperti teman ngobrol biasa. Jangan gunakan markdown, jangan sebut dirimu sebagai AI/bot. Jawab langsung sesuai konteks.";
 
-// Multiple free AI providers - hybrid/parallel approach
 async function askPollinations(prompt: string, model = "openai"): Promise<string> {
   const url = `https://text.pollinations.ai/prompt/${encodeURIComponent(prompt)}?model=${model}`;
   const res = await fetch(url, { signal: AbortSignal.timeout(30000) });
   if (!res.ok) throw new Error("Pollinations error");
   return res.text();
-}
-
-async function askPollinationsChat(prompt: string, model = "openai"): Promise<string> {
-  const res = await fetch("https://text.pollinations.ai/", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      messages: [
-        { role: "system", content: "Kamu Anta, asisten AI yang natural dan ramah. Jawab dengan gaya bicara santai. Jangan gunakan markdown. Jawab langsung sesuai konteks." },
-        { role: "user", content: prompt }
-      ],
-      model,
-      stream: false
-    }),
-    signal: AbortSignal.timeout(30000)
-  });
-  if (!res.ok) throw new Error("Pollinations chat error");
-  return res.text();
-}
-
-// OpenRouter API — primary AI provider (faster, more reliable)
-const OPENROUTER_KEYS = [
-  process.env.NEXT_PUBLIC_OPENROUTER_KEY || "",
-  process.env.NEXT_PUBLIC_OPENROUTER_KEY2 || "",
-  process.env.NEXT_PUBLIC_OPENROUTER_KEY3 || "",
-].filter(k => k.length > 0);
-const OPENAGENTIC_KEY = process.env.NEXT_PUBLIC_OPENAGENTIC_KEY || "";
-let _keyIndex = 0;
-
-function getNextOpenRouterKey(): string {
-  if (OPENROUTER_KEYS.length === 0) return "";
-  const key = OPENROUTER_KEYS[_keyIndex % OPENROUTER_KEYS.length];
-  _keyIndex++;
-  return key;
-}
-
-async function askOpenRouter(prompt: string, model = "qwen/qwen3-0.6b-04-28:free"): Promise<string> {
-  const key = getNextOpenRouterKey();
-  if (!key) throw new Error("No OpenRouter key");
-  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${key}`,
-      "Content-Type": "application/json",
-      "HTTP-Referer": "https://antasiar.web.id",
-      "X-Title": "Anta AI"
-    },
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: "system", content: "Kamu Anta, asisten AI yang natural dan ramah. Jawab dengan gaya bicara santai seperti teman ngobrol biasa. Jangan gunakan markdown, jangan sebut dirimu sebagai AI/bot. Jawab langsung sesuai konteks." },
-        { role: "user", content: prompt }
-      ],
-      max_tokens: 500,
-      temperature: 0.7
-    }),
-    signal: AbortSignal.timeout(30000)
-  });
-  if (!res.ok) throw new Error(`OpenRouter error ${res.status}`);
-  const data = await res.json();
-  const content = data?.choices?.[0]?.message?.content;
-  if (!content) throw new Error("OpenRouter empty response");
-  return content;
-}
-
-async function askOpenAgentic(prompt: string, model = "gpt-4o-mini"): Promise<string> {
-  if (!OPENAGENTIC_KEY) throw new Error("No OpenAgentic key");
-  const res = await fetch("https://openagentic.id/api/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${OPENAGENTIC_KEY}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: "system", content: "Kamu Anta, asisten AI yang natural dan ramah. Jawab dengan gaya bicara santai seperti teman ngobrol biasa. Jangan gunakan markdown, jangan sebut dirimu sebagai AI/bot. Jawab langsung sesuai konteks." },
-        { role: "user", content: prompt }
-      ],
-      max_tokens: 500,
-      temperature: 0.7
-    }),
-    signal: AbortSignal.timeout(30000)
-  });
-  if (!res.ok) throw new Error(`OpenAgentic error ${res.status}`);
-  const data = await res.json();
-  const content = data?.choices?.[0]?.message?.content;
-  if (!content) throw new Error("OpenAgentic empty response");
-  return content;
-}
-
-const MISTRAL_KEY = process.env.NEXT_PUBLIC_MISTRAL_KEY || "";
-
-const ZYLOO_KEY = process.env.NEXT_PUBLIC_ZYLOO_KEY || "";
-const ZENMUX_KEY = process.env.NEXT_PUBLIC_ZENMUX_KEY || "";
-
-async function askZenmux(prompt: string, model = "claude-sonnet-4-20250514"): Promise<string> {
-  if (!ZENMUX_KEY) throw new Error("No ZenMux key");
-  const res = await fetch("https://zenmux.ai/api/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${ZENMUX_KEY}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: "system", content: "Kamu Anta, asisten AI yang natural dan ramah. Jawab dengan gaya bicara santai seperti teman ngobrol biasa. Jangan gunakan markdown, jangan sebut dirimu sebagai AI/bot. Jawab langsung sesuai konteks." },
-        { role: "user", content: prompt }
-      ],
-      max_tokens: 500,
-      temperature: 0.7
-    }),
-    signal: AbortSignal.timeout(30000)
-  });
-  if (!res.ok) throw new Error(`ZenMux error ${res.status}`);
-  const data = await res.json();
-  const content = data?.choices?.[0]?.message?.content;
-  if (!content) throw new Error("ZenMux empty response");
-  return content;
-}
-
-async function askZyloo(prompt: string, model = "zyloo/gpt-5.4"): Promise<string> {
-  if (!ZYLOO_KEY) throw new Error("No Zyloo key");
-  const res = await fetch("https://zyloo.io/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${ZYLOO_KEY}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: "system", content: "Kamu Anta, asisten AI yang natural dan ramah. Jawab dengan gaya bicara santai seperti teman ngobrol biasa. Jangan gunakan markdown, jangan sebut dirimu sebagai AI/bot. Jawab langsung sesuai konteks." },
-        { role: "user", content: prompt }
-      ],
-      max_tokens: 500,
-      temperature: 0.7
-    }),
-    signal: AbortSignal.timeout(30000)
-  });
-  if (!res.ok) throw new Error(`Zyloo error ${res.status}`);
-  const data = await res.json();
-  const content = data?.choices?.[0]?.message?.content;
-  if (!content) throw new Error("Zyloo empty response");
-  return content;
-}
-
-async function askMistral(prompt: string, model = "mistral-small-latest"): Promise<string> {
-  if (!MISTRAL_KEY) throw new Error("No Mistral key");
-  const res = await fetch("https://api.mistral.ai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${MISTRAL_KEY}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: "system", content: "Kamu Anta, asisten AI yang natural dan ramah. Jawab dengan gaya bicara santai seperti teman ngobrol biasa. Jangan gunakan markdown, jangan sebut dirimu sebagai AI/bot. Jawab langsung sesuai konteks." },
-        { role: "user", content: prompt }
-      ],
-      max_tokens: 500,
-      temperature: 0.7
-    }),
-    signal: AbortSignal.timeout(30000)
-  });
-  if (!res.ok) throw new Error(`Mistral error ${res.status}`);
-  const data = await res.json();
-  const content = data?.choices?.[0]?.message?.content;
-  if (!content) throw new Error("Mistral empty response");
-  return content;
-}
-
-async function askMimo(prompt: string): Promise<string> {
-  if (!apiUrl) throw new Error("No API URL for MiMo");
-  const res = await fetch(`${apiUrl}/mimo/chat`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message: prompt }),
-    signal: AbortSignal.timeout(45000)
-  });
-  if (!res.ok) throw new Error(`MiMo error ${res.status}`);
-  const data = await res.json();
-  if (!data?.content) throw new Error("MiMo empty response");
-  return data.content;
 }
 
 async function askBackendChat(prompt: string): Promise<string> {
@@ -375,7 +136,7 @@ async function askAi(text: string, cache = true) {
   // Browser should not call AI vendors directly: CORS/403 noise. Backend handles providers.
   const strategies = [
     () => askBackendChat(text),
-    () => askPollinations(`Kamu Anta, asisten AI yang natural dan ramah. Jawab dengan gaya bicara santai seperti teman ngobrol biasa. Jangan gunakan markdown, jangan sebut dirimu sebagai AI/bot. Jawab langsung sesuai konteks.\n\nUser: ${text}`, "openai"),
+    () => askPollinations(`${AI_PERSONA}\n\nUser: ${text}`, "openai"),
   ];
   
   for (let i = 0; i < strategies.length; i++) {
@@ -475,6 +236,7 @@ export default function Home() {
   const dragRef = useRef({ active: false, moved: false, x: 0, y: 0, ox: 0, oy: 0 });
   const popupDragRef = useRef({ key: "", x: 0, y: 0, ox: 0, oy: 0 });
   const lastPinchRef = useRef(0);
+  const voiceSessionUntilRef = useRef(0);
   const ttsCacheRef = useRef(new Map<string, string>());
   const chatContextRef = useRef<{role:string;text:string}[]>([]);
   const seenNewsRef = useRef(new Set<string>((() => {
@@ -691,6 +453,7 @@ export default function Home() {
             if (active && !loading) {
               setVoiceTranscript("");
               setSubtitle("");
+              voiceSessionUntilRef.current = Date.now() + 60000;
               startVoiceInputExtended(10000);
             }
           }, 4000); // 4 seconds should be enough for short greeting
@@ -1381,6 +1144,7 @@ export default function Home() {
   }
 
   function startVoiceInput() {
+    voiceSessionUntilRef.current = Date.now() + 60000;
     startVoiceInputExtended(5000);
   }
 
@@ -1402,15 +1166,23 @@ export default function Home() {
     rec.onstart = () => {
       // Already set above
     };
+    const resetVoiceIdle = () => {
+      setListening(false);
+      setVoiceTranscript("");
+      setSubtitle("");
+    };
     // Auto timeout: stop if no speech after configured timeout
-    const timeout = setTimeout(() => { try { rec.stop(); } catch {} setListening(false); setVoiceTranscript(""); setSubtitle(""); }, timeoutMs);
-    rec.onend = () => { clearTimeout(timeout); setListening(false); };
+    const timeout = window.setTimeout(() => { try { rec.stop(); } catch {} resetVoiceIdle(); }, timeoutMs);
+    const hardTimeout = window.setTimeout(() => { try { rec.stop(); } catch {} resetVoiceIdle(); }, timeoutMs + 1500);
+    rec.onend = () => { clearTimeout(timeout); clearTimeout(hardTimeout); setListening(false); };
     rec.onresult = (event) => {
       clearTimeout(timeout);
+      clearTimeout(hardTimeout);
       const text = event.results[0]?.[0]?.transcript || "";
       if (text) void sendVoice(text);
+      else resetVoiceIdle();
     };
-    rec.start();
+    try { rec.start(); } catch { clearTimeout(timeout); clearTimeout(hardTimeout); resetVoiceIdle(); }
   }
 
   async function sendVoice(text: string) {
@@ -1421,6 +1193,7 @@ export default function Home() {
     setMessages((m) => [...m, { role: "user", text }]);
     await saveMessage("user", text);
 
+    let spokenAnswer = "";
     try {
       const rawAnswer = await handle(text, true); // fromVoice = true: always open viewer for media
       if (rawAnswer.startsWith("__SPEAK__:")) {
@@ -1434,6 +1207,7 @@ export default function Home() {
         chatContextRef.current.push({role:'user', text});
         chatContextRef.current.push({role:'ai', text: answer});
         if (chatContextRef.current.length > 10) chatContextRef.current = chatContextRef.current.slice(-10);
+        spokenAnswer = answer;
         await speakLine(answer);
       } else {
         const answer = cleanText(rawAnswer);
@@ -1444,7 +1218,13 @@ export default function Home() {
         chatContextRef.current.push({role:'user', text});
         chatContextRef.current.push({role:'ai', text: answer});
         if (chatContextRef.current.length > 10) chatContextRef.current = chatContextRef.current.slice(-10);
+        spokenAnswer = answer;
         await speakLine(answer);
+      }
+      if (voiceSessionUntilRef.current > Date.now()) {
+        window.setTimeout(() => {
+          if (!loading && !listening && !isAiSpeaking) startVoiceInputExtended(8000);
+        }, Math.min(9000, Math.max(1800, spokenAnswer.length * 70)));
       }
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Error tidak diketahui";
