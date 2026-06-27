@@ -557,8 +557,9 @@ export default function Home() {
     };
 
     if (!speakEnabled || !apiUrl) {
-      // Offline fallback: play typing immediately
-      playTypingEffect();
+      // Offline fallback: delay typing slightly so it feels like "voice first"
+      setIsAiSpeaking(true);
+      setTimeout(() => playTypingEffect(), 400);
       setTimeout(() => {
         setIsAiSpeaking(false);
         setSubtitle("");
@@ -852,8 +853,9 @@ export default function Home() {
   // Timer 2: News Speaker — every ~25-45 sec, speak one unspoken news from bank
   useEffect(() => {
     if (loading || isAiSpeaking || listening) return;
-    // Don't speak random news when chat or viewer is open (especially on mobile)
+    // Don't speak random news when chat or viewer is open, or when voice conversation active
     if (chatState === 'open' || viewerState === 'open') return;
+    if (voiceTranscript) return; // still in voice conversation
     const timer = window.setTimeout(async () => {
       try {
         const unspoken = await getUnspokenNews();
@@ -870,7 +872,7 @@ export default function Home() {
       } catch { /* silent */ }
     }, 25000 + Math.floor(Math.random() * 20000));
     return () => window.clearTimeout(timer);
-  }, [loading, isAiSpeaking, listening, speaker, speakEnabled, apiUrl, chatState, viewerState]);
+  }, [loading, isAiSpeaking, listening, speaker, speakEnabled, apiUrl, chatState, viewerState, voiceTranscript]);
 
   async function scanDirectory(dir: DirectoryHandle, base = ""): Promise<LocalFile[]> {
     const out: LocalFile[] = [];
@@ -1356,7 +1358,7 @@ export default function Home() {
     rec.continuous = false;
     rec.onstart = () => {
       setListening(true);
-      setVoiceTranscript("Mendengarkan...");
+      setVoiceTranscript("listening");
       setSubtitle("");
     };
     // Auto timeout: stop if no speech after 5 seconds
@@ -1373,7 +1375,7 @@ export default function Home() {
   async function sendVoice(text: string) {
     if (!text || loading) return;
     setLoading(true);
-    setVoiceTranscript(text);
+    setVoiceTranscript(text.charAt(0).toUpperCase() + text.slice(1));
     setSubtitle("");
     setMessages((m) => [...m, { role: "user", text }]);
     await saveMessage("user", text);
@@ -1539,7 +1541,7 @@ export default function Home() {
       <div className={`center-container ${orbSide} ${viewerState === 'open' && viewerFullscreen ? 'orb-mini' : ''} ${chatState === 'open' ? 'orb-chat-open' : ''}`} style={{ "--orb-x": `${orbOffset.x}px`, "--orb-y": `${orbOffset.y}px` } as CSSProperties}>
         <div
           ref={orbRef}
-          className={`orb-equalizer ${orbMode} ${orbMoveEnabled ? 'movable' : 'locked'} ${orbDragging ? 'dragging' : ''} ${orbShake ? 'shake' : ''} ${isAiSpeaking ? 'active' : ''}`}
+          className={`orb-equalizer ${orbMode} ${orbMoveEnabled ? 'movable' : 'locked'} ${orbDragging ? 'dragging' : ''} ${orbShake ? 'shake' : ''} ${isAiSpeaking ? 'active' : ''} ${listening ? 'listening' : ''}`}
           onPointerDown={startOrbDrag}
           onPointerMove={moveOrb}
           onPointerUp={stopOrbDrag}
@@ -1551,10 +1553,10 @@ export default function Home() {
           <AntaOrb3D active={isAiSpeaking} level={audioLevel} />
         </div>
         {/* Voice conversation view (user + anta) */}
-        {voiceTranscript && (
+        {voiceTranscript && voiceTranscript !== "listening" && (
           <div className="voice-chat-view">
             <div className="voice-msg user-msg">
-              <span className="voice-icon user-icon">&#128100;</span>
+              <span className="voice-icon user-icon"></span>
               <span className="voice-text">{voiceTranscript}</span>
             </div>
             {subtitle && (
