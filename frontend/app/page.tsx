@@ -391,7 +391,7 @@ async function askAi(text: string, cache = true) {
     if (i < strategies.length - 1) await new Promise(r => setTimeout(r, 1500));
   }
 
-  throw new Error("Anta belum bisa merespons. Coba lagi sebentar.");
+  throw new Error("Anta sedang offline. Fitur lokal (jam, kalkulator, timer, cuaca) tetap bisa dipakai.");
 }
 
 export default function Home() {
@@ -427,6 +427,7 @@ export default function Home() {
   const [orbShake, setOrbShake] = useState(false);
   const [orbDragging, setOrbDragging] = useState(false);
   const [orbMoveEnabled, setOrbMoveEnabled] = useState(true);
+  const [backendAlive, setBackendAlive] = useState(true);
   const [agentAccepted, setAgentAccepted] = useState(true); // default to true (hidden) to prevent layout shift / background check first
   const [showAgentBanner, setShowAgentBanner] = useState(false);
 
@@ -634,6 +635,23 @@ export default function Home() {
       void speakLine(`${greeting}. Anta siap membantu.`);
     }, 2500);
     return () => clearTimeout(timer);
+  }, []);
+
+  // Keep-alive ping — check backend health every 60s
+  useEffect(() => {
+    if (!apiUrl) { setBackendAlive(false); return; }
+    let active = true;
+    const ping = async () => {
+      try {
+        const res = await fetch(`${apiUrl}/health`, { signal: AbortSignal.timeout(5000) });
+        if (active) setBackendAlive(res.ok);
+      } catch {
+        if (active) setBackendAlive(false);
+      }
+    };
+    void ping();
+    const interval = setInterval(ping, 60000);
+    return () => { active = false; clearInterval(interval); };
   }, []);
 
   // Wake Word "Halo Anta" — continuous listening for activation

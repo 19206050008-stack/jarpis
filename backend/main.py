@@ -12,7 +12,10 @@ from threading import Lock
 import httpx
 import numpy as np
 import edge_tts
+import psutil
 from fastapi import FastAPI, HTTPException, Response
+
+_start_time = time.time()
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, JSONResponse
 from pydantic import BaseModel
@@ -148,10 +151,16 @@ lock = Lock()  # ponytail: local GGUF is one request; hosted API does not need q
 
 @app.get("/health")
 def health():
+    import psutil
+    proc = psutil.Process()
+    mem = proc.memory_info()
     return {
-        "ok": True, 
+        "ok": True,
         "model": OPENROUTER_MODEL if OPENROUTER_API_KEY else AI_PROVIDER if AI_PROVIDER != "local" else MODEL_PATH,
-        "tts_available": _supertonic_available()
+        "tts_available": _supertonic_available(),
+        "memory_mb": round(mem.rss / 1024 / 1024, 1),
+        "cpu_percent": proc.cpu_percent(interval=0.1),
+        "uptime_s": round(time.time() - _start_time),
     }
 
 

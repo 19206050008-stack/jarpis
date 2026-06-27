@@ -27,19 +27,67 @@ export function saveJsonReport(results) {
 
 export function saveExcelReport(results) {
   ensureOutputDir();
-  // CSV format (Excel compatible)
-  const header = 'Test ID,Scenario,Test Case,Expected,Actual Result,Status,Duration (ms),Notes';
-  const rows = results.map(r =>
-    `"${r.id}","${r.scenario}","${r.name}","${esc(r.expected)}","${esc(r.actual)}","${r.status}","${r.duration}","${esc(r.notes || '')}"`
-  );
-  const csv = [header, ...rows].join('\n');
-  // Write as .xlsx (actually CSV but Excel opens it)
-  fs.writeFileSync(path.join(OUTPUT_DIR, 'results.csv'), '\uFEFF' + csv, 'utf8');
-  fs.writeFileSync(path.join(OUTPUT_DIR, 'results.xlsx'), '\uFEFF' + csv, 'utf8');
-  console.log(`📊 Excel report: test/output/results.xlsx`);
+  // XML Spreadsheet 2003 format (opens in all Excel versions)
+  const rows = results.map(r => `      <Row>
+        <Cell><Data ss:Type="String">${esc(r.id)}</Data></Cell>
+        <Cell><Data ss:Type="String">${esc(r.scenario)}</Data></Cell>
+        <Cell><Data ss:Type="String">${esc(r.name)}</Data></Cell>
+        <Cell><Data ss:Type="String">${esc(r.expected)}</Data></Cell>
+        <Cell><Data ss:Type="String">${esc(r.actual)}</Data></Cell>
+        <Cell><Data ss:Type="String">${r.status}</Data></Cell>
+        <Cell><Data ss:Type="Number">${r.duration}</Data></Cell>
+        <Cell><Data ss:Type="String">${esc(r.notes || '')}</Data></Cell>
+      </Row>`).join('\n');
+
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+  xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+  <Styles>
+    <Style ss:ID="Header"><Font ss:Bold="1"/><Interior ss:Color="#22d3ee" ss:Pattern="Solid"/></Style>
+    <Style ss:ID="Pass"><Interior ss:Color="#d1fae5" ss:Pattern="Solid"/></Style>
+    <Style ss:ID="Fail"><Interior ss:Color="#fee2e2" ss:Pattern="Solid"/></Style>
+  </Styles>
+  <Worksheet ss:Name="Test Results">
+    <Table>
+      <Column ss:Width="60"/>
+      <Column ss:Width="60"/>
+      <Column ss:Width="200"/>
+      <Column ss:Width="200"/>
+      <Column ss:Width="200"/>
+      <Column ss:Width="50"/>
+      <Column ss:Width="70"/>
+      <Column ss:Width="200"/>
+      <Row ss:StyleID="Header">
+        <Cell><Data ss:Type="String">Test ID</Data></Cell>
+        <Cell><Data ss:Type="String">Scenario</Data></Cell>
+        <Cell><Data ss:Type="String">Test Case</Data></Cell>
+        <Cell><Data ss:Type="String">Expected</Data></Cell>
+        <Cell><Data ss:Type="String">Actual Result</Data></Cell>
+        <Cell><Data ss:Type="String">Status</Data></Cell>
+        <Cell><Data ss:Type="String">Duration (ms)</Data></Cell>
+        <Cell><Data ss:Type="String">Notes</Data></Cell>
+      </Row>
+${rows}
+    </Table>
+  </Worksheet>
+  <Worksheet ss:Name="Summary">
+    <Table>
+      <Row><Cell><Data ss:Type="String">Project</Data></Cell><Cell><Data ss:Type="String">Anta AI Assistant</Data></Cell></Row>
+      <Row><Cell><Data ss:Type="String">Date</Data></Cell><Cell><Data ss:Type="String">${new Date().toISOString()}</Data></Cell></Row>
+      <Row><Cell><Data ss:Type="String">Total</Data></Cell><Cell><Data ss:Type="Number">${results.length}</Data></Cell></Row>
+      <Row><Cell><Data ss:Type="String">Passed</Data></Cell><Cell><Data ss:Type="Number">${results.filter(r=>r.status==='PASS').length}</Data></Cell></Row>
+      <Row><Cell><Data ss:Type="String">Failed</Data></Cell><Cell><Data ss:Type="Number">${results.filter(r=>r.status==='FAIL').length}</Data></Cell></Row>
+      <Row><Cell><Data ss:Type="String">Skipped</Data></Cell><Cell><Data ss:Type="Number">${results.filter(r=>r.status==='SKIP').length}</Data></Cell></Row>
+    </Table>
+  </Worksheet>
+</Workbook>`;
+
+  fs.writeFileSync(path.join(OUTPUT_DIR, 'results.xls'), xml, 'utf8');
+  console.log(`📊 Excel report: test/output/results.xls`);
 }
 
-function esc(s) { return String(s || '').replace(/"/g, '""').replace(/\n/g, ' '); }
+function esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/\n/g, ' '); }
 
 export function printSummary(report) {
   console.log(`\n${'='.repeat(50)}`);
