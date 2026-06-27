@@ -5,5 +5,8 @@ __pycache__/
 *.py[cod]
 .env
 .env.local
+.env.*.local
 *.log
 .DS_Store
+riset/
+models/

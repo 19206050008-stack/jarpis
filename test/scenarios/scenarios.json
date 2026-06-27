@@ -1,0 +1,90 @@
+{
+  "project": "Anta AI Assistant",
+  "version": "1.0.0",
+  "scenarios": [
+    {
+      "id": "SC-001",
+      "name": "Orb Display & Animation",
+      "description": "Orb tampil di tengah, bernapas idle, ring berputar berbeda arah, orange saat bicara",
+      "priority": "High",
+      "testcases": ["TC-001", "TC-002", "TC-003", "TC-004"]
+    },
+    {
+      "id": "SC-002",
+      "name": "Subtitle Bubble",
+      "description": "Bubble muncul di bawah orb saat bicara, centered, hilang setelah selesai",
+      "priority": "High",
+      "testcases": ["TC-005", "TC-006", "TC-007"]
+    },
+    {
+      "id": "SC-003",
+      "name": "Chat Window",
+      "description": "Chat bisa dibuka, kirim pesan, terima jawaban, tanpa suara",
+      "priority": "High",
+      "testcases": ["TC-008", "TC-009", "TC-010", "TC-011"]
+    },
+    {
+      "id": "SC-004",
+      "name": "Voice Input",
+      "description": "Perintah suara, auto-timeout, hasil di viewer, orb bicara jawaban",
+      "priority": "High",
+      "testcases": ["TC-012", "TC-013", "TC-014", "TC-015"]
+    },
+    {
+      "id": "SC-005",
+      "name": "Wake Word Detection",
+      "description": "Panggil Halo Anta untuk aktivasi voice input otomatis",
+      "priority": "Medium",
+      "testcases": ["TC-016"]
+    },
+    {
+      "id": "SC-006",
+      "name": "Search & Browser",
+      "description": "Cari berita, video, web — mobile di chat, desktop di viewer, suara di viewer",
+      "priority": "High",
+      "testcases": ["TC-017", "TC-018", "TC-019", "TC-020"]
+    },
+    {
+      "id": "SC-007",
+      "name": "Timer & Alarm",
+      "description": "Set timer via chat/suara, notifikasi saat selesai",
+      "priority": "Medium",
+      "testcases": ["TC-021"]
+    },
+    {
+      "id": "SC-008",
+      "name": "Weather",
+      "description": "Tanya cuaca kota, dapat info suhu dan angin",
+      "priority": "Medium",
+      "testcases": ["TC-022"]
+    },
+    {
+      "id": "SC-009",
+      "name": "Clock & Calculator",
+      "description": "Tanya jam, tanggal, hitung matematika",
+      "priority": "Low",
+      "testcases": ["TC-023", "TC-024", "TC-025"]
+    },
+    {
+      "id": "SC-010",
+      "name": "Conversation Memory",
+      "description": "AI mengingat konteks 5 percakapan terakhir",
+      "priority": "Medium",
+      "testcases": ["TC-026"]
+    },
+    {
+      "id": "SC-011",
+      "name": "Mobile Responsive",
+      "description": "Dock hidden, orbit buttons visible, chat fullscreen, tap orb buka chat",
+      "priority": "High",
+      "testcases": ["TC-027", "TC-028", "TC-029", "TC-030"]
+    },
+    {
+      "id": "SC-012",
+      "name": "Proactive Greeting",
+      "description": "Sapaan otomatis berdasarkan waktu saat load",
+      "priority": "Low",
+      "testcases": ["TC-031"]
+    }
+  ]
+}

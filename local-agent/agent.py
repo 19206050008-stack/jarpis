@@ -12,6 +12,7 @@ import psutil
 
 API_URL = os.getenv("JARPIS_API_URL", "https://jarpis-production-a270.up.railway.app")
 INTERVAL = int(os.getenv("CHECK_INTERVAL", "3"))
+AGENT_ID = os.getenv("JARPIS_AGENT_ID", "default")
 
 def get_active_window_title_win():
     hwnd = win32gui.GetForegroundWindow()
@@ -48,7 +49,7 @@ def main():
             print(f"Active window: {info['title']} ({info['process']})")
             try:
                 # Post active window state to backend API
-                httpx.post(f"{API_URL}/agent/state", json=info, timeout=5)
+                httpx.post(f"{API_URL}/agent/state", json={**info, "agent_id": AGENT_ID}, timeout=5)
                 last_reported = info
             except Exception as e:
                 print(f"Failed to report to Jarpis: {e}")

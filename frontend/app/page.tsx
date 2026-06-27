@@ -3,23 +3,9 @@
 import { useMemo, useState, useRef, useEffect, type CSSProperties, type PointerEvent } from "react";
 import { createClient } from "@supabase/supabase-js";
 import AntaOrb3D from "./AntaOrb3D";
-
-type Message = { role: "user" | "ai"; text: string };
-type View = { title: string; url: string; note: string };
-
-type LocalFile = { name: string; path: string; handle: FileSystemFileHandle };
-type DirectoryHandle = FileSystemDirectoryHandle & AsyncIterable<[string, FileSystemHandle]>;
-
-type SpeechRecognitionLike = {
-  lang: string;
-  interimResults: boolean;
-  continuous: boolean;
-  onstart: (() => void) | null;
-  onend: (() => void) | null;
-  onresult: ((event: { results: { [key: number]: { [key: number]: { transcript?: string } } } }) => void) | null;
-  start: () => void;
-  stop: () => void;
-};
+import { SKILLS, type SkillId } from "./skills";
+import type { DirectoryHandle, ImageResult, LocalFile, Message, SpeechRecognitionLike, View } from "./types";
+import { ActionButton, ActionLink, IconButton } from "./ui";
 
 declare global {
   interface Window {
@@ -33,6 +19,8 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
+const pageVisible = () => typeof document === "undefined" || document.visibilityState === "visible";
+const getAgentId = () => localStorage.getItem("anta_agent_id") || "default";
 
 async function saveMessage(role: string, text: string) {
   if (!supabase) return;
@@ -107,24 +95,18 @@ function numberFromText(text: string) {
 
 const AI_PERSONA = "Kamu Anta, asisten AI yang natural dan ramah. Jawab dengan gaya bicara santai seperti teman ngobrol biasa. Jangan gunakan markdown, jangan sebut dirimu sebagai AI/bot. Jawab langsung sesuai konteks.";
 
-async function askPollinations(prompt: string, model = "openai"): Promise<string> {
-  const url = `https://text.pollinations.ai/prompt/${encodeURIComponent(prompt)}?model=${model}`;
-  const res = await fetch(url, { signal: AbortSignal.timeout(30000) });
-  if (!res.ok) throw new Error("Pollinations error");
-  return res.text();
-}
-
 async function askBackendChat(prompt: string): Promise<string> {
   if (!apiUrl) throw new Error("No API URL");
   const res = await fetch(`${apiUrl}/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message: prompt }),
+    body: JSON.stringify({ message: prompt, try_all: true }),
     signal: AbortSignal.timeout(60000)
   });
   if (!res.ok) throw new Error(`Backend chat error ${res.status}`);
   const text = await res.text();
   if (!text.trim()) throw new Error("Backend chat empty response");
+  localStorage.setItem("anta_last_provider", [res.headers.get("x-anta-provider"), res.headers.get("x-anta-model")].filter(Boolean).join(" / "));
   return text;
 }
 
@@ -133,26 +115,13 @@ async function askAi(text: string, cache = true) {
   const cached = cache ? localStorage.getItem(key) : null;
   if (cached) return cached;
 
-  // Browser should not call AI vendors directly: CORS/403 noise. Backend handles providers.
-  const strategies = [
-    () => askBackendChat(text),
-    () => askPollinations(`${AI_PERSONA}\n\nUser: ${text}`, "openai"),
-  ];
-  
-  for (let i = 0; i < strategies.length; i++) {
-    try {
-      const answer = await strategies[i]();
-      if (answer && answer.length >= 2) {
-        if (cache) localStorage.setItem(key, answer.slice(0, 4000));
-        return answer;
-      }
-    } catch { /* try next */ }
-    
-    // Wait before retry
-    if (i < strategies.length - 1) await new Promise(r => setTimeout(r, 1500));
+  try {
+    const answer = await askBackendChat(text);
+    if (cache) localStorage.setItem(key, answer.slice(0, 4000));
+    return answer;
+  } catch {
+    throw new Error("Anta sedang offline. Fitur lokal (jam, kalkulator, timer, cuaca) tetap bisa dipakai.");
   }
-
-  throw new Error("Anta sedang offline. Fitur lokal (jam, kalkulator, timer, cuaca) tetap bisa dipakai.");
 }
 
 export default function Home() {
@@ -161,10 +130,28 @@ export default function Home() {
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [activities, setActivities] = useState<string[]>([]);
+  const [providerBadge, setProviderBadge] = useState("");
+  const [tasks, setTasks] = useState<string[]>([]);
+  const [lastProvider, setLastProvider] = useState("");
+
+  useEffect(() => {
+    const updateProvider = () => {
+      setLastProvider(localStorage.getItem("anta_last_provider") || "");
+    };
+    updateProvider();
+    const timer = setInterval(updateProvider, 3000);
+    return () => clearInterval(timer);
+  }, []);
   const [view, setView] = useState<View>({ title: "Anta HUD", url: "", note: "" });
   const [videos, setVideos] = useState<{ id: string; title: string; url: string }[]>([]);
+  const [selectedVideo, setSelectedVideo] = useState<{ id: string; title: string; url: string } | null>(null);
+  const [images, setImages] = useState<ImageResult[]>([]);
+  const [imagePreview, setImagePreview] = useState<ImageResult | null>(null);
   const [news, setNews] = useState<{ title: string; link: string; source: string; pubDate?: string }[]>([]);
   const [articleText, setArticleText] = useState("");
+  const [articleSource, setArticleSource] = useState("");
   
   // Popup States: 'closed' | 'open' | 'minimized'
   const [chatState, setChatState] = useState<'closed' | 'open' | 'minimized'>('closed');
@@ -194,6 +181,18 @@ export default function Home() {
   const [showAgentBanner, setShowAgentBanner] = useState(false);
 
   useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setPaletteOpen((v) => !v);
+      }
+      if (e.key === "Escape") setPaletteOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  useEffect(() => {
     // Read preference from localStorage
     if (localStorage.getItem("anta_agent_accepted") === "true") {
       setAgentAccepted(true);
@@ -203,7 +202,7 @@ export default function Home() {
     
     // Test if backend already has active state from local-agent
     if (apiUrl) {
-      fetch(`${apiUrl}/agent/state`)
+      fetch(`${apiUrl}/agent/state?agent_id=${encodeURIComponent(getAgentId())}`)
         .then((r) => r.ok ? r.json() : null)
         .then((state) => {
           if (state && state.process && state.process !== "unknown") {
@@ -252,6 +251,21 @@ export default function Home() {
     return [];
   })()));
   const lastActiveAppRef = useRef("");
+
+  const commands = useMemo(() => [
+    { label: "Chat", hint: "Buka panel chat", run: () => setChatState("open") },
+    { label: "Voice", hint: "Mulai perintah suara", run: () => startVoiceInput() },
+    { label: "Berita hari ini", hint: "Cari berita terbaru", run: () => send("berita hari ini") },
+    { label: "Cari gambar", hint: "Cari gambar dengan Anta", run: () => { setChatState("open"); setInput("gambar "); } },
+    { label: "Task planner", hint: "Buat checklist kerja", run: () => {
+      const q = prompt("Masukkan tugas/rencana kerja:");
+      if (q) setTasks(q.split(",").map(t => t.trim()));
+    } },
+    { label: "Memory", hint: "Buka dashboard memori", run: () => window.open("/memory", "_blank") },
+    { label: "Monitoring", hint: "Buka halaman monitoring", run: () => window.open("/monitoring", "_blank") },
+    { label: "Kunci orb", hint: "Orb tidak bisa digeser", run: () => setOrbMoveEnabled(false) },
+    { label: "Bebaskan orb", hint: "Orb bisa digeser", run: () => setOrbMoveEnabled(true) },
+  ], []);
 
   const voices = useMemo(() => [
     { id: "sari", label: "Sari — Wanita" },
@@ -414,6 +428,7 @@ export default function Home() {
     let active = true;
     const ping = async () => {
       try {
+        if (!pageVisible()) return;
         const res = await fetch(`${apiUrl}/health`, { signal: AbortSignal.timeout(5000) });
         if (active) setBackendAlive(res.ok);
       } catch {
@@ -553,7 +568,8 @@ export default function Home() {
     if (!apiUrl || !agentAccepted) return;
     const interval = setInterval(async () => {
       try {
-        const res = await fetch(`${apiUrl}/agent/state`);
+        if (!pageVisible()) return;
+        const res = await fetch(`${apiUrl}/agent/state?agent_id=${encodeURIComponent(getAgentId())}`);
         if (res.ok) {
           const state = await res.json();
           if (state.process && state.process !== "unknown" && state.process !== lastActiveAppRef.current) {
@@ -576,6 +592,7 @@ export default function Home() {
   useEffect(() => {
     if (!apiUrl) return;
     const fetchNews = async () => {
+      if (!pageVisible()) return;
       try {
         await cleanOldNews();
         const bankCount = await getNewsBankCount();
@@ -751,16 +768,12 @@ export default function Home() {
         void askAi(`Kamu Anta. User baru saja menarik badan orb-mu seperti karet. Buat satu reaksi spontan lucu, pendek, tidak generik, jangan ulangi kalimat sebelumnya. Waktu: ${Date.now()}`, false).then(speakLine);
       }
     } else {
-      // Tap: on mobile open chat, on desktop just shake
-      if (window.innerWidth <= 800) {
-        setChatState(chatState === 'open' ? 'closed' : 'open');
-      } else {
-        const now = Date.now();
-        if (now - lastPinchRef.current > 3000) {
-          lastPinchRef.current = now;
-          setOrbShake(true);
-          window.setTimeout(() => setOrbShake(false), 450);
-        }
+      // Tap orb only shakes it. Chat is opened from the chat dock button.
+      const now = Date.now();
+      if (now - lastPinchRef.current > 3000) {
+        lastPinchRef.current = now;
+        setOrbShake(true);
+        window.setTimeout(() => setOrbShake(false), 450);
       }
     }
   }
@@ -788,15 +801,6 @@ export default function Home() {
     setChatState('closed');
   }
 
-  function isMobile() {
-    return window.innerWidth <= 800;
-  }
-
-  function formatResultsForChat(items: { title: string; link?: string; source?: string }[], type: string): string {
-    if (!items.length) return `Tidak ada ${type} ditemukan.`;
-    return items.slice(0, 5).map((item, i) => `${i + 1}. ${item.title}${item.source ? ` (${item.source})` : ''}`).join('\n');
-  }
-
   async function handle(text: string, fromVoice = false) {
     const lower = text.toLowerCase();
     const parts = text.split(/\s+/);
@@ -816,7 +820,8 @@ export default function Home() {
       try {
         const article = apiUrl ? await fetch(`${apiUrl}/article?url=${encodeURIComponent(item.link)}`).then((r) => r.ok ? r.json() : null) : null;
         setArticleText(article?.text || "");
-        setView({ title: item.title, url: "", note: article?.text ? `Artikel dari ${item.source}` : "Artikel tidak bisa diambil. Klik judul untuk buka sumber asli." });
+        setArticleSource(item.link);
+        setView({ title: "", url: "", note: article?.text ? "" : "Artikel tidak bisa diambil. Pakai sumber asli jika perlu." });
       } finally {
         setViewerLoading(false);
       }
@@ -826,14 +831,23 @@ export default function Home() {
       const item = videos[openIndex];
       setViewerLoading(false);
       setArticleText("");
-      setView({ title: item.title, url: item.url, note: "Memutar video." });
+      setImages([]);
+      setImagePreview(null);
+      setNews([]);
+      setSelectedVideo(item);
+      setVideos(videos);
+      setView({ title: "", url: "", note: "" });
       setViewerState('open');
       return `Saya buka video nomor ${openIndex + 1}.`;
     }
 
     setVideos([]);
+    setSelectedVideo(null);
+    setImages([]);
+    setImagePreview(null);
     setNews([]);
     setArticleText("");
+    setArticleSource("");
 
     if (/(bisa|boleh|aktifkan|izinkan).*geser|geser.*(orb|anta|inti)/i.test(lower)) {
       setOrbMoveEnabled(true);
@@ -948,12 +962,14 @@ export default function Home() {
       if (browserKeywords.some(k => target.includes(k))) {
         setViewerLoading(false);
         setArticleText("");
+        setImages([]);
+        setImagePreview(null);
         setNews([]);
         setVideos([]);
-        setView({ title: "Browser", url: "", note: "Browser Anta siap. Ketik: cari [kata kunci], berita [topik], atau buka [website]." });
+        setView({ title: "", url: "", note: "" });
         setViewerState('open');
         autoMinimizeChat();
-        return `Saya buka browser di dalam Anta.`;
+        return `Panel tampilan siap.`;
       }
       
       // Check if it looks like a URL/website (has dot or known domain)
@@ -962,29 +978,39 @@ export default function Home() {
         if (/^https?:\/\/(www\.)?google\./i.test(targetUrl)) {
           setViewerLoading(false);
           setArticleText("");
+          setImages([]);
+          setImagePreview(null);
           setNews([]);
           setVideos([]);
-          setView({ title: "Google", url: "", note: "Google tidak bisa ditanam langsung. Pakai pencarian Anta: ketik cari [kata kunci]." });
+          setView({ title: "", url: "", note: "" });
           setViewerState('open');
           autoMinimizeChat();
-          return `Saya buka pencarian Anta di viewer.`;
+          return `Panel pencarian siap.`;
         }
         if (!apiUrl) {
           setViewerLoading(false);
           setArticleText("");
+          setImages([]);
+          setImagePreview(null);
           setNews([]);
           setVideos([]);
-          setView({ title: `Buka: ${target}`, url: "", note: "Backend proxy belum tersedia, jadi website tidak bisa dimuat di dalam Anta." });
+          setView({ title: "", url: "", note: "" });
           setViewerState('open');
           autoMinimizeChat();
           return `Saya tampilkan di viewer Anta, tapi proxy backend belum tersedia.`;
         }
-        const proxied = `${apiUrl}/proxy?url=${encodeURIComponent(targetUrl)}`;
         setViewerLoading(true);
         setArticleText("");
+        setImages([]);
+        setImagePreview(null);
         setNews([]);
+        setSelectedVideo(null);
         setVideos([]);
-        setView({ title: `Buka: ${target}`, url: proxied, note: "Website dimuat di dalam Anta. Jika situs memblokir embed, pakai cari [topik] agar Anta tampilkan hasil/teksnya." });
+        const article = await fetch(`${apiUrl}/article?url=${encodeURIComponent(targetUrl)}`).then((r) => r.ok ? r.json() : null).catch(() => null);
+        setArticleText(article?.text || "");
+        setArticleSource(targetUrl);
+        setView({ title: "", url: "", note: article?.text ? "" : "Situs ini tidak bisa diringkas. Pakai buka di tab baru jika perlu." });
+        setViewerLoading(false);
         setViewerState('open');
         autoMinimizeChat();
         return `Saya membuka website ${target} di dalam Anta.`;
@@ -1001,12 +1027,11 @@ export default function Home() {
         if (res.ok) {
           const list = await res.json();
           setViewerLoading(false);
+          setImages([]);
+          setImagePreview(null);
+          setVideos([]);
           setNews(list);
-          if (isMobile() && !fromVoice) {
-            // Mobile chat: show results inline
-            return formatResultsForChat(list, 'berita');
-          }
-          setView({ title: `Berita: ${searchQuery}`, url: "", note: list.length ? "Menampilkan berita terhangat. Bilang: buka nomor satu." : "Tidak ada berita ditemukan." });
+          setView({ title: "", url: "", note: "" });
           setViewerState('open');
           autoMinimizeChat();
           return `Oke, saya tampilkan berita tentang "${searchQuery}" di viewer.`;
@@ -1027,17 +1052,12 @@ export default function Home() {
         if (res.ok) {
           const list = await res.json();
           setViewerLoading(false);
+          setImages([]);
+          setImagePreview(null);
+          setNews([]);
           setVideos(list);
-          if (isMobile() && !fromVoice) {
-            return list.slice(0, 4).map((v: {title:string}, i: number) => `${i + 1}. ${v.title}`).join('\n') || 'Tidak ada video ditemukan.';
-          }
-          // Desktop or voice: open viewer. If query is specific, auto-play first result.
-          if (list.length === 1 || /putar|play/i.test(text)) {
-            // Specific - play directly
-            setView({ title: list[0].title, url: list[0].url, note: "Sedang memutar..." });
-          } else {
-            setView({ title: `Lagu/Video: ${query}`, url: "", note: "Pilih video untuk diputar. Bilang: putar nomor satu." });
-          }
+          setSelectedVideo(list[0] || null);
+          setView({ title: "", url: "", note: "" });
           setViewerState('open');
           autoMinimizeChat();
           return list.length === 1 ? `Memutar ${list[0].title}.` : `Saya temukan ${list.length} video tentang "${query}".`;
@@ -1057,17 +1077,25 @@ export default function Home() {
       const query = (isImage ? gambarMatch![1] : cariMatch![1]).trim();
       const kind = isImage ? "gambar" : "web";
       try {
-        const res = apiUrl ? await fetch(`${apiUrl}/search?q=${encodeURIComponent(isImage ? `gambar ${query}` : query)}`) : null;
+        const res = apiUrl ? await fetch(`${apiUrl}/${isImage ? "images" : "search"}?q=${encodeURIComponent(query)}`) : null;
         const list = res?.ok ? await res.json() : [];
         setViewerLoading(false);
-        setNews(list);
-        if (isMobile() && !fromVoice) {
-          return formatResultsForChat(list, kind);
+        setSelectedVideo(null);
+        setVideos([]);
+        setArticleText("");
+        setArticleSource("");
+        setImagePreview(null);
+        if (isImage) {
+          setNews([]);
+          setImages(list);
+        } else {
+          setImages([]);
+          setNews(list);
         }
-        setView({ title: `${kind.toUpperCase()}: ${query}`, url: "", note: list.length ? "Hasil pencarian. Bilang: buka nomor satu." : "Tidak ada hasil." });
+        setView({ title: "", url: "", note: "" });
         setViewerState('open');
         autoMinimizeChat();
-        return list.length ? `Saya menemukan hasil ${kind} tentang "${query}".` : `Saya belum menemukan hasil untuk "${query}".`;
+        return list.length ? `Saya tampilkan hasil ${kind} tentang "${query}".` : `Saya belum menemukan hasil untuk "${query}".`;
       } catch {
         setViewerLoading(false);
         return `Maaf, pencarian gagal. Coba lagi nanti ya.`;
@@ -1190,7 +1218,6 @@ export default function Home() {
     setLoading(true);
     setVoiceTranscript(text.charAt(0).toUpperCase() + text.slice(1));
     setSubtitle("");
-    setMessages((m) => [...m, { role: "user", text }]);
     await saveMessage("user", text);
 
     let spokenAnswer = "";
@@ -1200,7 +1227,6 @@ export default function Home() {
         // Bacakan topic — get AI answer for the topic
         const topic = rawAnswer.slice(10);
         const answer = cleanText(await askAi(topic));
-        setMessages((m) => [...m, { role: "ai", text: answer }]);
         setSubtitle(answer);
         await saveMessage("ai", answer);
         await saveMemory("conversation", `User: ${text}\nAnta: ${answer}`);
@@ -1211,7 +1237,6 @@ export default function Home() {
         await speakLine(answer);
       } else {
         const answer = cleanText(rawAnswer);
-        setMessages((m) => [...m, { role: "ai", text: answer }]);
         setSubtitle(answer);
         await saveMessage("ai", answer);
         await saveMemory("conversation", `User: ${text}\nAnta: ${answer}`);
@@ -1228,7 +1253,6 @@ export default function Home() {
       }
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Error tidak diketahui";
-      setMessages((m) => [...m, { role: "ai", text: msg }]);
       setSubtitle(msg);
     } finally {
       setLoading(false);
@@ -1240,6 +1264,7 @@ export default function Home() {
     if (!text || loading) return;
     setInput("");
     setLoading(true);
+    setActivities(["Menerima perintah", "Memilih skill terbaik", "Menghubungi otak Anta"]);
     setChatState('open');
     setMessages((m) => [...m, { role: "user", text }, { role: "ai", text: "Anta sedang mengetik . . ." }]);
     await saveMessage("user", text);
@@ -1287,6 +1312,7 @@ export default function Home() {
         // Final check
         if (!cleanContent || cleanContent.length < 30) {
           setMessages((m) => [...m.slice(0, -1), { role: "ai", text: `Maaf, saya tidak berhasil menemukan isi "${topic}". Coba ulangi dengan kata kunci yang lebih spesifik.` }]);
+          setActivities([]);
           setLoading(false);
           return;
         }
@@ -1298,6 +1324,8 @@ export default function Home() {
         
         // Data ready — show content in chat with notice
         setMessages((m) => [...m.slice(0, -1), { role: "ai", text: fullSpeech }, { role: "ai", text: "Saya akan mulai membacakannya..." }]);
+        setActivities((a) => [...a, "Selesai"]);
+        window.setTimeout(() => setActivities([]), 2500);
         setLoading(false);
         
         // Wait 3 seconds so user can see the content, then close while reading.
@@ -1334,10 +1362,13 @@ export default function Home() {
       chatContextRef.current.push({role:'user', text});
       chatContextRef.current.push({role:'ai', text: answer});
       if (chatContextRef.current.length > 10) chatContextRef.current = chatContextRef.current.slice(-10);
+      setActivities((a) => [...a, "Selesai"]);
+      window.setTimeout(() => setActivities([]), 2500);
       setLoading(false);
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Error tidak diketahui";
       setMessages((m) => [...m.slice(0, -1), { role: "ai", text: msg }]);
+      setActivities([]);
       setLoading(false);
     }
   }
@@ -1355,6 +1386,26 @@ export default function Home() {
         <div className="agent-banner">
           <span>Anta dapat memantau aktivitas aplikasi di PC/Laptop kamu secara realtime melalui Local Agent. Jalankan <code>python local-agent/agent.py</code> lalu izinkan di sini.</span>
           <button onClick={acceptAgent}>Aktifkan Pemantauan</button>
+        </div>
+      )}
+
+      {activities.length > 0 && (
+        <aside className="activity-timeline" aria-live="polite">
+          {activities.map((item, i) => <span key={`${item}-${i}`}>{item}</span>)}
+        </aside>
+      )}
+
+      {paletteOpen && (
+        <div className="command-palette" onClick={() => setPaletteOpen(false)}>
+          <div className="command-box" onClick={(e) => e.stopPropagation()}>
+            <b>Command Palette</b>
+            <small>Ctrl/⌘ + K</small>
+            {commands.map((cmd) => (
+              <button key={cmd.label} onClick={() => { setPaletteOpen(false); cmd.run(); }}>
+                <span>{cmd.label}</span><em>{cmd.hint}</em>
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
@@ -1391,6 +1442,20 @@ export default function Home() {
         {/* Anta-only speech bubble (greeting, news readout) */}
         {!voiceTranscript && subtitle && <div className="subtitle-bubble">{subtitle}</div>}
 
+        {/* Voice control bar below orb/orbit menu */}
+        {speakEnabled && (
+          <div className="voice-control-bar" style={{ display: "flex", gap: 6, marginTop: 12, pointerEvents: "auto" }}>
+            <button onClick={() => setSpeakEnabled(false)} title="Mute Suara" style={{ background: "#020617b3", border: "1px solid #22d3ee44", color: "#22d3ee", padding: "4px 8px", borderRadius: 8, fontSize: 10, cursor: "pointer" }}>Mute</button>
+            <button onClick={() => { if (audioRef.current) audioRef.current.pause(); setIsAiSpeaking(false); setSubtitle(""); }} title="Stop Bicara" style={{ background: "#020617b3", border: "1px solid #22d3ee44", color: "#22d3ee", padding: "4px 8px", borderRadius: 8, fontSize: 10, cursor: "pointer" }}>Stop</button>
+            <button onClick={() => {
+              const voicesList = ["sari", "dewi", "ayu", "rina", "maya", "budi", "agus", "bayu", "dimas", "andi"];
+              const idx = voicesList.indexOf(speaker);
+              const next = voicesList[(idx + 1) % voicesList.length];
+              setSpeaker(next);
+            }} title="Ganti Suara" style={{ background: "#020617b3", border: "1px solid #22d3ee44", color: "#22d3ee", padding: "4px 8px", borderRadius: 8, fontSize: 10, cursor: "pointer" }}>TTS: {speaker}</button>
+          </div>
+        )}
+
         {/* Orbit Menu — inside center-container so it follows orb animations */}
         <nav className={`dock ${chatState === 'closed' && viewerState === 'closed' ? 'orbit-menu' : 'popup-dock'}`}>
           <button className={chatState === 'open' ? 'active' : ''} onClick={() => setChatState(chatState === 'open' ? 'closed' : 'open')} title="AI Chat">
@@ -1406,9 +1471,9 @@ export default function Home() {
       {chatState === 'open' && (
         <section className="popup-window chat-window" style={{ left: popupPos.chat.x, top: popupPos.chat.y }}>
           <header className="window-header" onPointerDown={(e) => { if (window.innerWidth > 800 && !(e.target instanceof Element && e.target.closest('.controls'))) startPopupDrag("chat", e); }} onPointerMove={movePopup} onPointerUp={stopPopupDrag}>
-            <span className="title">Anta Chat</span>
-            <div className="controls">
-              <button onClick={(e) => { e.stopPropagation(); setChatState('closed'); }} type="button">×</button>
+            <span className="title">Anta Chat {lastProvider && <small style={{ opacity: 0.6, fontSize: 9, marginLeft: 8 }}>({lastProvider})</small>}</span>
+            <div className="controls anta-toolbar">
+              <IconButton icon="close" label="Tutup chat" onClick={(e) => { e.stopPropagation(); setChatState('closed'); }} type="button" />
             </div>
           </header>
           
@@ -1418,34 +1483,70 @@ export default function Home() {
 
           <form className="form" onSubmit={(e) => { e.preventDefault(); send(); }}>
             <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ketik pesan, berita, lagu, cari..." />
-            <button className={`voice-btn-mobile ${listening ? 'active' : ''}`} type="button" onClick={startVoiceInput} title="Suara">
+            <button className={`voice-btn-mobile anta-icon-btn ${listening ? 'active' : ''}`} type="button" onClick={startVoiceInput} title="Suara">
               <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" strokeWidth="2" fill="none"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path></svg>
             </button>
-            <button disabled={loading || !input.trim()}>{loading ? "..." : "Kirim"}</button>
+            <ActionButton type="submit" disabled={loading || !input.trim()}>{loading ? "..." : "Kirim"}</ActionButton>
           </form>
 
         </section>
       )}
 
-      {/* Popup 2: Website & Media Viewer */}
+      {/* Popup 2: Custom result surface */}
       {viewerState === 'open' && (
-        <section className={`popup-window viewer-window ${viewerFullscreen ? 'viewer-fullscreen' : ''}`} style={viewerFullscreen ? undefined : { left: popupPos.viewer.x || undefined, right: popupPos.viewer.x ? undefined : 40, top: popupPos.viewer.y }}>
-          <header className="window-header" onPointerDown={(e) => { if (window.innerWidth > 800 && !viewerFullscreen && !(e.target instanceof Element && e.target.closest('.controls'))) startPopupDrag("viewer", e); }} onPointerMove={movePopup} onPointerUp={stopPopupDrag}>
-            <span className="title">Anta Monitor: {view.title || "No Signal"}</span>
-            <div className="controls">
-              <button onClick={(e) => { e.stopPropagation(); setViewerFullscreen(!viewerFullscreen); }} type="button" title="Fullscreen">⛶</button>
-              <button onClick={(e) => { e.stopPropagation(); setViewerFullscreen(false); setViewerState('closed'); }} type="button">×</button>
-            </div>
-          </header>
-          <div className="viewer-content">
+        <section className={`popup-window viewer-window custom-viewer ${viewerFullscreen ? 'viewer-fullscreen' : ''}`} style={viewerFullscreen ? undefined : { left: popupPos.viewer.x || undefined, right: popupPos.viewer.x ? undefined : 40, top: popupPos.viewer.y }}>
+          <div className="viewer-controls anta-toolbar">
+            <IconButton icon="expand" label="Fullscreen" onClick={(e) => { e.stopPropagation(); setViewerFullscreen(!viewerFullscreen); }} type="button" />
+            <IconButton icon="close" label="Tutup" onClick={(e) => { e.stopPropagation(); setViewerFullscreen(false); setViewerState('closed'); }} type="button" />
+          </div>
+          <div className="viewer-content" onPointerDown={(e) => { if (window.innerWidth > 800 && !viewerFullscreen && !(e.target instanceof Element && e.target.closest('a,button,iframe'))) startPopupDrag("viewer", e); }} onPointerMove={movePopup} onPointerUp={stopPopupDrag}>
             {viewerLoading && <div className="anta-loading"><span></span><b>Anta memuat data...</b></div>}
             {view.note && <p className="viewer-note">{view.note}</p>}
             
-            {view.url && <iframe src={view.url} className="viewer-frame" title={view.title} onLoad={() => setViewerLoading(false)} />}
-            
-            {!view.url && !articleText && news.length === 0 && videos.length === 0 && <div className="browser-empty">Ketik di chat: cari sesuatu, berita hari ini, atau buka example.com.</div>}
+            {!articleText && news.length === 0 && videos.length === 0 && images.length === 0 && <div className="browser-empty">Ketik: gambar burung, lagu jazz, berita hari ini, atau cari sesuatu.</div>}
 
-            {articleText && <article className="article-view">{articleText}</article>}
+            {imagePreview && (
+              <div className="image-preview" onClick={() => setImagePreview(null)}>
+                <img src={imagePreview.image || imagePreview.thumbnail} alt={imagePreview.title || "preview"} />
+              </div>
+            )}
+
+            {!articleText && images.length > 0 && (
+              <div className="image-grid">
+                {images.map((img, i) => (
+                  <div key={i} className="image-card">
+                    <img src={img.thumbnail || img.image} alt={img.title || `gambar ${i + 1}`} loading="lazy" onClick={() => setImagePreview(img)} />
+                    <div className="media-actions">
+                      <ActionButton icon="zoom" type="button" onClick={() => setImagePreview(img)}>Zoom</ActionButton>
+                      <ActionButton icon="similar" type="button" onClick={async () => {
+                        if (!apiUrl) return;
+                        setViewerLoading(true);
+                        const res = await fetch(`${apiUrl}/images?q=${encodeURIComponent(img.title || "gambar mirip")}`).catch(() => null);
+                        setImages(res?.ok ? await res.json() : images);
+                        setViewerLoading(false);
+                      }}>Mirip</ActionButton>
+                      <ActionLink icon="download" href={img.image || img.thumbnail} download target="_blank" rel="noreferrer">Unduh</ActionLink>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {articleText && (
+              <article className="article-view">
+                <div className="article-actions">
+                  <ActionButton icon="read" type="button" onClick={() => void speakLine(articleText.slice(0, 1200))}>Bacakan</ActionButton>
+                  <ActionButton icon="spark" type="button" onClick={async () => {
+                    setViewerLoading(true);
+                    const summary = cleanText(await askAi(`Ringkas teks ini dalam 5 poin pendek tanpa markdown:\n${articleText.slice(0, 3000)}`, false).catch(() => ""));
+                    if (summary) setArticleText(summary);
+                    setViewerLoading(false);
+                  }}>Ringkas</ActionButton>
+                  {articleSource && <ActionLink icon="source" href={articleSource} target="_blank" rel="noreferrer">Sumber</ActionLink>}
+                </div>
+                {articleText}
+              </article>
+            )}
 
             {!articleText && news.length > 0 && (
               <div className="news-list">
@@ -1459,7 +1560,8 @@ export default function Home() {
                       try {
                         const article = apiUrl ? await fetch(`${apiUrl}/article?url=${encodeURIComponent(item.link)}`).then((r) => r.ok ? r.json() : null) : null;
                         setArticleText(article?.text || "");
-                        setView({ title: item.title, url: "", note: article?.text ? `Artikel dari ${item.source}` : "Artikel tidak bisa diambil. Pakai sumber asli jika perlu." });
+                        setArticleSource(item.link);
+                        setView({ title: "", url: "", note: article?.text ? "" : "Artikel tidak bisa diambil. Pakai sumber asli jika perlu." });
                       } finally {
                         setViewerLoading(false);
                       }
@@ -1473,13 +1575,15 @@ export default function Home() {
             )}
 
             {videos.length > 0 && (
-              <div className="video-grid">
-                {videos.map((vid, i) => (
-                  <div key={i} className="video-item">
-                    <iframe src={vid.url} title={vid.title} allowFullScreen />
-                    <h5>{vid.title}</h5>
-                  </div>
-                ))}
+              <div className="video-surface">
+                {selectedVideo && <iframe className="video-player" src={selectedVideo.url} title={selectedVideo.title} allowFullScreen />}
+                <div className="video-list">
+                  {videos.map((vid, i) => (
+                    <ActionButton key={i} icon="play" type="button" className={selectedVideo?.id === vid.id ? "active" : ""} onClick={() => setSelectedVideo(vid)}>
+                      {i + 1}. {vid.title}
+                    </ActionButton>
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -1488,6 +1592,24 @@ export default function Home() {
 
       {/* Hidden Audio Player for TTS */}
       {audioUrl && <audio key={audioUrl} ref={audioRef} src={audioUrl} autoPlay style={{ display: "none" }} />}
+
+      {/* Task Planner Sidebar */}
+      {tasks.length > 0 && (
+        <aside className="task-planner-sidebar" style={{ position: "fixed", right: 20, top: 120, zIndex: 100, width: 220, padding: 14, border: "1px solid #22d3ee55", borderRadius: 18, background: "linear-gradient(180deg,#020617f2,#031228f2)", boxShadow: "0 12px 40px #0009, 0 0 28px #22d3ee33", color: "#d8faff", fontFamily: "Arial, sans-serif" }}>
+          <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, borderBottom: "1px solid #22d3ee22", paddingBottom: 6 }}>
+            <b style={{ color: "#67e8f9", fontSize: 13, letterSpacing: 0.6 }}>Task Planner</b>
+            <button onClick={() => setTasks([])} style={{ background: "none", border: "0", color: "#fb7185", cursor: "pointer", fontSize: 11 }}>Clear</button>
+          </header>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {tasks.map((task, idx) => (
+              <div key={idx} style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 12 }}>
+                <input type="checkbox" id={`task-${idx}`} style={{ cursor: "pointer", marginTop: 2 }} />
+                <label htmlFor={`task-${idx}`} style={{ cursor: "pointer", userSelect: "none" }}>{task}</label>
+              </div>
+            ))}
+          </div>
+        </aside>
+      )}
     </main>
   );
 }

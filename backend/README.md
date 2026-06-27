@@ -28,25 +28,59 @@ python download_model.py && uvicorn main:app --host 0.0.0.0 --port $PORT
 
 ## Env AI gratis tanpa API key
 
-Default backend memakai Pollinations, tanpa API key dan tanpa GGUF lokal.
+Default backend memakai router otomatis: API key yang tersedia dulu, lalu MiMo Auto, lalu Pollinations.
+
+Urutan chat:
+
+1. OpenAgentic (`open-agentic`) — paling stabil dari test lokal
+2. OpenRouter (`openai/gpt-oss-20b:free`)
+3. Zenmux (`stepfun/step-3.7-flash-free`) — key dites 403/no permission
+4. Zyloo (`qwen3.7-plus`) — key dites 402/insufficient credit
+5. MiMo Auto (`mimo-auto`) — chat/reasoning/code/summarize, tanpa API key, bisa kena limit/risk control
+6. Pollinations — fallback terakhir
 
 ```text
-AI_PROVIDER=pollinations
-POLLINATIONS_MODEL=openai
-MAX_TOKENS=160
+AI_PROVIDER=auto
+MIMO_CLIENT=opsional-fingerprint-stabil
+MAX_TOKENS=220
 CORS_ORIGINS=*
 ```
 
-## Env hosted AI OpenRouter opsional
-
-Kalau `OPENROUTER_API_KEY` diisi, backend memakai OpenRouter.
+Provider tertentu masih bisa dipaksa:
 
 ```text
-OPENROUTER_API_KEY=...
-OPENROUTER_MODEL=qwen/qwen3-0.6b-04-28:free
+AI_PROVIDER=mimo
+# atau
+AI_PROVIDER=pollinations
+POLLINATIONS_MODEL=openai
+```
+
+## Env hosted AI router opsional
+
+Isi key di backend, jangan pakai `NEXT_PUBLIC_*`. Router mencoba provider berurutan; kalau error atau jawaban lemah (`try_all=true`), lanjut ke otak berikutnya.
+
+```text
+OPENROUTER_API_KEYS=sk-or-...,sk-or-...
+OPENROUTER_MODEL=openai/gpt-oss-20b:free
+ZENMUX_API_KEY=sk-mg-...
+ZENMUX_MODEL=stepfun/step-3.7-flash-free
+ZYLOO_API_KEY=sk-zy-...
+ZYLOO_MODEL=qwen3.7-plus
+OPENAGENTIC_API_KEY=sk-...
+OPENAGENTIC_MODEL=open-agentic
+DISABLED_PROVIDERS=zenmux,zyloo
+MONITORING_TOKEN=isi-token-rahasia
+MONITORING_CACHE_SECONDS=120
 APP_URL=https://jarpis-chi.vercel.app
-MAX_TOKENS=160
+MAX_TOKENS=220
 CORS_ORIGINS=*
+```
+
+Cek provider:
+
+```bash
+curl http://localhost:8000/providers
+curl -H "x-monitoring-token: $MONITORING_TOKEN" http://localhost:8000/monitoring
 ```
 
 ## Env lokal GGUF opsional
