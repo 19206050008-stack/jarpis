@@ -1232,7 +1232,6 @@ export default function Home() {
         // Bacakan topic — get AI answer for the topic
         const topic = rawAnswer.slice(10);
         const answer = cleanText(await askAi(topic));
-        setSubtitle(answer);
         await saveMessage("ai", answer);
         await saveMemory("conversation", `User: ${text}\nAnta: ${answer}`);
         chatContextRef.current.push({role:'user', text});
@@ -1242,7 +1241,6 @@ export default function Home() {
         await speakLine(answer);
       } else {
         const answer = cleanText(rawAnswer);
-        setSubtitle(answer);
         await saveMessage("ai", answer);
         await saveMemory("conversation", `User: ${text}\nAnta: ${answer}`);
         chatContextRef.current.push({role:'user', text});

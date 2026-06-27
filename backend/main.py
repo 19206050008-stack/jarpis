@@ -557,7 +557,7 @@ async def search_images(q: str):
         try:
             res = await client.get(f"https://www.bing.com/images/search?q={urllib.parse.quote(q)}")
             found = []
-            for raw in re.findall(r"m=({.*?})", res.text):
+            for raw in re.findall(r'm="({.*?})"', res.text):
                 try:
                     data = json.loads(raw.replace("&quot;", '"'))
                     image = data.get("murl")
