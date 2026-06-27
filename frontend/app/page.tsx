@@ -1172,6 +1172,9 @@ export default function Home() {
   }
 
   function startVoiceInput() {
+    if (window.innerWidth <= 800) {
+      setChatState('closed');
+    }
     voiceSessionUntilRef.current = Date.now() + 60000;
     startVoiceInputExtended(5000);
   }
