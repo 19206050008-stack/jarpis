@@ -674,10 +674,11 @@ export default function Home() {
       wakeRec = r;
       r.onresult = (event: { results: { [key: number]: { [key: number]: { transcript?: string } } } }) => {
         const transcript = Object.values(event.results).map((r: { [key: number]: { transcript?: string } }) => r[0]?.transcript || '').join(' ').toLowerCase();
-        if (transcript.includes('anta') || transcript.includes('halo anta') || transcript.includes('hai anta')) {
+        if (transcript.includes('halo anta') || transcript.includes('hai anta')) {
           try { r.stop(); } catch {}
           wakeRec = null;
-          // Delay to let old recognition fully stop before starting new one
+          // Show user said "Halo Anta" then start listening for actual command
+          setVoiceTranscript("Halo Anta");
           setTimeout(() => { if (active) startVoiceInput(); }, 300);
         }
       };
@@ -1368,7 +1369,7 @@ export default function Home() {
       setSubtitle("");
     };
     // Auto timeout: stop if no speech after 5 seconds
-    const timeout = setTimeout(() => { try { rec.stop(); } catch {} setListening(false); setSubtitle(""); }, 5000);
+    const timeout = setTimeout(() => { try { rec.stop(); } catch {} setListening(false); setVoiceTranscript(""); setSubtitle(""); }, 5000);
     rec.onend = () => { clearTimeout(timeout); setListening(false); };
     rec.onresult = (event) => {
       clearTimeout(timeout);
