@@ -516,17 +516,13 @@ export default function Home() {
     const clean = cleanText(text);
     if (!clean) return;
 
-    // instant visual trigger
-    setIsAiSpeaking(true);
-    
-    // Wait 2 seconds before starting subtitle display
-    await new Promise(r => setTimeout(r, 2000));
+    // Don't set isAiSpeaking yet - wait until actually speaking/typing
     
     // Auxiliary function to run when audio starts playing
     const playTypingEffect = () => {
+      setIsAiSpeaking(true); // NOW orb turns orange
       setSubtitle(""); 
       let i = 0;
-      // Capitalize first letter and ensure period at end
       const formatted = clean.charAt(0).toUpperCase() + clean.slice(1);
       const withPeriod = formatted.endsWith(".") || formatted.endsWith("!") || formatted.endsWith("?") ? formatted : formatted + ".";
       const words = withPeriod.split(" ");
@@ -539,9 +535,8 @@ export default function Home() {
         const word = words[i++];
         if (!word) return;
         setSubtitle((prev) => (prev ? prev + " " + word : word));
-      }, 220);
+      }, 120);
 
-      // Store in ref or handle cleanup on stop/ended
       const cleanup = () => {
         clearInterval(intervalTyping);
         setSubtitle("");
@@ -552,7 +547,6 @@ export default function Home() {
         }
       };
       
-      // Let the subtitle stay fully visible until audio ends or pauses
       audioRef.current?.addEventListener("ended", cleanup);
       audioRef.current?.addEventListener("pause", cleanup);
     };
@@ -587,7 +581,9 @@ export default function Home() {
       if (speakRes.ok) {
         const blob = await speakRes.ok ? await speakRes.blob() : null;
         if (!blob) {
-          setIsAiSpeaking(false);
+          // No blob - fallback to typing only
+          playTypingEffect();
+          setTimeout(() => { setIsAiSpeaking(false); setSubtitle(""); }, Math.max(1500, clean.length * 60));
           return;
         }
         const url = URL.createObjectURL(blob);
@@ -596,11 +592,17 @@ export default function Home() {
         setTimeout(() => {
           playTypingEffect();
         }, 50);
+        // Safety timeout
+        setTimeout(() => { setSubtitle(""); setIsAiSpeaking(false); }, Math.max(8000, clean.length * 150));
       } else {
-        setIsAiSpeaking(false);
+        // TTS failed - fallback to typing effect
+        playTypingEffect();
+        setTimeout(() => { setIsAiSpeaking(false); setSubtitle(""); }, Math.max(1500, clean.length * 60));
       }
     } catch (ttsErr) {
-      setIsAiSpeaking(false);
+      // Error - fallback to typing
+      playTypingEffect();
+      setTimeout(() => { setIsAiSpeaking(false); setSubtitle(""); }, Math.max(1500, clean.length * 60));
       console.error("TTS failed", ttsErr);
     }
   }
