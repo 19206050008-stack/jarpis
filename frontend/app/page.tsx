@@ -866,7 +866,7 @@ export default function Home() {
     return () => { window.clearTimeout(firstTimer); window.clearInterval(interval); };
   }, [apiUrl]);
 
-  // Timer 2: News Speaker — every ~25-45 sec, speak one unspoken news from bank
+  // Timer 2: News Speaker — every ~15-25 sec, speak one unspoken news from bank
   useEffect(() => {
     if (loading || isAiSpeaking || listening) return;
     // Don't speak random news when chat or viewer is open, or when voice conversation active
@@ -874,7 +874,20 @@ export default function Home() {
     if (voiceTranscript) return; // still in voice conversation
     const timer = window.setTimeout(async () => {
       try {
-        const unspoken = await getUnspokenNews();
+        let unspoken = await getUnspokenNews();
+        // If bank empty, seed with general knowledge tidbits (no backend needed)
+        if (!unspoken) {
+          const tips = [
+            "Tahukah kamu? Indonesia memiliki lebih dari 17 ribu pulau dan merupakan negara kepulauan terbesar di dunia.",
+            "Fun fact: Bahasa Indonesia adalah salah satu bahasa yang paling mudah dipelajari karena tidak memiliki konjugasi kata kerja.",
+            "Tahukah kamu? Kopi Indonesia seperti Luwak dan Toraja termasuk yang paling mahal dan dicari di dunia.",
+            "Tips hari ini: Minum air putih minimal 8 gelas sehari bisa meningkatkan konsentrasi dan produktivitas kerja.",
+            "Tahukah kamu? Borobudur adalah candi Buddha terbesar di dunia dan sudah diakui sebagai warisan dunia UNESCO.",
+          ];
+          const randomTip = tips[Math.floor(Math.random() * tips.length)];
+          await saveNewsToBank("Fakta", "Anta", "#", randomTip);
+          unspoken = await getUnspokenNews();
+        }
         if (unspoken && unspoken.summary.length > 20) {
           const spokenIds: number[] = JSON.parse(localStorage.getItem("anta_spoken_ids") || "[]");
           if (spokenIds.includes(unspoken.id)) return;
@@ -886,7 +899,7 @@ export default function Home() {
           void speakLine(unspoken.summary);
         }
       } catch { /* silent */ }
-    }, 25000 + Math.floor(Math.random() * 20000));
+    }, 15000 + Math.floor(Math.random() * 10000));
     return () => window.clearTimeout(timer);
   }, [loading, isAiSpeaking, listening, speaker, speakEnabled, apiUrl, chatState, viewerState, voiceTranscript]);
 
