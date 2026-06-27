@@ -54,7 +54,7 @@
   .center-container.orb-chat-open {
     position:fixed!important;
     inset:auto!important;
-    top:26px!important;
+    top:46px!important;
     bottom:auto!important;
     right:auto!important;
     left:50%!important;
@@ -64,6 +64,9 @@
     transform-origin:top center!important;
     opacity:0.8!important;
     z-index:160!important;
+  }
+  .center-container.orb-chat-open .dock.orbit-menu {
+    display:none!important;
   }
   .center-container.orb-chat-open .subtitle-bubble {
     display:none!important;
@@ -174,7 +177,7 @@
 .window-header:after{display:none}
 .window-header .title{font-size:9px;color:#22d3ee;text-shadow:none;letter-spacing:.3px;font-weight:700;text-transform:none}
 .window-header .title:after{display:none}
-.window-header .controls button{color:#22d3ee;background:transparent;border:1px solid #22d3ee44;clip-path:none;border-radius:4px;text-shadow:none;font-size:10px;display:inline-flex!important;align-items:center!important;justify-content:center!important}
+.window-header .controls button{color:#22d3ee;background:transparent;border:1px solid #22d3ee44;clip-path:none;border-radius:4px;text-shadow:none;font-size:10px;display:inline-flex!important;align-items:center!important;justify-content:center!important;width:30px!important;height:30px!important}
 .window-header .controls button:hover{background:#22d3ee55;color:white}
 .chat,.viewer-content{background:linear-gradient(180deg,#020a1a,#031228);border-top:1px solid #22d3ee22;color:#e0f4ff}
 .msg,.news-item,.form input{border-radius:0;border:1px solid #22d3ee33;background:linear-gradient(180deg,#020a1a,#031228);box-shadow:none;clip-path:none}
