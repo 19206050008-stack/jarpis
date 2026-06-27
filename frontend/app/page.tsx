@@ -683,9 +683,12 @@ export default function Home() {
         if (transcript.includes('halo anta') || transcript.includes('hai anta')) {
           try { r.stop(); } catch {}
           wakeRec = null;
-          // Show user said "Halo Anta" then start listening for actual command
+          // Show user said "Halo Anta", Anta responds, then open mic
           setVoiceTranscript("Halo Anta");
-          setTimeout(() => { if (active) startVoiceInput(); }, 300);
+          void speakLine("Halo! Ada yang bisa saya bantu?").then(() => {
+            // After greeting response finishes, open mic for command
+            setTimeout(() => { if (active && !loading) startVoiceInput(); }, 500);
+          });
         }
       };
       r.onend = () => { 
@@ -1365,14 +1368,17 @@ export default function Home() {
       setVoiceTranscript("Browser ini belum mendukung voice input.");
       return;
     }
+    // Set listening immediately so orb turns purple
+    setListening(true);
+    setVoiceTranscript("listening");
+    setSubtitle("");
+    
     const rec = new Recognition();
     rec.lang = "id-ID";
     rec.interimResults = false;
     rec.continuous = false;
     rec.onstart = () => {
-      setListening(true);
-      setVoiceTranscript("listening");
-      setSubtitle("");
+      // Already set above
     };
     // Auto timeout: stop if no speech after 5 seconds
     const timeout = setTimeout(() => { try { rec.stop(); } catch {} setListening(false); setVoiceTranscript(""); setSubtitle(""); }, 5000);
