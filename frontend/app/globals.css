@@ -246,13 +246,13 @@
 }
 
 /* Tighten orbit menu placement: exactly right of the orb, no lines over icons. */
-.dock.orbit-menu{left:calc(50% + 84px);top:calc(50% - 40px)}
+.dock.orbit-menu{left:calc(50% + 104px);top:calc(50% - 40px)}
 .dock.orbit-menu button{width:24px;height:24px}
 .dock.orbit-menu button:nth-child(2){transform:translateX(0)}
 .dock.orbit-menu button:before,.dock.orbit-menu button:after{display:none!important}
 .dock.orbit-menu button svg{width:10px;height:10px}
 @media(max-width:800px){
-  .dock.orbit-menu{left:calc(50% + 56px)!important;top:calc(50% - 34px)!important;gap:10px!important}
+  .dock.orbit-menu{left:calc(50% + 72px)!important;top:calc(50% - 34px)!important;gap:10px!important}
   .dock.orbit-menu button{width:22px!important;height:22px!important}
   .dock.orbit-menu button:nth-child(2){transform:translateX(0)}
   .dock.orbit-menu button svg{width:9px;height:9px}
