@@ -666,7 +666,7 @@ export default function Home() {
     const Rec = Recognition;
 
     function startWakeListener() {
-      if (!active || listening || isAiSpeaking || chatState === 'open') return;
+      if (!active || listening || isAiSpeaking || loading || chatState === 'open' || voiceTranscript) return;
       const r = new Rec();
       r.lang = "id-ID";
       r.interimResults = true;
@@ -676,16 +676,22 @@ export default function Home() {
         const transcript = Object.values(event.results).map((r: { [key: number]: { transcript?: string } }) => r[0]?.transcript || '').join(' ').toLowerCase();
         if (transcript.includes('anta') || transcript.includes('halo anta') || transcript.includes('hai anta')) {
           try { r.stop(); } catch {}
-          startVoiceInput();
+          wakeRec = null;
+          // Delay to let old recognition fully stop before starting new one
+          setTimeout(() => { if (active) startVoiceInput(); }, 300);
         }
       };
-      r.onend = () => { setTimeout(startWakeListener, 1000); };
+      r.onend = () => { 
+        if (active && !listening && !isAiSpeaking && !loading) {
+          setTimeout(startWakeListener, 1500); 
+        }
+      };
       try { r.start(); } catch {}
     }
 
     const delay = setTimeout(startWakeListener, 5000);
     return () => { active = false; clearTimeout(delay); try { wakeRec?.stop?.(); } catch {} };
-  }, [listening, isAiSpeaking, chatState]);
+  }, [listening, isAiSpeaking, chatState, loading, voiceTranscript]);
 
   // Realtime, lightweight Web Audio analyser for the Jarvis orb.
   useEffect(() => {
