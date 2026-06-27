@@ -420,6 +420,7 @@ export default function Home() {
   const [audioLevel, setAudioLevel] = useState(0);
   const [listening, setListening] = useState(false);
   const [subtitle, setSubtitle] = useState("");
+  const [voiceTranscript, setVoiceTranscript] = useState("");
   const [files, setFiles] = useState<LocalFile[]>([]);
   const [orbMode, setOrbMode] = useState("idle");
   const [orbSide, setOrbSide] = useState("center");
@@ -538,11 +539,12 @@ export default function Home() {
         const word = words[i++];
         if (!word) return;
         setSubtitle((prev) => (prev ? prev + " " + word : word));
-      }, 120);
+      }, 180);
 
       const cleanup = () => {
         clearInterval(intervalTyping);
         setSubtitle("");
+        setVoiceTranscript("");
         setIsAiSpeaking(false);
         if (audioRef.current) {
           audioRef.current.removeEventListener("ended", cleanup);
@@ -605,7 +607,7 @@ export default function Home() {
         if (!blob) {
           // No blob - fallback to typing only
           playTypingEffect();
-          setTimeout(() => { setIsAiSpeaking(false); setSubtitle(""); }, Math.max(1500, clean.length * 60));
+          setTimeout(() => { setIsAiSpeaking(false); setSubtitle(""); setVoiceTranscript(""); }, Math.max(1500, clean.length * 60));
           return;
         }
         const url = URL.createObjectURL(blob);
@@ -613,16 +615,16 @@ export default function Home() {
         setAudioUrl(url);
         attachPlayListener();
         // Safety timeout
-        setTimeout(() => { setSubtitle(""); setIsAiSpeaking(false); }, Math.max(8000, clean.length * 150));
+        setTimeout(() => { setSubtitle(""); setVoiceTranscript(""); setIsAiSpeaking(false); }, Math.max(8000, clean.length * 150));
       } else {
         // TTS failed - fallback to typing effect
         playTypingEffect();
-        setTimeout(() => { setIsAiSpeaking(false); setSubtitle(""); }, Math.max(1500, clean.length * 60));
+        setTimeout(() => { setIsAiSpeaking(false); setSubtitle(""); setVoiceTranscript(""); }, Math.max(1500, clean.length * 60));
       }
     } catch (ttsErr) {
       // Error - fallback to typing
       playTypingEffect();
-      setTimeout(() => { setIsAiSpeaking(false); setSubtitle(""); }, Math.max(1500, clean.length * 60));
+      setTimeout(() => { setIsAiSpeaking(false); setSubtitle(""); setVoiceTranscript(""); }, Math.max(1500, clean.length * 60));
       console.error("TTS failed", ttsErr);
     }
   }
@@ -1345,7 +1347,7 @@ export default function Home() {
   function startVoiceInput() {
     const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!Recognition) {
-      setSubtitle("Browser ini belum mendukung voice input.");
+      setVoiceTranscript("Browser ini belum mendukung voice input.");
       return;
     }
     const rec = new Recognition();
@@ -1354,7 +1356,8 @@ export default function Home() {
     rec.continuous = false;
     rec.onstart = () => {
       setListening(true);
-      setSubtitle("Mendengarkan...");
+      setVoiceTranscript("Mendengarkan...");
+      setSubtitle("");
     };
     // Auto timeout: stop if no speech after 5 seconds
     const timeout = setTimeout(() => { try { rec.stop(); } catch {} setListening(false); setSubtitle(""); }, 5000);
@@ -1370,7 +1373,8 @@ export default function Home() {
   async function sendVoice(text: string) {
     if (!text || loading) return;
     setLoading(true);
-    setSubtitle(text);
+    setVoiceTranscript(text);
+    setSubtitle("");
     setMessages((m) => [...m, { role: "user", text }]);
     await saveMessage("user", text);
 
@@ -1546,7 +1550,23 @@ export default function Home() {
           <div className="ring ring-1" />
           <AntaOrb3D active={isAiSpeaking} level={audioLevel} />
         </div>
-        {subtitle && <div className={`subtitle-bubble ${isOrderedText(subtitle) ? 'align-left' : ''}`}>{subtitle}</div>}
+        {/* Voice conversation view (user + anta) */}
+        {voiceTranscript && (
+          <div className="voice-chat-view">
+            <div className="voice-msg user-msg">
+              <span className="voice-icon user-icon">&#128100;</span>
+              <span className="voice-text">{voiceTranscript}</span>
+            </div>
+            {subtitle && (
+              <div className="voice-msg anta-msg">
+                <span className="voice-text">{subtitle}</span>
+                <span className="voice-icon anta-icon"></span>
+              </div>
+            )}
+          </div>
+        )}
+        {/* Anta-only speech bubble (greeting, news readout) */}
+        {!voiceTranscript && subtitle && <div className="subtitle-bubble">{subtitle}</div>}
 
         {/* Orbit Menu — inside center-container so it follows orb animations */}
         <nav className={`dock ${chatState === 'closed' && viewerState === 'closed' ? 'orbit-menu' : 'popup-dock'}`}>
