@@ -1485,11 +1485,14 @@ export default function Home() {
       {/* Popup 2: Custom result surface */}
       {viewerState === 'open' && (
         <section className={`popup-window viewer-window custom-viewer ${viewerFullscreen ? 'viewer-fullscreen' : ''}`} style={viewerFullscreen ? undefined : { left: popupPos.viewer.x || undefined, right: popupPos.viewer.x ? undefined : 40, top: popupPos.viewer.y }}>
-          <div className="viewer-controls anta-toolbar">
-            <IconButton icon="expand" label="Fullscreen" onClick={(e) => { e.stopPropagation(); setViewerFullscreen(!viewerFullscreen); }} type="button" />
-            <IconButton icon="close" label="Tutup" onClick={(e) => { e.stopPropagation(); setViewerFullscreen(false); setViewerState('closed'); }} type="button" />
-          </div>
-          <div className="viewer-content" onPointerDown={(e) => { if (window.innerWidth > 800 && !viewerFullscreen && !(e.target instanceof Element && e.target.closest('a,button,iframe'))) startPopupDrag("viewer", e); }} onPointerMove={movePopup} onPointerUp={stopPopupDrag}>
+          <header className="window-header" onPointerDown={(e) => { if (window.innerWidth > 800 && !viewerFullscreen && !(e.target instanceof Element && e.target.closest('.controls'))) startPopupDrag("viewer", e); }} onPointerMove={movePopup} onPointerUp={stopPopupDrag}>
+            <span className="title">Anta Monitor</span>
+            <div className="controls anta-toolbar">
+              <IconButton icon="expand" label="Fullscreen" onClick={(e) => { e.stopPropagation(); setViewerFullscreen(!viewerFullscreen); }} type="button" />
+              <IconButton icon="close" label="Tutup" onClick={(e) => { e.stopPropagation(); setViewerFullscreen(false); setViewerState('closed'); }} type="button" />
+            </div>
+          </header>
+          <div className="viewer-content">
             {viewerLoading && <div className="anta-loading"><span></span><b>Anta memuat data...</b></div>}
             {view.note && <p className="viewer-note">{view.note}</p>}
             

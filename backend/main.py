@@ -538,38 +538,82 @@ async def search_images(q: str):
     import re
     import urllib.parse
 
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
+    
+    # Strategy 1: Bing Image Search (Fast & High Quality)
     async with httpx.AsyncClient(timeout=15, follow_redirects=True, headers=headers) as client:
+        try:
+            res = await client.get(f"https://www.bing.com/images/search?q={urllib.parse.quote(q)}")
+            if res.status_code == 200:
+                found = []
+                for raw in re.findall(r'm="({.*?})"', res.text):
+                    try:
+                        data = json.loads(raw.replace("&quot;", '"'))
+                        image = data.get("murl")
+                        if image:
+                            found.append({
+                                "title": data.get("t", ""),
+                                "image": image,
+                                "thumbnail": data.get("turl", image),
+                                "source": data.get("purl", "Bing")
+                            })
+                        if len(found) >= 24:
+                            break
+                    except Exception:
+                        continue
+                if found:
+                    return found
+        except Exception:
+            pass
+
+        # Strategy 2: DuckDuckGo Image Search (Fallback)
         try:
             page = await client.get(f"https://duckduckgo.com/?q={urllib.parse.quote(q)}&iax=images&ia=images")
             token = re.search(r"vqd=['\"]([^'\"]+)", page.text)
             if token:
                 res = await client.get("https://duckduckgo.com/i.js", params={"q": q, "vqd": token.group(1), "o": "json", "l": "id-id"})
-                data = res.json()
-                return [
-                    {"title": x.get("title", ""), "image": x.get("image", ""), "thumbnail": x.get("thumbnail", ""), "source": x.get("source", "")}
-                    for x in data.get("results", [])[:24]
-                    if x.get("image") or x.get("thumbnail")
-                ]
+                if res.status_code == 200:
+                    data = res.json()
+                    found = [
+                        {
+                            "title": x.get("title", ""),
+                            "image": x.get("image", ""),
+                            "thumbnail": x.get("thumbnail", ""),
+                            "source": x.get("source", "DuckDuckGo")
+                        }
+                        for x in data.get("results", [])[:24]
+                        if x.get("image") or x.get("thumbnail")
+                    ]
+                    if found:
+                        return found
         except Exception:
             pass
 
+        # Strategy 3: Wikimedia Commons API (Indestructible backup)
         try:
-            res = await client.get(f"https://www.bing.com/images/search?q={urllib.parse.quote(q)}")
-            found = []
-            for raw in re.findall(r'm="({.*?})"', res.text):
-                try:
-                    data = json.loads(raw.replace("&quot;", '"'))
-                    image = data.get("murl")
-                    if image:
-                        found.append({"title": data.get("t", ""), "image": image, "thumbnail": data.get("turl", image), "source": data.get("purl", "")})
-                    if len(found) >= 24:
-                        break
-                except Exception:
-                    continue
-            return found
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=str(e))
+            url = f"https://commons.wikimedia.org/w/api.php?action=query&prop=imageinfo&iiprop=url|extmetadata&generator=search&gsrsearch={urllib.parse.quote(q)}&gsrnamespace=6&gsrlimit=24&format=json"
+            res = await client.get(url, headers={"User-Agent": "anta-assistant/1.0"})
+            if res.status_code == 200:
+                data = res.json()
+                pages = data.get("query", {}).get("pages", {})
+                found = []
+                for p in pages.values():
+                    info = p.get("imageinfo", [{}])[0]
+                    img_url = info.get("url")
+                    if img_url:
+                        title = p.get("title", "").replace("File:", "").split(".")[0]
+                        found.append({
+                            "title": title,
+                            "image": img_url,
+                            "thumbnail": info.get("descriptionurl") or img_url,
+                            "source": "Wikimedia Commons"
+                        })
+                if found:
+                    return found
+        except Exception:
+            pass
+
+    return []
 
 
 @app.get("/news")
