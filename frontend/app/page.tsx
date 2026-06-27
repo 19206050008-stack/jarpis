@@ -914,7 +914,17 @@ export default function Home() {
   }
 
   function autoMinimizeChat() {
-    if (window.innerWidth <= 800) setChatState('closed');
+    if (window.innerWidth <= 800) return; // mobile: keep chat open, results shown inline
+    setChatState('closed');
+  }
+
+  function isMobile() {
+    return window.innerWidth <= 800;
+  }
+
+  function formatResultsForChat(items: { title: string; link?: string; source?: string }[], type: string): string {
+    if (!items.length) return `Tidak ada ${type} ditemukan.`;
+    return items.slice(0, 5).map((item, i) => `${i + 1}. ${item.title}${item.source ? ` (${item.source})` : ''}`).join('\n');
   }
 
   async function handle(text: string) {
@@ -1122,10 +1132,14 @@ export default function Home() {
           const list = await res.json();
           setViewerLoading(false);
           setNews(list);
+          if (isMobile()) {
+            // Mobile: show results inline in chat
+            return formatResultsForChat(list, 'berita');
+          }
           setView({ title: `Berita: ${searchQuery}`, url: "", note: list.length ? "Menampilkan berita terhangat. Bilang: buka nomor satu." : "Tidak ada berita ditemukan." });
           setViewerState('open');
-        autoMinimizeChat();
-          return `Oke, saya buka jendela browser untuk menampilkan berita tentang "${searchQuery}".`;
+          autoMinimizeChat();
+          return `Oke, saya tampilkan berita tentang "${searchQuery}" di viewer.`;
         }
       } catch (err) {
         console.error("News fetch error", err);
@@ -1144,9 +1158,12 @@ export default function Home() {
           const list = await res.json();
           setViewerLoading(false);
           setVideos(list);
+          if (isMobile()) {
+            return list.slice(0, 4).map((v: {title:string}, i: number) => `${i + 1}. ${v.title}`).join('\n') || 'Tidak ada video ditemukan.';
+          }
           setView({ title: `Lagu/Video: ${query}`, url: "", note: "Pilih video untuk diputar langsung di panel." });
           setViewerState('open');
-        autoMinimizeChat();
+          autoMinimizeChat();
           return `Oke, saya carikan lagu/video tentang "${query}".`;
         }
       } catch (err) {
@@ -1168,6 +1185,9 @@ export default function Home() {
         const list = res?.ok ? await res.json() : [];
         setViewerLoading(false);
         setNews(list);
+        if (isMobile()) {
+          return formatResultsForChat(list, kind);
+        }
         setView({ title: `${kind.toUpperCase()}: ${query}`, url: "", note: list.length ? "Hasil pencarian. Bilang: buka nomor satu." : "Tidak ada hasil." });
         setViewerState('open');
         autoMinimizeChat();
