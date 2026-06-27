@@ -571,22 +571,28 @@ export default function Home() {
     const cached = ttsCacheRef.current.get(key);
 
     const attachPlayListener = () => {
-      const el = audioRef.current;
-      if (el) {
-        const onPlay = () => { playTypingEffect(); el.removeEventListener("play", onPlay); };
-        el.addEventListener("play", onPlay);
-      } else {
-        // Fallback if audio element not ready yet
-        setTimeout(() => {
-          const el2 = audioRef.current;
-          if (el2) {
-            const onPlay = () => { playTypingEffect(); el2.removeEventListener("play", onPlay); };
-            el2.addEventListener("play", onPlay);
-          } else {
+      // Audio element may not exist yet (React hasn't re-rendered after setAudioUrl)
+      // Poll briefly until it appears
+      let attempts = 0;
+      const tryAttach = () => {
+        const el = audioRef.current;
+        if (el) {
+          const onPlay = () => { playTypingEffect(); el.removeEventListener("play", onPlay); };
+          // If already playing (autoPlay fired fast), trigger immediately
+          if (!el.paused && !el.ended) {
             playTypingEffect();
+          } else {
+            el.addEventListener("play", onPlay);
           }
-        }, 100);
-      }
+        } else if (attempts < 10) {
+          attempts++;
+          setTimeout(tryAttach, 50);
+        } else {
+          // Audio never appeared — just play typing as fallback
+          playTypingEffect();
+        }
+      };
+      setTimeout(tryAttach, 50);
     };
 
     if (cached) {
