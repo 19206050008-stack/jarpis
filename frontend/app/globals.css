@@ -54,7 +54,7 @@
   .center-container.orb-chat-open {
     position:fixed!important;
     inset:auto!important;
-    top:46px!important;
+    top:6px!important;
     bottom:auto!important;
     right:auto!important;
     left:50%!important;
@@ -65,7 +65,9 @@
     opacity:0.8!important;
     z-index:160!important;
   }
-  .center-container.orb-chat-open .dock.orbit-menu {
+  .center-container.orb-chat-open .dock,
+  .center-container.orb-chat-open .dock.orbit-menu,
+  .center-container.orb-chat-open nav.dock.orbit-menu {
     display:none!important;
   }
   .center-container.orb-chat-open .subtitle-bubble {
