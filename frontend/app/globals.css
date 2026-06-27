@@ -99,6 +99,19 @@
   .dock {
     display:none!important;
   }
+  .dock.orbit-menu{
+    display:flex!important;
+    position:fixed!important;
+    left:auto!important;
+    right:16px!important;
+    top:auto!important;
+    bottom:24px!important;
+    transform:none!important;
+    flex-direction:row!important;
+    gap:12px!important;
+    z-index:80!important;
+  }
+  .dock.popup-dock{display:none!important}
   .chat-window{
     width:100vw!important;
     height:100dvh!important;

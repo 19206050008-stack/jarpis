@@ -779,26 +779,25 @@ export default function Home() {
   // Timer 2: News Speaker — every ~25-45 sec, speak one unspoken news from bank
   useEffect(() => {
     if (loading || isAiSpeaking || listening) return;
+    // Don't speak random news when chat or viewer is open (especially on mobile)
+    if (chatState === 'open' || viewerState === 'open') return;
     const timer = window.setTimeout(async () => {
       try {
         const unspoken = await getUnspokenNews();
         if (unspoken && unspoken.summary.length > 20) {
-          // Double-check: haven't we spoken this ID already? (localStorage backup)
           const spokenIds: number[] = JSON.parse(localStorage.getItem("anta_spoken_ids") || "[]");
           if (spokenIds.includes(unspoken.id)) return;
           
           await markNewsSpoken(unspoken.id);
           spokenIds.push(unspoken.id);
-          // Keep only last 50 IDs
           localStorage.setItem("anta_spoken_ids", JSON.stringify(spokenIds.slice(-50)));
           
-          void speakLine(unspoken.summary);
           void speakLine(unspoken.summary);
         }
       } catch { /* silent */ }
     }, 25000 + Math.floor(Math.random() * 20000));
     return () => window.clearTimeout(timer);
-  }, [loading, isAiSpeaking, listening, speaker, speakEnabled, apiUrl]);
+  }, [loading, isAiSpeaking, listening, speaker, speakEnabled, apiUrl, chatState, viewerState]);
 
   async function scanDirectory(dir: DirectoryHandle, base = ""): Promise<LocalFile[]> {
     const out: LocalFile[] = [];
