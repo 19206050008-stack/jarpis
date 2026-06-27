@@ -1,0 +1,322 @@
+{
+  "project": "Anta AI Assistant",
+  "timestamp": "2026-06-27T04:47:07.727Z",
+  "summary": {
+    "total": 31,
+    "passed": 21,
+    "failed": 1,
+    "skipped": 9
+  },
+  "results": [
+    {
+      "id": "TC-001",
+      "scenario": "SC-001",
+      "name": "Orb visible at center",
+      "expected": "Orb centered (offset<30px)",
+      "actual": "Offset: 0px",
+      "status": "PASS",
+      "duration": 88,
+      "notes": ""
+    },
+    {
+      "id": "TC-002",
+      "scenario": "SC-001",
+      "name": "Orb idle breathing animation",
+      "expected": "animationName=orb-idle",
+      "actual": "animationName=orb-idle",
+      "status": "PASS",
+      "duration": 12,
+      "notes": ""
+    },
+    {
+      "id": "TC-003",
+      "scenario": "SC-001",
+      "name": "Rings spinning different",
+      "expected": ">=2 keyframes, >=3 speeds",
+      "actual": "4 keyframes, 4 speeds",
+      "status": "PASS",
+      "duration": 10,
+      "notes": ""
+    },
+    {
+      "id": "TC-004",
+      "scenario": "SC-001",
+      "name": "Orb turns orange",
+      "expected": "Ring border orange",
+      "actual": "rgb(249, 115, 22)",
+      "status": "PASS",
+      "duration": 220,
+      "notes": ""
+    },
+    {
+      "id": "TC-005",
+      "scenario": "SC-002",
+      "name": "Bubble appears when speaking",
+      "expected": "Bubble with text",
+      "actual": "Selamat siang. Anta siap membantu.",
+      "status": "PASS",
+      "duration": 4010,
+      "notes": ""
+    },
+    {
+      "id": "TC-006",
+      "scenario": "SC-002",
+      "name": "Bubble centered",
+      "expected": "Offset < 15px",
+      "actual": "Offset: 0px",
+      "status": "PASS",
+      "duration": 1,
+      "notes": ""
+    },
+    {
+      "id": "TC-007",
+      "scenario": "SC-002",
+      "name": "Bubble disappears after speaking",
+      "expected": "Bubble gone",
+      "actual": "Gone",
+      "status": "PASS",
+      "duration": 706,
+      "notes": ""
+    },
+    {
+      "id": "TC-008",
+      "scenario": "SC-003",
+      "name": "Chat opens on button click",
+      "expected": ".chat-window visible",
+      "actual": "Visible",
+      "status": "PASS",
+      "duration": 13505,
+      "notes": ""
+    },
+    {
+      "id": "TC-009",
+      "scenario": "SC-003",
+      "name": "Send message in chat",
+      "expected": "AI responds with time",
+      "actual": "Sekarang jam 11:46, Sabtu, 27 Juni 2026.",
+      "status": "PASS",
+      "duration": 614,
+      "notes": ""
+    },
+    {
+      "id": "TC-010",
+      "scenario": "SC-003",
+      "name": "Chat does NOT trigger speech",
+      "expected": "Orb not active",
+      "actual": "Not active",
+      "status": "PASS",
+      "duration": 1,
+      "notes": ""
+    },
+    {
+      "id": "TC-011",
+      "scenario": "SC-003",
+      "name": "Chat close button works",
+      "expected": "Chat removed",
+      "actual": "Removed",
+      "status": "PASS",
+      "duration": 563,
+      "notes": ""
+    },
+    {
+      "id": "TC-012",
+      "scenario": "SC-004",
+      "name": "Voice button activates mic",
+      "expected": "Listening state",
+      "actual": "Skipped (headless)",
+      "status": "SKIP",
+      "duration": 0,
+      "notes": "Requires real microphone, tested manually"
+    },
+    {
+      "id": "TC-013",
+      "scenario": "SC-004",
+      "name": "Voice auto-timeout 5s",
+      "expected": "Stops after 5s silence",
+      "actual": "Skipped (headless)",
+      "status": "SKIP",
+      "duration": 0,
+      "notes": "Requires Speech API, tested manually"
+    },
+    {
+      "id": "TC-014",
+      "scenario": "SC-004",
+      "name": "Voice response triggers speech",
+      "expected": "Orb active + subtitle",
+      "actual": "Skipped (headless)",
+      "status": "SKIP",
+      "duration": 0,
+      "notes": "Requires mic input simulation"
+    },
+    {
+      "id": "TC-015",
+      "scenario": "SC-004",
+      "name": "Voice search opens viewer",
+      "expected": "Viewer window opens",
+      "actual": "Skipped (headless)",
+      "status": "SKIP",
+      "duration": 0,
+      "notes": "Voice-triggered, manual test"
+    },
+    {
+      "id": "TC-016",
+      "scenario": "SC-005",
+      "name": "Wake word Halo Anta",
+      "expected": "Voice activates on wake word",
+      "actual": "Skipped (headless)",
+      "status": "SKIP",
+      "duration": 0,
+      "notes": "Requires continuous mic, manual test"
+    },
+    {
+      "id": "TC-017",
+      "scenario": "SC-006",
+      "name": "Chat search inline (mobile)",
+      "expected": "Result in chat",
+      "actual": "Sekarang jam 11:46, Sabtu, 27 Juni 2026.",
+      "status": "PASS",
+      "duration": 21737,
+      "notes": ""
+    },
+    {
+      "id": "TC-018",
+      "scenario": "SC-006",
+      "name": "Desktop chat works",
+      "expected": "Response received",
+      "actual": "OK",
+      "status": "PASS",
+      "duration": 8256,
+      "notes": "Local commands dont open viewer"
+    },
+    {
+      "id": "TC-019",
+      "scenario": "SC-006",
+      "name": "Voice search opens viewer",
+      "expected": "Viewer opens",
+      "actual": "Skipped",
+      "status": "SKIP",
+      "duration": 0,
+      "notes": "Requires mic"
+    },
+    {
+      "id": "TC-020",
+      "scenario": "SC-006",
+      "name": "Specific video auto-plays",
+      "expected": "Video URL in viewer",
+      "actual": "Skipped",
+      "status": "SKIP",
+      "duration": 0,
+      "notes": "Requires mic + backend"
+    },
+    {
+      "id": "TC-021",
+      "scenario": "SC-007",
+      "name": "Timer set",
+      "expected": "Confirmation message",
+      "actual": "Timer 1 detik dipasang. Saya akan beritahu saat se",
+      "status": "PASS",
+      "duration": 617,
+      "notes": ""
+    },
+    {
+      "id": "TC-022",
+      "scenario": "SC-008",
+      "name": "Weather fetch",
+      "expected": "Contains °C",
+      "actual": "Skipped (needs network)",
+      "status": "SKIP",
+      "duration": 0,
+      "notes": "Requires OpenMeteo API"
+    },
+    {
+      "id": "TC-023",
+      "scenario": "SC-009",
+      "name": "Clock response",
+      "expected": "Contains HH:MM",
+      "actual": "Sekarang jam 11:47, Sabtu, 27 Juni 2026.",
+      "status": "PASS",
+      "duration": 617,
+      "notes": ""
+    },
+    {
+      "id": "TC-024",
+      "scenario": "SC-009",
+      "name": "Date response",
+      "expected": "Contains date",
+      "actual": "Hari ini Sabtu, 27 Juni 2026.",
+      "status": "PASS",
+      "duration": 598,
+      "notes": ""
+    },
+    {
+      "id": "TC-025",
+      "scenario": "SC-009",
+      "name": "Calculator works",
+      "expected": "Contains 15",
+      "actual": "Hasilnya: 15",
+      "status": "PASS",
+      "duration": 609,
+      "notes": ""
+    },
+    {
+      "id": "TC-026",
+      "scenario": "SC-010",
+      "name": "Memory retains context",
+      "expected": "Remembers name",
+      "actual": "Skipped (needs AI)",
+      "status": "SKIP",
+      "duration": 0,
+      "notes": "Requires live AI provider"
+    },
+    {
+      "id": "TC-027",
+      "scenario": "SC-011",
+      "name": "Mobile dock hidden",
+      "expected": "display:none",
+      "actual": "flex",
+      "status": "FAIL",
+      "duration": 81,
+      "notes": ""
+    },
+    {
+      "id": "TC-028",
+      "scenario": "SC-011",
+      "name": "Mobile orbit visible",
+      "expected": "display:flex",
+      "actual": "flex",
+      "status": "PASS",
+      "duration": 9,
+      "notes": ""
+    },
+    {
+      "id": "TC-029",
+      "scenario": "SC-011",
+      "name": "Mobile chat fullscreen",
+      "expected": "Full width+height",
+      "actual": "375x812",
+      "status": "PASS",
+      "duration": 2,
+      "notes": ""
+    },
+    {
+      "id": "TC-030",
+      "scenario": "SC-011",
+      "name": "Tap orb opens chat (mobile)",
+      "expected": "Chat opens",
+      "actual": "Opened",
+      "status": "PASS",
+      "duration": 3914,
+      "notes": ""
+    },
+    {
+      "id": "TC-031",
+      "scenario": "SC-012",
+      "name": "Time-based greeting",
+      "expected": "Contains pagi/siang/sore/malam",
+      "actual": "Checked in TC-005",
+      "status": "PASS",
+      "duration": 0,
+      "notes": "Greeting logic verified via code"
+    }
+  ]
+}

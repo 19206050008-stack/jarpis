@@ -1,0 +1,23 @@
+{
+  "title": "User Acceptance Test - Anta AI Assistant",
+  "tester": "",
+  "date": "",
+  "environment": "Production (antasiar.my.id)",
+  "acceptance_criteria": [
+    {"id":"UAT-001","feature":"Orb Visual","criteria":"Orb tampil di tengah layar dengan animasi bernapas dan ring berputar","status":""},
+    {"id":"UAT-002","feature":"Speaking Indicator","criteria":"Saat AI bicara, orb dan semua ring berubah orange, subtitle muncul bersamaan dengan suara","status":""},
+    {"id":"UAT-003","feature":"Chat Functionality","criteria":"User bisa ketik pesan, dapat jawaban teks tanpa suara, bisa tutup chat","status":""},
+    {"id":"UAT-004","feature":"Voice Command","criteria":"Tekan tombol suara, bicara, dapat jawaban suara + subtitle, auto-timeout jika diam","status":""},
+    {"id":"UAT-005","feature":"Wake Word","criteria":"Bilang 'Halo Anta' tanpa pencet tombol, AI aktif mendengarkan","status":""},
+    {"id":"UAT-006","feature":"Search (Chat Mobile)","criteria":"Ketik 'berita hari ini' di chat mobile, hasil muncul di chat sebagai list","status":""},
+    {"id":"UAT-007","feature":"Search (Chat Desktop)","criteria":"Ketik 'berita hari ini' di chat desktop, viewer window terbuka dengan hasil","status":""},
+    {"id":"UAT-008","feature":"Search (Voice)","criteria":"Bilang 'cari berita', viewer window langsung terbuka dengan hasil","status":""},
+    {"id":"UAT-009","feature":"Timer","criteria":"Bilang/ketik 'set timer 1 menit', dapat konfirmasi, setelah 1 menit dapat notifikasi suara","status":""},
+    {"id":"UAT-010","feature":"Weather","criteria":"Tanya 'cuaca jogja', dapat info suhu dalam derajat celcius","status":""},
+    {"id":"UAT-011","feature":"Clock & Date","criteria":"Tanya 'jam berapa', dapat waktu yang benar sesuai zona user","status":""},
+    {"id":"UAT-012","feature":"Calculator","criteria":"Ketik 'hitung 15% dari 200000', dapat jawaban 30000","status":""},
+    {"id":"UAT-013","feature":"Conversation Memory","criteria":"Sebutkan nama, lalu tanya lagi di pesan berikutnya, AI ingat","status":""},
+    {"id":"UAT-014","feature":"Mobile Layout","criteria":"Di HP: dock hidden, tombol orbit melayang, chat fullscreen, tap orb buka chat","status":""},
+    {"id":"UAT-015","feature":"Proactive Greeting","criteria":"Saat buka halaman, orb menyapa sesuai waktu (pagi/siang/sore/malam)","status":""}
+  ]
+}
