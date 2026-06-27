@@ -1442,19 +1442,6 @@ export default function Home() {
         {/* Anta-only speech bubble (greeting, news readout) */}
         {!voiceTranscript && subtitle && <div className="subtitle-bubble">{subtitle}</div>}
 
-        {/* Voice control bar below orb/orbit menu */}
-        {speakEnabled && (
-          <div className="voice-control-bar" style={{ display: "flex", gap: 6, marginTop: 12, pointerEvents: "auto" }}>
-            <button onClick={() => setSpeakEnabled(false)} title="Mute Suara" style={{ background: "#020617b3", border: "1px solid #22d3ee44", color: "#22d3ee", padding: "4px 8px", borderRadius: 8, fontSize: 10, cursor: "pointer" }}>Mute</button>
-            <button onClick={() => { if (audioRef.current) audioRef.current.pause(); setIsAiSpeaking(false); setSubtitle(""); }} title="Stop Bicara" style={{ background: "#020617b3", border: "1px solid #22d3ee44", color: "#22d3ee", padding: "4px 8px", borderRadius: 8, fontSize: 10, cursor: "pointer" }}>Stop</button>
-            <button onClick={() => {
-              const voicesList = ["sari", "dewi", "ayu", "rina", "maya", "budi", "agus", "bayu", "dimas", "andi"];
-              const idx = voicesList.indexOf(speaker);
-              const next = voicesList[(idx + 1) % voicesList.length];
-              setSpeaker(next);
-            }} title="Ganti Suara" style={{ background: "#020617b3", border: "1px solid #22d3ee44", color: "#22d3ee", padding: "4px 8px", borderRadius: 8, fontSize: 10, cursor: "pointer" }}>TTS: {speaker}</button>
-          </div>
-        )}
 
         {/* Orbit Menu — inside center-container so it follows orb animations */}
         <nav className={`dock ${chatState === 'closed' && viewerState === 'closed' ? 'orbit-menu' : 'popup-dock'}`}>

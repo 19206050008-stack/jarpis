@@ -224,11 +224,10 @@
 
 /* Orbit menu: round magnetic buttons beside orb; positioned relative to orb inside center-container. */
 .dock.orbit-menu{position:absolute;left:calc(50% + 84px);top:calc(50% - 40px);bottom:auto;right:auto;transform:none;display:flex;flex-direction:column;gap:12px;padding:0;background:transparent;border:0;box-shadow:none;clip-path:none;z-index:12;pointer-events:auto}
-.dock.orbit-menu:before{content:"";position:absolute;left:-118px;top:50%;width:112px;height:92px;transform:translateY(-50%);background:linear-gradient(18deg,transparent 0 43%,#22d3ee66 44% 45%,transparent 46%),linear-gradient(-18deg,transparent 0 54%,#22d3ee55 55% 56%,transparent 57%);filter:drop-shadow(0 0 8px #22d3ee);animation:magnet-pull 2.4s ease-in-out infinite;pointer-events:none}
+.dock.orbit-menu:before{display:none!important}
 .dock.orbit-menu button{width:68px;height:68px;border-radius:50%;clip-path:none;border:1px solid #22d3ee;color:#dffbff;background:radial-gradient(circle at 38% 30%,#e0fbff 0 5%,#22d3ee 10%,#22d3ee55 38%,#083344dd 72%,#020617 100%);box-shadow:0 0 0 3px #22d3ee22,0 0 22px #22d3eeaa,inset 0 0 18px #22d3ee44;animation:button-orbit-float 3s ease-in-out infinite;pointer-events:auto}
 .dock.orbit-menu button:nth-child(2){transform:translateX(34px);animation-delay:-1.1s}
-.dock.orbit-menu button:before{content:"";position:absolute;inset:-8px;border-radius:50%;border:1px solid #22d3ee66;background:none;box-shadow:0 0 16px #22d3ee66;animation:button-ring 2.2s ease-in-out infinite}
-.dock.orbit-menu button:after{content:"";position:absolute;left:-80px;top:50%;width:80px;height:1px;background:linear-gradient(90deg,transparent,#22d3eecc,transparent);box-shadow:0 0 8px #22d3ee;transform-origin:right center;animation:magnet-line 1.8s ease-in-out infinite}
+.dock.orbit-menu button:before,.dock.orbit-menu button:after{display:none!important}
 .dock.orbit-menu button svg{width:27px;height:27px;stroke:#e0fbff;filter:drop-shadow(0 0 7px #e0fbff) drop-shadow(0 0 15px #22d3ee)}
 .dock.orbit-menu button:hover,.dock.orbit-menu button.active{transform:scale(1.08);background:radial-gradient(circle at 38% 30%,#fff 0 5%,#22d3ee 11%,#22d3ee 40%,#22d3ee 72%,#02131d 100%);box-shadow:0 0 0 4px #22d3ee33,0 0 34px #22d3ee,inset 0 0 22px #e0fbff66}
 .dock.popup-dock{position:absolute;bottom:24px;left:50%;top:auto;transform:translateX(-50%)}
