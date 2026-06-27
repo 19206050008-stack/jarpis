@@ -3,10 +3,6 @@
     --orb-x: 0px!important;
     --orb-y: 0px!important;
   }
-  .chat-window .form {
-    padding-bottom: 0!important;
-    margin-bottom: 0!important;
-  }
   .viewer-window{
     width:100vw!important;
     height:100dvh!important;
