@@ -683,11 +683,17 @@ export default function Home() {
         if (transcript.includes('halo anta') || transcript.includes('hai anta')) {
           try { r.stop(); } catch {}
           wakeRec = null;
-          // Show user said "Halo Anta", Anta responds, then open mic
+          // Show user said "Halo Anta", Anta responds, then open mic for 10s
           setVoiceTranscript("Halo Anta");
           void speakLine("Halo! Ada yang bisa saya bantu?").then(() => {
-            // After greeting response finishes, open mic for command
-            setTimeout(() => { if (active && !loading) startVoiceInput(); }, 500);
+            // After greeting finishes, open mic with extended timeout
+            setTimeout(() => {
+              if (active && !loading && !isAiSpeaking) {
+                setVoiceTranscript("");
+                setSubtitle("");
+                startVoiceInputExtended(10000);
+              }
+            }, 500);
           });
         }
       };
@@ -1376,6 +1382,10 @@ export default function Home() {
   }
 
   function startVoiceInput() {
+    startVoiceInputExtended(5000);
+  }
+
+  function startVoiceInputExtended(timeoutMs = 5000) {
     const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!Recognition) {
       setVoiceTranscript("Browser ini belum mendukung voice input.");
@@ -1393,8 +1403,8 @@ export default function Home() {
     rec.onstart = () => {
       // Already set above
     };
-    // Auto timeout: stop if no speech after 5 seconds
-    const timeout = setTimeout(() => { try { rec.stop(); } catch {} setListening(false); setVoiceTranscript(""); setSubtitle(""); }, 5000);
+    // Auto timeout: stop if no speech after configured timeout
+    const timeout = setTimeout(() => { try { rec.stop(); } catch {} setListening(false); setVoiceTranscript(""); setSubtitle(""); }, timeoutMs);
     rec.onend = () => { clearTimeout(timeout); setListening(false); };
     rec.onresult = (event) => {
       clearTimeout(timeout);
