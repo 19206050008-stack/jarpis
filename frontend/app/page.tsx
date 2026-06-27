@@ -18,6 +18,7 @@ type SpeechRecognitionLike = {
   onend: (() => void) | null;
   onresult: ((event: { results: { [key: number]: { [key: number]: { transcript?: string } } } }) => void) | null;
   start: () => void;
+  stop: () => void;
 };
 
 declare global {
@@ -473,6 +474,7 @@ export default function Home() {
   const popupDragRef = useRef({ key: "", x: 0, y: 0, ox: 0, oy: 0 });
   const lastPinchRef = useRef(0);
   const ttsCacheRef = useRef(new Map<string, string>());
+  const chatContextRef = useRef<{role:string;text:string}[]>([]);
   const seenNewsRef = useRef(new Set<string>((() => {
     try {
       const stored = localStorage.getItem("anta_seen_news");
@@ -563,12 +565,31 @@ export default function Home() {
 
     const key = `${speaker}:${clean}`;
     const cached = ttsCacheRef.current.get(key);
+
+    const attachPlayListener = () => {
+      const el = audioRef.current;
+      if (el) {
+        const onPlay = () => { playTypingEffect(); el.removeEventListener("play", onPlay); };
+        el.addEventListener("play", onPlay);
+      } else {
+        // Fallback if audio element not ready yet
+        setTimeout(() => {
+          const el2 = audioRef.current;
+          if (el2) {
+            const onPlay = () => { playTypingEffect(); el2.removeEventListener("play", onPlay); };
+            el2.addEventListener("play", onPlay);
+          } else {
+            playTypingEffect();
+          }
+        }, 100);
+      }
+    };
+
     if (cached) {
       setAudioUrl(cached);
-      // Wait briefly for elements to mount and listen
-      setTimeout(() => {
-        playTypingEffect();
-      }, 50);
+      attachPlayListener();
+      // Safety timeout
+      setTimeout(() => { setSubtitle(""); setIsAiSpeaking(false); }, Math.max(8000, clean.length * 150));
       return;
     }
 
@@ -589,9 +610,7 @@ export default function Home() {
         const url = URL.createObjectURL(blob);
         ttsCacheRef.current.set(key, url);
         setAudioUrl(url);
-        setTimeout(() => {
-          playTypingEffect();
-        }, 50);
+        attachPlayListener();
         // Safety timeout
         setTimeout(() => { setSubtitle(""); setIsAiSpeaking(false); }, Math.max(8000, clean.length * 150));
       } else {
@@ -607,13 +626,45 @@ export default function Home() {
     }
   }
 
-  // Startup greeting — orb says hello after mount
+  // Startup greeting — orb says hello after mount (time-based)
   useEffect(() => {
     const timer = setTimeout(() => {
-      void speakLine("Anta online. Siap membantu.");
+      const hour = new Date().getHours();
+      const greeting = hour < 11 ? "Selamat pagi" : hour < 15 ? "Selamat siang" : hour < 18 ? "Selamat sore" : "Selamat malam";
+      void speakLine(`${greeting}. Anta siap membantu.`);
     }, 2500);
     return () => clearTimeout(timer);
   }, []);
+
+  // Wake Word "Halo Anta" — continuous listening for activation
+  useEffect(() => {
+    const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!Recognition) return;
+    let wakeRec: SpeechRecognitionLike | null = null;
+    let active = true;
+    const Rec = Recognition;
+
+    function startWakeListener() {
+      if (!active || listening || isAiSpeaking || chatState === 'open') return;
+      const r = new Rec();
+      r.lang = "id-ID";
+      r.interimResults = true;
+      r.continuous = true;
+      wakeRec = r;
+      r.onresult = (event: { results: { [key: number]: { [key: number]: { transcript?: string } } } }) => {
+        const transcript = Object.values(event.results).map((r: { [key: number]: { transcript?: string } }) => r[0]?.transcript || '').join(' ').toLowerCase();
+        if (transcript.includes('anta') || transcript.includes('halo anta') || transcript.includes('hai anta')) {
+          try { r.stop(); } catch {}
+          startVoiceInput();
+        }
+      };
+      r.onend = () => { setTimeout(startWakeListener, 1000); };
+      try { r.start(); } catch {}
+    }
+
+    const delay = setTimeout(startWakeListener, 5000);
+    return () => { active = false; clearTimeout(delay); try { wakeRec?.stop?.(); } catch {} };
+  }, [listening, isAiSpeaking, chatState]);
 
   // Realtime, lightweight Web Audio analyser for the Jarvis orb.
   useEffect(() => {
@@ -1204,6 +1255,61 @@ export default function Home() {
       }
     }
 
+    // Timer & Alarm
+    const timerMatch = lower.match(/(?:set|pasang|atur|buat)\s*(?:timer|alarm|pengingat)\s*(\d+)\s*(?:menit|detik|jam)/);
+    if (timerMatch) {
+      const amount = parseInt(timerMatch[1]);
+      const unit = lower.includes('jam') ? 3600000 : lower.includes('detik') ? 1000 : 60000;
+      const ms = amount * unit;
+      const label = lower.includes('jam') ? 'jam' : lower.includes('detik') ? 'detik' : 'menit';
+      setTimeout(() => {
+        void speakLine(`Timer ${amount} ${label} sudah habis.`);
+      }, ms);
+      return `Timer ${amount} ${label} dipasang. Saya akan beritahu saat selesai.`;
+    }
+
+    // Weather (OpenMeteo)
+    const cuacaMatch = lower.match(/(?:cuaca|weather)\s*(.*)/i);
+    if (cuacaMatch) {
+      const city = (cuacaMatch[1] || 'yogyakarta').trim();
+      try {
+        const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=id`);
+        const geo = await geoRes.json();
+        if (geo.results?.[0]) {
+          const {latitude, longitude, name} = geo.results[0];
+          const wxRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,weather_code,wind_speed_10m&timezone=auto`);
+          const wx = await wxRes.json();
+          const temp = wx.current?.temperature_2m;
+          const wind = wx.current?.wind_speed_10m;
+          return `Cuaca di ${name} sekarang: ${temp}°C, angin ${wind} km/j.`;
+        }
+      } catch {}
+      return `Maaf, gagal ambil data cuaca untuk ${city}.`;
+    }
+
+    // Clock / Date
+    if (/jam berapa|waktu sekarang|what time/i.test(lower)) {
+      const now = new Date();
+      return `Sekarang jam ${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}, ${now.toLocaleDateString('id-ID', {weekday:'long', day:'numeric', month:'long', year:'numeric'})}.`;
+    }
+    if (/tanggal berapa|hari apa|what date/i.test(lower)) {
+      return `Hari ini ${new Date().toLocaleDateString('id-ID', {weekday:'long', day:'numeric', month:'long', year:'numeric'})}.`;
+    }
+
+    // Calculator
+    const calcMatch = lower.match(/(?:hitung|berapa|kalkulasi|calculate)\s+(.+)/i);
+    if (calcMatch) {
+      try {
+        const expr = calcMatch[1].replace(/x/gi, '*').replace(/÷/g, '/').replace(/,/g, '.').replace(/[^0-9+\-*/.()% ]/g, '');
+        if (expr.includes('%')) {
+          const pctMatch = expr.match(/(\d+(?:\.\d+)?)\s*%\s*(?:dari|of|from)?\s*(\d+(?:\.\d+)?)/);
+          if (pctMatch) { const result = (parseFloat(pctMatch[1]) / 100) * parseFloat(pctMatch[2]); return `Hasilnya: ${result.toLocaleString('id-ID')}`; }
+        }
+        const result = Function('"use strict"; return (' + expr + ')')();
+        return `Hasilnya: ${Number(result).toLocaleString('id-ID')}`;
+      } catch { return `Maaf, saya tidak bisa menghitung ekspresi itu.`; }
+    }
+
     // bacakan/baca — user asks Anta to read something aloud
     const bacaMatch = lower.match(/(?:bacakan|baca|tolong\s*baca(?:kan)?|coba\s*baca(?:kan)?)\s+(.+)/);
     if (bacaMatch) {
@@ -1212,8 +1318,10 @@ export default function Home() {
       return `__SPEAK__:${topic}`;
     }
 
-    // normal chat
-    return askAi(text);
+    // normal chat — include conversation context
+    const context = chatContextRef.current.slice(-10).map(m => `${m.role === 'user' ? 'User' : 'Anta'}: ${m.text}`).join('\n');
+    const prompt = context ? `${context}\nUser: ${text}` : text;
+    return askAi(prompt);
   }
 
   function startVoiceInput() {
@@ -1230,8 +1338,11 @@ export default function Home() {
       setListening(true);
       setSubtitle("Mendengarkan...");
     };
-    rec.onend = () => setListening(false);
+    // Auto timeout: stop if no speech after 5 seconds
+    const timeout = setTimeout(() => { try { rec.stop(); } catch {} setListening(false); setSubtitle(""); }, 5000);
+    rec.onend = () => { clearTimeout(timeout); setListening(false); };
     rec.onresult = (event) => {
+      clearTimeout(timeout);
       const text = event.results[0]?.[0]?.transcript || "";
       if (text) void sendVoice(text);
     };
@@ -1255,6 +1366,9 @@ export default function Home() {
         setSubtitle(answer);
         await saveMessage("ai", answer);
         await saveMemory("conversation", `User: ${text}\nAnta: ${answer}`);
+        chatContextRef.current.push({role:'user', text});
+        chatContextRef.current.push({role:'ai', text: answer});
+        if (chatContextRef.current.length > 10) chatContextRef.current = chatContextRef.current.slice(-10);
         await speakLine(answer);
       } else {
         const answer = cleanText(rawAnswer);
@@ -1262,6 +1376,9 @@ export default function Home() {
         setSubtitle(answer);
         await saveMessage("ai", answer);
         await saveMemory("conversation", `User: ${text}\nAnta: ${answer}`);
+        chatContextRef.current.push({role:'user', text});
+        chatContextRef.current.push({role:'ai', text: answer});
+        if (chatContextRef.current.length > 10) chatContextRef.current = chatContextRef.current.slice(-10);
         await speakLine(answer);
       }
     } catch (error) {
@@ -1368,6 +1485,10 @@ export default function Home() {
       setMessages((m) => [...m.slice(0, -1), { role: "ai", text: answer }]);
       await saveMessage("ai", answer);
       await saveMemory("conversation", `User: ${text}\nAnta: ${answer}`);
+      // Track conversation context for memory
+      chatContextRef.current.push({role:'user', text});
+      chatContextRef.current.push({role:'ai', text: answer});
+      if (chatContextRef.current.length > 10) chatContextRef.current = chatContextRef.current.slice(-10);
       setLoading(false);
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Error tidak diketahui";
