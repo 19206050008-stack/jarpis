@@ -927,7 +927,7 @@ export default function Home() {
     return items.slice(0, 5).map((item, i) => `${i + 1}. ${item.title}${item.source ? ` (${item.source})` : ''}`).join('\n');
   }
 
-  async function handle(text: string) {
+  async function handle(text: string, fromVoice = false) {
     const lower = text.toLowerCase();
     const parts = text.split(/\s+/);
     const cmd = parts[0].replace("/", "");
@@ -1132,8 +1132,8 @@ export default function Home() {
           const list = await res.json();
           setViewerLoading(false);
           setNews(list);
-          if (isMobile()) {
-            // Mobile: show results inline in chat
+          if (isMobile() && !fromVoice) {
+            // Mobile chat: show results inline
             return formatResultsForChat(list, 'berita');
           }
           setView({ title: `Berita: ${searchQuery}`, url: "", note: list.length ? "Menampilkan berita terhangat. Bilang: buka nomor satu." : "Tidak ada berita ditemukan." });
@@ -1158,13 +1158,19 @@ export default function Home() {
           const list = await res.json();
           setViewerLoading(false);
           setVideos(list);
-          if (isMobile()) {
+          if (isMobile() && !fromVoice) {
             return list.slice(0, 4).map((v: {title:string}, i: number) => `${i + 1}. ${v.title}`).join('\n') || 'Tidak ada video ditemukan.';
           }
-          setView({ title: `Lagu/Video: ${query}`, url: "", note: "Pilih video untuk diputar langsung di panel." });
+          // Desktop or voice: open viewer. If query is specific, auto-play first result.
+          if (list.length === 1 || /putar|play/i.test(text)) {
+            // Specific - play directly
+            setView({ title: list[0].title, url: list[0].url, note: "Sedang memutar..." });
+          } else {
+            setView({ title: `Lagu/Video: ${query}`, url: "", note: "Pilih video untuk diputar. Bilang: putar nomor satu." });
+          }
           setViewerState('open');
           autoMinimizeChat();
-          return `Oke, saya carikan lagu/video tentang "${query}".`;
+          return list.length === 1 ? `Memutar ${list[0].title}.` : `Saya temukan ${list.length} video tentang "${query}".`;
         }
       } catch (err) {
         console.error("Video fetch error", err);
@@ -1185,7 +1191,7 @@ export default function Home() {
         const list = res?.ok ? await res.json() : [];
         setViewerLoading(false);
         setNews(list);
-        if (isMobile()) {
+        if (isMobile() && !fromVoice) {
           return formatResultsForChat(list, kind);
         }
         setView({ title: `${kind.toUpperCase()}: ${query}`, url: "", note: list.length ? "Hasil pencarian. Bilang: buka nomor satu." : "Tidak ada hasil." });
@@ -1240,7 +1246,7 @@ export default function Home() {
     await saveMessage("user", text);
 
     try {
-      const rawAnswer = await handle(text);
+      const rawAnswer = await handle(text, true); // fromVoice = true: always open viewer for media
       if (rawAnswer.startsWith("__SPEAK__:")) {
         // Bacakan topic — get AI answer for the topic
         const topic = rawAnswer.slice(10);
