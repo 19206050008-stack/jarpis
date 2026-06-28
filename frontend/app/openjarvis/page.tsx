@@ -11,6 +11,7 @@ type Status = {
 };
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://jarpis-production-a270.up.railway.app";
+const openJarvisUiUrl = process.env.NEXT_PUBLIC_OPENJARVIS_UI_URL || "";
 
 export default function OpenJarvisPage() {
   const [data, setData] = useState<Status | null>(null);
@@ -35,8 +36,14 @@ export default function OpenJarvisPage() {
           <section style={{ margin: "20px 0", padding: 16, border: "1px solid #164e63", borderRadius: 12 }}>
             <h2>Status</h2>
             <p>{data.configured ? (data.ok ? "Tersambung" : "OpenJarvis tidak merespons") : "OPENJARVIS_URL belum diset"}</p>
-            <p>URL: {data.url || "-"}</p>
+            <p>URL API: {data.url || "-"}</p>
+            {(openJarvisUiUrl || data.url) && <p><a href={openJarvisUiUrl || data.url} target="_blank" style={{ color: "#67e8f9" }}>Buka UI OpenJarvis</a></p>}
           </section>
+          {(openJarvisUiUrl || data.url) && (
+            <section style={{ margin: "20px 0", border: "1px solid #164e63", borderRadius: 12, overflow: "hidden", height: "70vh" }}>
+              <iframe title="OpenJarvis UI" src={openJarvisUiUrl || data.url} style={{ width: "100%", height: "100%", border: 0, background: "#020617" }} />
+            </section>
+          )}
           <section style={{ margin: "20px 0", padding: 16, border: "1px solid #164e63", borderRadius: 12 }}>
             <h2>Models</h2>
             <ul>{data.models.map((m) => <li key={m}>{m}</li>)}</ul>
