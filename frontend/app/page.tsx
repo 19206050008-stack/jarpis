@@ -131,7 +131,6 @@ export default function Home() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const [activities, setActivities] = useState<string[]>([]);
   const [providerBadge, setProviderBadge] = useState("");
   const [tasks, setTasks] = useState<string[]>([]);
   const [lastProvider, setLastProvider] = useState("");
@@ -1268,7 +1267,6 @@ export default function Home() {
     if (!text || loading) return;
     setInput("");
     setLoading(true);
-    setActivities(["Menerima perintah", "Memilih skill terbaik", "Menghubungi otak Anta"]);
     setChatState('open');
     setMessages((m) => [...m, { role: "user", text }, { role: "ai", text: "Anta sedang mengetik . . ." }]);
     await saveMessage("user", text);
@@ -1316,7 +1314,6 @@ export default function Home() {
         // Final check
         if (!cleanContent || cleanContent.length < 30) {
           setMessages((m) => [...m.slice(0, -1), { role: "ai", text: `Maaf, saya tidak berhasil menemukan isi "${topic}". Coba ulangi dengan kata kunci yang lebih spesifik.` }]);
-          setActivities([]);
           setLoading(false);
           return;
         }
@@ -1328,8 +1325,6 @@ export default function Home() {
         
         // Data ready — show content in chat with notice
         setMessages((m) => [...m.slice(0, -1), { role: "ai", text: fullSpeech }, { role: "ai", text: "Saya akan mulai membacakannya..." }]);
-        setActivities((a) => [...a, "Selesai"]);
-        window.setTimeout(() => setActivities([]), 2500);
         setLoading(false);
         
         // Wait 3 seconds so user can see the content, then close while reading.
@@ -1366,13 +1361,10 @@ export default function Home() {
       chatContextRef.current.push({role:'user', text});
       chatContextRef.current.push({role:'ai', text: answer});
       if (chatContextRef.current.length > 10) chatContextRef.current = chatContextRef.current.slice(-10);
-      setActivities((a) => [...a, "Selesai"]);
-      window.setTimeout(() => setActivities([]), 2500);
       setLoading(false);
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Error tidak diketahui";
       setMessages((m) => [...m.slice(0, -1), { role: "ai", text: msg }]);
-      setActivities([]);
       setLoading(false);
     }
   }
@@ -1391,12 +1383,6 @@ export default function Home() {
           <span>Anta dapat memantau aktivitas aplikasi di PC/Laptop kamu secara realtime melalui Local Agent. Jalankan <code>python local-agent/agent.py</code> lalu izinkan di sini.</span>
           <button onClick={acceptAgent}>Aktifkan Pemantauan</button>
         </div>
-      )}
-
-      {activities.length > 0 && (
-        <aside className="activity-timeline" aria-live="polite">
-          {activities.map((item, i) => <span key={`${item}-${i}`}>{item}</span>)}
-        </aside>
       )}
 
       {paletteOpen && (
