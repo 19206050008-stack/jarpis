@@ -18,7 +18,7 @@ declare global {
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
-const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
+const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://jarpis-production-a270.up.railway.app";
 const pageVisible = () => typeof document === "undefined" || document.visibilityState === "visible";
 const getAgentId = () => localStorage.getItem("anta_agent_id") || "default";
 
@@ -263,6 +263,7 @@ export default function Home() {
     } },
     { label: "Memory", hint: "Buka dashboard memori", run: () => window.open("/memory", "_blank") },
     { label: "Monitoring", hint: "Buka halaman monitoring", run: () => window.open("/monitoring", "_blank") },
+    { label: "OpenJarvis", hint: "Cek sinkron OpenJarvis lokal", run: () => window.open("/openjarvis", "_blank") },
     { label: "Kunci orb", hint: "Orb tidak bisa digeser", run: () => setOrbMoveEnabled(false) },
     { label: "Bebaskan orb", hint: "Orb bisa digeser", run: () => setOrbMoveEnabled(true) },
   ], []);

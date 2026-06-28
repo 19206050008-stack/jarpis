@@ -32,12 +32,13 @@ Default backend memakai router otomatis: API key yang tersedia dulu, lalu MiMo A
 
 Urutan chat:
 
-1. OpenAgentic (`open-agentic`) — paling stabil dari test lokal
-2. OpenRouter (`openai/gpt-oss-20b:free`)
-3. Zenmux (`stepfun/step-3.7-flash-free`) — key dites 403/no permission
-4. Zyloo (`qwen3.7-plus`) — key dites 402/insufficient credit
-5. MiMo Auto (`mimo-auto`) — chat/reasoning/code/summarize, tanpa API key, bisa kena limit/risk control
-6. Pollinations — fallback terakhir
+1. OpenJarvis lokal (`OPENJARVIS_URL`) — local-first agent/server
+2. OpenAgentic (`open-agentic`) — paling stabil dari test lokal
+3. OpenRouter (`openai/gpt-oss-20b:free`)
+4. Zenmux (`stepfun/step-3.7-flash-free`) — key dites 403/no permission
+5. Zyloo (`qwen3.7-plus`) — key dites 402/insufficient credit
+6. MiMo Auto (`mimo-auto`) — chat/reasoning/code/summarize, tanpa API key, bisa kena limit/risk control
+7. Pollinations — fallback terakhir
 
 ```text
 AI_PROVIDER=auto
@@ -66,6 +67,9 @@ ZENMUX_API_KEY=sk-mg-...
 ZENMUX_MODEL=stepfun/step-3.7-flash-free
 ZYLOO_API_KEY=sk-zy-...
 ZYLOO_MODEL=qwen3.7-plus
+OPENJARVIS_URL=http://127.0.0.1:8765
+OPENJARVIS_API_KEY=
+OPENJARVIS_MODEL=
 OPENAGENTIC_API_KEY=sk-...
 OPENAGENTIC_MODEL=open-agentic
 DISABLED_PROVIDERS=zenmux,zyloo

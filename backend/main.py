@@ -22,6 +22,9 @@ MODEL_PATH = os.getenv("MODEL_PATH", "models/Qwen3-0.6B-Q8_0.gguf")
 AI_PROVIDER = os.getenv("AI_PROVIDER", "auto")
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "openai/gpt-oss-20b:free")
+OPENJARVIS_URL = os.getenv("OPENJARVIS_URL", "").rstrip("/")
+OPENJARVIS_API_KEY = os.getenv("OPENJARVIS_API_KEY", "")
+OPENJARVIS_MODEL = os.getenv("OPENJARVIS_MODEL", "")
 MIMO_API = os.getenv("MIMO_API", "https://api.xiaomimimo.com")
 MIMO_JWT = ""
 MIMO_JWT_TIME = 0.0
@@ -128,6 +131,7 @@ CAPABILITY_DB = {
     "zenmux": {"best_for": ["chat", "reasoning", "code", "summarize"], "missing": ["tts", "stt", "image_generation", "video_generation"]},
     "zyloo": {"best_for": ["chat", "reasoning", "code", "summarize"], "missing": ["tts", "stt", "image_generation", "video_generation"]},
     "openagentic": {"best_for": ["chat", "agent", "reasoning", "summarize"], "missing": ["tts", "stt", "image_generation", "video_generation"]},
+    "openjarvis": {"best_for": ["chat", "agent", "reasoning", "code", "summarize", "local-first"], "missing": ["tts", "stt", "image_generation", "video_generation"]},
     "mimo": {"best_for": ["chat", "reasoning", "code", "summarize"], "missing": ["tts", "stt", "image_generation", "video_generation"]},
     "supertonic": {"best_for": ["tts-id"], "missing": ["chat", "stt", "image_generation", "video_generation"]},
     "builtin_search": {"best_for": ["web_search", "image_search", "video_search", "news", "article_extract"], "missing": ["image_generation", "video_generation"]},
@@ -136,6 +140,7 @@ CAPABILITY_DB = {
 
 def _all_chat_provider_specs() -> list[dict]:
     return [
+        *({"name": "openjarvis", "url": f"{OPENJARVIS_URL}/v1/chat/completions", "models_url": f"{OPENJARVIS_URL}/v1/models", "credits_url": None, "key": OPENJARVIS_API_KEY, "model": OPENJARVIS_MODEL, "capabilities": CAPABILITY_DB["openjarvis"]["best_for"]} for _ in [0] if OPENJARVIS_URL),
         *({"name": "openagentic", "url": "https://openagentic.id/api/v1/chat/completions", "models_url": "https://openagentic.id/api/v1/models", "credits_url": None, "key": key, "model": os.getenv("OPENAGENTIC_MODEL", "open-agentic"), "capabilities": CAPABILITY_DB["openagentic"]["best_for"]} for key in _env_keys("OPENAGENTIC_API_KEY")),
         *({"name": "openrouter", "url": "https://openrouter.ai/api/v1/chat/completions", "models_url": "https://openrouter.ai/api/v1/models", "credits_url": "https://openrouter.ai/api/v1/credits", "key": key, "model": os.getenv("OPENROUTER_MODEL", OPENROUTER_MODEL), "capabilities": CAPABILITY_DB["openrouter"]["best_for"]} for key in _env_keys("OPENROUTER_API_KEYS", "OPENROUTER_API_KEY", "OPENROUTER_API_KEY2", "OPENROUTER_API_KEY3")),
         *({"name": "zenmux", "url": "https://zenmux.ai/api/v1/chat/completions", "models_url": "https://zenmux.ai/api/v1/models", "credits_url": None, "key": key, "model": os.getenv("ZENMUX_MODEL", "stepfun/step-3.7-flash-free"), "capabilities": CAPABILITY_DB["zenmux"]["best_for"]} for key in _env_keys("ZENMUX_API_KEY")),
@@ -193,10 +198,24 @@ def _weak_answer(text: str) -> bool:
     return len(lower) < 20 or any(w in lower for w in weak)
 
 
+def _openjarvis_headers() -> dict:
+    return {"Authorization": f"Bearer {OPENJARVIS_API_KEY}"} if OPENJARVIS_API_KEY else {}
+
+async def _openjarvis_default_model(provider: dict) -> str:
+    async with httpx.AsyncClient(timeout=10) as client:
+        res = await client.get(provider["models_url"], headers=_openjarvis_headers())
+        res.raise_for_status()
+        models = [m.get("id") for m in res.json().get("data", []) if m.get("id")]
+    return models[0] if models else os.getenv("OPENJARVIS_FALLBACK_MODEL", "llama3.2:3b")
+
 async def _openai_chat(provider: dict, system: str, message: str, payload: dict) -> str:
-    headers = {"Authorization": f"Bearer {provider['key']}", "Content-Type": "application/json"}
+    headers = {"Content-Type": "application/json"}
+    if provider.get("key"):
+        headers["Authorization"] = f"Bearer {provider['key']}"
     if provider["name"] == "openrouter":
         headers |= {"HTTP-Referer": os.getenv("APP_URL", "https://antasiar.web.id"), "X-Title": "Anta"}
+    if provider["name"] == "openjarvis" and not provider["model"]:
+        provider = provider | {"model": await _openjarvis_default_model(provider)}
     async with httpx.AsyncClient(timeout=60) as client:
         res = await client.post(provider["url"], headers=headers, json={
             "model": provider["model"],
@@ -283,7 +302,7 @@ def providers_status():
     configured = _chat_providers()
     return {
         "capability_db": CAPABILITY_DB,
-        "chat_router": [{"order": i + 1, "name": p["name"], "model": p["model"], "capabilities": p["capabilities"], "configured": True} for i, p in enumerate(configured)] + [{"order": len(configured) + 1, "name": "mimo", "model": "mimo-auto", "capabilities": CAPABILITY_DB["mimo"]["best_for"], "configured": _mimo_enabled()}, {"order": len(configured) + 2, "name": "pollinations", "model": os.getenv("POLLINATIONS_MODEL", "openai"), "capabilities": ["chat"], "configured": True}],
+        "chat_router": [{"order": i + 1, "name": p["name"], "model": p["model"] or "auto", "capabilities": p["capabilities"], "configured": True} for i, p in enumerate(configured)] + [{"order": len(configured) + 1, "name": "mimo", "model": "mimo-auto", "capabilities": CAPABILITY_DB["mimo"]["best_for"], "configured": _mimo_enabled()}, {"order": len(configured) + 2, "name": "pollinations", "model": os.getenv("POLLINATIONS_MODEL", "openai"), "capabilities": ["chat"], "configured": True}],
         "local_tts": {"name": "supertonic", "capabilities": CAPABILITY_DB["supertonic"]["best_for"], "configured": _supertonic_available()},
         "search": {"name": "builtin_search", "capabilities": CAPABILITY_DB["builtin_search"]["best_for"], "configured": True},
     }
@@ -293,7 +312,7 @@ def providers_status():
 def route_task(q: str):
     task = _intent_task(q)
     providers = _providers_for_task(task)
-    return {"task": task, "providers": [{"name": p["name"], "model": p["model"], "capabilities": p["capabilities"]} for p in providers]}
+    return {"task": task, "providers": [{"name": p["name"], "model": p["model"] or "auto", "capabilities": p["capabilities"]} for p in providers]}
 
 
 @app.get("/health")
@@ -391,8 +410,10 @@ async def _provider_monitor(provider: dict, idx: int) -> dict:
                 safe["credit_error"] = str(e)[:120]
         start = time.time()
         try:
+            model = provider["model"] or (await _openjarvis_default_model(provider) if provider["name"] == "openjarvis" else "")
+            safe["model"] = model or "auto"
             res = await client.post(provider["url"], headers=headers | {"Content-Type": "application/json"}, json={
-                "model": provider["model"],
+                "model": model,
                 "messages": [{"role": "user", "content": "Jawab hanya angka: 37*24+19=?"}],
                 "max_tokens": 40,
                 "temperature": 0.2,
@@ -415,6 +436,21 @@ def _check_monitoring_token(req: Request):
     if token and req.headers.get("x-monitoring-token", req.query_params.get("token", "")) != token:
         raise HTTPException(status_code=401, detail="monitoring token required")
 
+
+@app.get("/openjarvis/status")
+async def openjarvis_status():
+    if not OPENJARVIS_URL:
+        return {"configured": False, "ok": False, "url": "", "models": [], "agents": []}
+    out = {"configured": True, "ok": False, "url": OPENJARVIS_URL, "models": [], "agents": []}
+    async with httpx.AsyncClient(timeout=10) as client:
+        models = await client.get(f"{OPENJARVIS_URL}/v1/models", headers=_openjarvis_headers())
+        out["ok"] = models.status_code < 400
+        if out["ok"]:
+            out["models"] = [m.get("id") for m in models.json().get("data", []) if m.get("id")]
+        agents = await client.get(f"{OPENJARVIS_URL}/v1/agents", headers=_openjarvis_headers())
+        if agents.status_code < 400:
+            out["agents"] = agents.json().get("registered", [])
+    return out
 
 @app.get("/monitoring")
 async def monitoring(req: Request):
