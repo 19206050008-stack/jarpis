@@ -228,12 +228,12 @@
 @media(max-width:800px){.subtitle-bubble{top:auto!important;bottom:auto!important;position:absolute!important;top:calc(50% + 75px)!important;left:50%!important;transform:translateX(-50%)!important;min-width:fit-content;max-width:80vw;padding:6px 10px;font-size:7px;width:auto}}
 
 /* Orbit menu: round magnetic buttons beside orb; positioned relative to orb inside center-container. */
-.dock.orbit-menu{position:absolute;left:calc(50% + 86px);top:calc(50% - 30px);bottom:auto;right:auto;transform:none;display:flex;flex-direction:column;gap:10px;padding:0;background:transparent;border:0;box-shadow:none;clip-path:none;z-index:12;pointer-events:auto}
+.dock.orbit-menu{position:absolute;left:calc(50% + 118px);top:calc(50% - 30px);bottom:auto;right:auto;transform:none;display:flex;flex-direction:column;gap:10px;padding:0;background:transparent;border:0;box-shadow:none;clip-path:none;z-index:12;pointer-events:auto}
 .dock.orbit-menu:before{display:none!important}
-.dock.orbit-menu button{width:36px;height:36px;border-radius:50%;clip-path:none;border:1px solid #22d3ee;color:#dffbff;background:radial-gradient(circle at 38% 30%,#e0fbff 0 5%,#22d3ee 10%,#22d3ee55 38%,#083344dd 72%,#020617 100%);box-shadow:0 0 0 2px #22d3ee22,0 0 14px #22d3eeaa,inset 0 0 12px #22d3ee44;animation:button-orbit-float 3s ease-in-out infinite;pointer-events:auto}
+.dock.orbit-menu button{width:32px;height:32px;border-radius:50%;clip-path:none;border:1px solid #22d3ee;color:#dffbff;background:radial-gradient(circle at 38% 30%,#e0fbff 0 5%,#22d3ee 10%,#22d3ee55 38%,#083344dd 72%,#020617 100%);box-shadow:0 0 0 2px #22d3ee22,0 0 14px #22d3eeaa,inset 0 0 12px #22d3ee44;animation:button-orbit-float 3s ease-in-out infinite;pointer-events:auto}
 .dock.orbit-menu button:nth-child(2){transform:translateX(0);animation-delay:-1.1s}
 .dock.orbit-menu button:before,.dock.orbit-menu button:after{display:none!important}
-.dock.orbit-menu button svg{width:15px;height:15px;stroke:#e0fbff;filter:drop-shadow(0 0 5px #e0fbff) drop-shadow(0 0 10px #22d3ee)}
+.dock.orbit-menu button svg{width:13px;height:13px;stroke:#e0fbff;filter:drop-shadow(0 0 5px #e0fbff) drop-shadow(0 0 10px #22d3ee)}
 .dock.orbit-menu button:hover,.dock.orbit-menu button.active{transform:scale(1.08);background:radial-gradient(circle at 38% 30%,#fff 0 5%,#22d3ee 11%,#22d3ee 40%,#22d3ee 72%,#02131d 100%);box-shadow:0 0 0 4px #22d3ee33,0 0 34px #22d3ee,inset 0 0 22px #e0fbff66}
 @keyframes magnet-pull{50%{opacity:.45;transform:translate(-10px,-50%) scaleX(1.14)}}
 @keyframes magnet-line{50%{opacity:.45;transform:scaleX(.72)}}
