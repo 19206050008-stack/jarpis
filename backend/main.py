@@ -48,9 +48,14 @@ SUPERTONIC_VOICES = {
 }
 
 app = FastAPI(title="Anta AI + TTS")
+_cors_origins = list(dict.fromkeys(os.getenv("CORS_ORIGINS", "*").split(",") + [
+    "https://antasiar.my.id",
+    "https://www.antasiar.my.id",
+    "http://localhost:3000",
+]))
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=os.getenv("CORS_ORIGINS", "*").split(","),
+    allow_origins=_cors_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
