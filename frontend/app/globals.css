@@ -291,8 +291,14 @@
 .settings-pop{position:absolute;left:calc(50% + 118px);top:calc(50% + 38px);z-index:80;display:flex;align-items:center;filter:drop-shadow(0 0 18px #22d3ee55);pointer-events:auto}
 .settings-gear{width:28px;height:28px;border:1px solid #22d3ee66;background:#020617;color:#67e8f9;border-radius:50%;display:grid;place-items:center;cursor:pointer;position:relative;z-index:2;transition:background .2s,border-color .2s,transform .2s}
 .settings-gear:hover,.settings-pop.open .settings-gear{background:#083344;border-color:#22d3ee;transform:rotate(24deg)}
-.settings-drawer{height:28px;display:flex;align-items:center;gap:7px;max-width:0;opacity:0;overflow:hidden;transform:translateX(-10px);margin-left:4px;padding:0;background:#020617;border:1px solid #22d3ee66;border-radius:999px;color:#67e8f9;transition:max-width .25s ease,opacity .18s ease,transform .25s ease,padding .25s ease}
+.settings-drawer{height:28px;display:flex;align-items:center;gap:7px;max-width:0;opacity:0;overflow:hidden;transform:translateX(-10px);margin-left:-1px;padding:0;background:#020617;border:1px solid #22d3ee66;border-radius:999px;color:#67e8f9;transition:max-width .25s ease,opacity .18s ease,transform .25s ease,padding .25s ease}
 .settings-pop.open .settings-drawer{max-width:190px;opacity:1;transform:translateX(0);padding:0 8px 0 12px}
 .settings-drawer span{font-size:11px;white-space:nowrap;opacity:.85}
 .settings-drawer button{height:20px;border:1px solid #ef444466;background:#450a0a99;color:#fecaca;border-radius:999px;padding:0 8px;cursor:pointer;font-size:10px}
 .settings-drawer button:hover{background:#7f1d1d;color:#fff}
+
+/* rounded boxes everywhere */
+.popup-window,.custom-viewer,.chat-window,.viewer-window,.command-box,.activity-timeline,.subtitle-bubble,.voice-msg,.msg,.news-item,.video-item,.image-card{border-radius:18px!important;clip-path:none!important}
+.popup-window:before,.popup-window:after,.subtitle-bubble:before,.subtitle-bubble:after{display:none!important}
+.window-header .controls button,.form input,.form button,.tts-dock select,.command-box button{border-radius:999px!important;clip-path:none!important}
+.dock:not(.orbit-menu){border-radius:999px!important;clip-path:none!important}
