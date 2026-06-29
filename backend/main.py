@@ -3,6 +3,9 @@ import io
 import wave
 import time
 import sys
+import json
+import hmac
+import base64
 import asyncio
 import hashlib
 import re
@@ -26,6 +29,12 @@ _start_time = time.time()
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+AUTH_SECRET = os.getenv("ANTA_AUTH_SECRET", "change-me-local")
+USER_PASSWORD = os.getenv("ANTA_USER_PASSWORD", "")
+SUPERADMIN_PASSWORD = os.getenv("ANTA_SUPERADMIN_PASSWORD", "")
+SUPABASE_URL = os.getenv("SUPABASE_URL") or os.getenv("NEXT_PUBLIC_SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_KEY") or os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
+
 MODEL_PATH = os.getenv("MODEL_PATH", "models/Qwen3-0.6B-Q8_0.gguf")
 AI_PROVIDER = os.getenv("AI_PROVIDER", "auto")
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
@@ -44,11 +53,11 @@ SUPERTONIC_DIR = "sherpa-onnx-supertonic-3-tts-int8-2026-05-11"
 ELEVENLABS_API_KEYS = [
     k.strip() for k in (os.getenv("ELEVENLABS_API_KEYS") or os.getenv("ELEVENLABS_API_KEY", "")).split(",") if k.strip()
 ]
-ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "TMvmhlKUioQA4U7LOoko")
+ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "gmnazjXOFoOcWA59sd5m")
 ELEVENLABS_MODEL = os.getenv("ELEVENLABS_MODEL", "eleven_multilingual_v2")
 ELEVENLABS_CACHE_DIR = Path(os.getenv("ELEVENLABS_CACHE_DIR", "tts_cache/elevenlabs_words"))
 ELEVENLABS_VOICES = {
-    "elevenlabs": (ELEVENLABS_VOICE_ID, "Anta v2 — Andi"),
+    "elevenlabs": (ELEVENLABS_VOICE_ID, "Anta v2 — Kira"),
     "elevenlabs-andi": ("TMvmhlKUioQA4U7LOoko", "Andi — clear friendly Indonesian"),
     "elevenlabs-cahaya": ("iWydkXKoiVtvdn4vLKp9", "Cahaya"),
     "elevenlabs-dakocan": ("plgKUYgnlZ1DCNh54DwJ", "Dakocan"),
@@ -144,6 +153,34 @@ class SpeakRequest(BaseModel):
     text: str
     speaker: str | None = None
     speed: float | None = None
+    category: str | None = None
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+def _sign(payload: str) -> str:
+    return hmac.new(AUTH_SECRET.encode(), payload.encode(), hashlib.sha256).hexdigest()
+
+
+def _token(role: str, username: str = "") -> str:
+    payload = base64.urlsafe_b64encode(json.dumps({"role": role, "username": username}).encode()).decode().rstrip("=")
+    return f"{payload}.{_sign(payload)}"
+
+
+def _role_from_auth(request: Request) -> str:
+    token = request.headers.get("authorization", "").removeprefix("Bearer ").strip()
+    if not token or "." not in token:
+        return "user"
+    payload, sig = token.rsplit(".", 1)
+    if not hmac.compare_digest(_sign(payload), sig):
+        return "user"
+    try:
+        data = json.loads(base64.urlsafe_b64decode(payload + "=" * (-len(payload) % 4)))
+        return data.get("role") if data.get("role") in {"user", "superadmin"} else "user"
+    except Exception:
+        return "user"
 
 
 def _elevenlabs_word_path(word: str) -> Path:
@@ -194,6 +231,31 @@ async def _elevenlabs_word_audio(word: str) -> bytes:
 
 def _elevenlabs_voice(speaker: str | None) -> str:
     return ELEVENLABS_VOICES.get((speaker or "").lower(), ELEVENLABS_VOICES["elevenlabs"])[0]
+
+
+def _anta_v2_manifest() -> list[dict]:
+    path = Path("backend/anta-jarvis/tts_cache/anta-v2.1/_manifest.json")
+    if not path.exists():
+        return []
+    import json
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return []
+
+
+def _anta_v2_cached_reply(text: str, category: str | None = None) -> bytes | None:
+    clean = re.sub(r"\s+", " ", text.strip()).lower()
+    items = _anta_v2_manifest()
+    if category:
+        wanted = category.lower().replace("-", " ")
+        items = [x for x in items if wanted in x.get("category", "").lower()]
+    for item in items:
+        if re.sub(r"\s+", " ", item.get("text", "").strip()).lower() == clean:
+            path = Path(item.get("file", ""))
+            if path.exists():
+                return path.read_bytes()
+    return None
 
 llm = None
 if AI_PROVIDER == "local" and not OPENROUTER_API_KEY:
@@ -905,6 +967,35 @@ async def get_article(url: str):
             return {"url": url, "text": "", "error": str(e)}
 
 
+async def _save_login(username: str, role: str):
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        return
+    async with httpx.AsyncClient(timeout=10) as client:
+        await client.post(
+            f"{SUPABASE_URL.rstrip('/')}/rest/v1/anta_logins",
+            headers={
+                "apikey": SUPABASE_KEY,
+                "Authorization": f"Bearer {SUPABASE_KEY}",
+                "Content-Type": "application/json",
+                "Prefer": "resolution=merge-duplicates",
+            },
+            json={"username": username, "role": role},
+        )
+
+@app.post("/auth/login")
+async def login(req: LoginRequest):
+    username = req.username.lower().strip()
+    role = "superadmin" if username == "admin" else "user" if username == "anta" else ""
+    ok = (username == "admin" and req.password == SUPERADMIN_PASSWORD) or (username == "anta" and req.password == USER_PASSWORD)
+    if not ok:
+        raise HTTPException(status_code=401, detail="Login gagal")
+    await _save_login(username, role)
+    return {"username": username, "role": role, "token": _token(role, username)}
+
+@app.get("/auth/me")
+def me(request: Request):
+    return {"role": _role_from_auth(request)}
+
 @app.get("/videos")
 async def search_videos(q: str):
     import urllib.parse
@@ -944,11 +1035,17 @@ async def speak_eleven_words(req: SpeakRequest):
     return Response(content=b"".join(chunks), media_type="audio/mpeg")
 
 @app.post("/speak-eleven-smart")
-async def speak_eleven_smart(req: SpeakRequest):
+async def speak_eleven_smart(req: SpeakRequest, request: Request):
     # ponytail: phrase cache is the natural/cheap middle ground; word-splicing stays fallback.
     text = re.sub(r"\s+", " ", (req.text or "").strip())
     if not text:
         raise HTTPException(status_code=400, detail="Teks wajib diisi")
+    if _role_from_auth(request) != "superadmin":
+        raise HTTPException(status_code=403, detail="Anta v2 hanya untuk superadmin")
+    if (req.speaker or "").lower().startswith("elevenlabs"):
+        cached = _anta_v2_cached_reply(text, req.category)
+        if cached:
+            return Response(content=cached, media_type="audio/mpeg")
     voice_id = _elevenlabs_voice(req.speaker)
     if len(text) <= 160:
         return Response(content=await _elevenlabs_cached_audio(text, "elevenlabs_phrases", voice_id), media_type="audio/mpeg")

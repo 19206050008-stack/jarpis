@@ -1,0 +1,5 @@
+Selesai, Bos. Tugasmu sudah Anta jalankan.
+Permintaanmu sudah selesai saya proses.
+Baik, Bos. Tugas yang kamu minta sudah selesai.
+Anta sudah menyelesaikan tugasmu.
+Selesai. Anta siap menerima perintah berikutnya.

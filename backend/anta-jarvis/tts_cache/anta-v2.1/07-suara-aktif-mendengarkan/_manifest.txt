@@ -1,0 +1,5 @@
+Mode suara aktif, Bos. Silakan beri perintah dengan suara.
+Anta sedang mendengarkan. Silakan sampaikan perintahmu.
+Saya siap mendengar perintahmu, Bos.
+Silakan bicara, Bos. Anta sedang menunggu instruksimu.
+Mode suara sudah menyala. Saya siap menerima instruksi darimu.

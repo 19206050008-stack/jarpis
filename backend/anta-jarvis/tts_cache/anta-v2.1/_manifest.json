@@ -1,0 +1,422 @@
+[
+  {
+    "category": "Pembuka",
+    "text": "Halo, Bos. Anta sudah aktif dan siap membantu pekerjaanmu. Ada yang ingin dikerjakan?",
+    "voice": "Kira",
+    "voice_id": "gmnazjXOFoOcWA59sd5m",
+    "file": "backend\\anta-jarvis\\tts_cache\\anta-v2.1\\01-pembuka\\01-halo_bos._anta_sudah_aktif_dan_siap_membantu_pekerjaanmu._ada_yang_ingin_dikerjakan-86eb579e57.mp3"
+  },
+  {
+    "category": "Pembuka",
+    "text": "Selamat datang kembali, Bos. Anta sudah aktif dan siap menemani pekerjaanmu hari ini.",
+    "voice": "Kira",
+    "voice_id": "gmnazjXOFoOcWA59sd5m",
+    "file": "backend\\anta-jarvis\\tts_cache\\anta-v2.1\\01-pembuka\\02-selamat_datang_kembali_bos._anta_sudah_aktif_dan_siap_menemani_pekerjaanmu_hari_ini.-445b66b74b.mp3"
+  },
+  {
+    "category": "Pembuka",
+    "text": "Halo, Bos. Sistem Anta sudah menyala. Saya siap membantu mencari informasi, membuka aplikasi, atau membacakan hasil untukmu.",
+    "voice": "Kira",
+    "voice_id": "gmnazjXOFoOcWA59sd5m",
+    "file": "backend\\anta-jarvis\\tts_cache\\anta-v2.1\\01-pembuka\\03-halo_bos._sistem_anta_sudah_menyala._saya_siap_membantu_mencari_informasi_membuka_aplikasi_atau_membacakan_hasil_un-487ff9d0a1.mp3"
+  },
+  {
+    "category": "Pembuka",
+    "text": "Anta sudah aktif, Bos. Kalau ada tugas yang ingin dikerjakan, langsung beri perintah saja.",
+    "voice": "Kira",
+    "voice_id": "gmnazjXOFoOcWA59sd5m",
+    "file": "backend\\anta-jarvis\\tts_cache\\anta-v2.1\\01-pembuka\\04-anta_sudah_aktif_bos._kalau_ada_tugas_yang_ingin_dikerjakan_langsung_beri_perintah_saja.-d8cbb84f27.mp3"
+  },
+  {
+    "category": "Pembuka",
+    "text": "Selamat datang, Bos. Anta siap membantu pekerjaanmu dengan respons yang lebih rapi dan mudah dipahami.",
+    "voice": "Kira",
+    "voice_id": "gmnazjXOFoOcWA59sd5m",
+    "file": "backend\\anta-jarvis\\tts_cache\\anta-v2.1\\01-pembuka\\05-selamat_datang_bos._anta_siap_membantu_pekerjaanmu_dengan_respons_yang_lebih_rapi_dan_mudah_dipahami.-35d9250139.mp3"
+  },
+  {
+    "category": "Menerima perintah",
+    "text": "Baik, Bos. Anta akan membantu memproses permintaanmu sekarang. Mohon tunggu sebentar, ya.",
+    "voice": "Kira",
+    "voice_id": "gmnazjXOFoOcWA59sd5m",
+    "file": "backend\\anta-jarvis\\tts_cache\\anta-v2.1\\02-menerima-perintah\\01-baik_bos._anta_akan_membantu_memproses_permintaanmu_sekarang._mohon_tunggu_sebentar_ya.-40f3179be2.mp3"
+  },
+  {
+    "category": "Menerima perintah",
+    "text": "Siap, Bos. Anta akan menjalankan perintahmu dan menampilkan hasilnya setelah selesai.",
+    "voice": "Kira",
+    "voice_id": "gmnazjXOFoOcWA59sd5m",
+    "file": "backend\\anta-jarvis\\tts_cache\\anta-v2.1\\02-menerima-perintah\\02-siap_bos._anta_akan_menjalankan_perintahmu_dan_menampilkan_hasilnya_setelah_selesai.-35166bf832.mp3"
+  },
+  {
+    "category": "Menerima perintah",
+    "text": "Baik, saya sudah memahami permintaanmu. Anta akan mencoba mengerjakannya dengan cara paling cepat.",
+    "voice": "Kira",
+    "voice_id": "gmnazjXOFoOcWA59sd5m",
+    "file": "backend\\anta-jarvis\\tts_cache\\anta-v2.1\\02-menerima-perintah\\03-baik_saya_sudah_memahami_permintaanmu._anta_akan_mencoba_mengerjakannya_dengan_cara_paling_cepat.-830abbee77.mp3"
+  },
+  {
+    "category": "Menerima perintah",
+    "text": "Perintahmu sudah diterima, Bos. Anta akan memprosesnya dan segera menampilkan hasilnya.",
+    "voice": "Kira",
+    "voice_id": "gmnazjXOFoOcWA59sd5m",
+    "file": "backend\\anta-jarvis\\tts_cache\\anta-v2.1\\02-menerima-perintah\\04-perintahmu_sudah_diterima_bos._anta_akan_memprosesnya_dan_segera_menampilkan_hasilnya.-d71d3a67b3.mp3"
+  },
+  {
+    "category": "Menerima perintah",
+    "text": "Siap. Anta mulai mengerjakan tugasmu sekarang. Mohon tunggu sebentar, ya.",
+    "voice": "Kira",
+    "voice_id": "gmnazjXOFoOcWA59sd5m",
+    "file": "backend\\anta-jarvis\\tts_cache\\anta-v2.1\\02-menerima-perintah\\05-siap._anta_mulai_mengerjakan_tugasmu_sekarang._mohon_tunggu_sebentar_ya.-c816d0912a.mp3"
+  },
+  {
+    "category": "Loading / mencari",
+    "text": "Sebentar ya, Bos. Anta sedang mencari informasi yang paling relevan untuk permintaanmu.",
+    "voice": "Kira",
+    "voice_id": "gmnazjXOFoOcWA59sd5m",
+    "file": "backend\\anta-jarvis\\tts_cache\\anta-v2.1\\03-loading-mencari\\01-sebentar_ya_bos._anta_sedang_mencari_informasi_yang_paling_relevan_untuk_permintaanmu.-a270b36019.mp3"
+  },
+  {
+    "category": "Loading / mencari",
+    "text": "Mohon tunggu sebentar. Saya sedang memeriksa data dan memilih hasil yang paling sesuai untukmu.",
+    "voice": "Kira",
+    "voice_id": "gmnazjXOFoOcWA59sd5m",
+    "file": "backend\\anta-jarvis\\tts_cache\\anta-v2.1\\03-loading-mencari\\02-mohon_tunggu_sebentar._saya_sedang_memeriksa_data_dan_memilih_hasil_yang_paling_sesuai_untukmu.-3c912f5f0e.mp3"
+  },
+  {
+    "category": "Loading / mencari",
+    "text": "Baik, saya telusuri dulu sumber yang tersedia. Nanti Anta berikan hasil terbaiknya untukmu.",
+    "voice": "Kira",
+    "voice_id": "gmnazjXOFoOcWA59sd5m",
+    "file": "backend\\anta-jarvis\\tts_cache\\anta-v2.1\\03-loading-mencari\\03-baik_saya_telusuri_dulu_sumber_yang_tersedia._nanti_anta_berikan_hasil_terbaiknya_untukmu.-07533f2ce7.mp3"
+  },
+  {
+    "category": "Loading / mencari",
+    "text": "Anta sedang memproses permintaanmu, Bos. Ini mungkin membutuhkan beberapa detik.",
+    "voice": "Kira",
+    "voice_id": "gmnazjXOFoOcWA59sd5m",
+    "file": "backend\\anta-jarvis\\tts_cache\\anta-v2.1\\03-loading-mencari\\04-anta_sedang_memproses_permintaanmu_bos._ini_mungkin_membutuhkan_beberapa_detik.-afc0cdd228.mp3"
+  },
+  {
+    "category": "Loading / mencari",
+    "text": "Saya sedang mengerjakan tugasmu di belakang layar. Mohon tunggu sebentar, ya.",
+    "voice": "Kira",
+    "voice_id": "gmnazjXOFoOcWA59sd5m",
+    "file": "backend\\anta-jarvis\\tts_cache\\anta-v2.1\\03-loading-mencari\\05-saya_sedang_mengerjakan_tugasmu_di_belakang_layar._mohon_tunggu_sebentar_ya.-1e89bec3e5.mp3"
+  },
+  {
+    "category": "Hasil ditemukan",
+    "text": "Saya sudah menemukan hasil untuk permintaanmu, Bos. Anta tampilkan sekarang.",
+    "voice": "Kira",
+    "voice_id": "gmnazjXOFoOcWA59sd5m",
+    "file": "backend\\anta-jarvis\\tts_cache\\anta-v2.1\\04-hasil-ditemukan\\01-saya_sudah_menemukan_hasil_untuk_permintaanmu_bos._anta_tampilkan_sekarang.-b284f1f175.mp3"
+  },
+  {
+    "category": "Hasil ditemukan",
+    "text": "Baik, Bos. Informasi yang kamu minta sudah saya dapatkan. Berikut hasilnya.",
+    "voice": "Kira",
+    "voice_id": "gmnazjXOFoOcWA59sd5m",
+    "file": "backend\\anta-jarvis\\tts_cache\\anta-v2.1\\04-hasil-ditemukan\\02-baik_bos._informasi_yang_kamu_minta_sudah_saya_dapatkan._berikut_hasilnya.-d3d3ae24bf.mp3"
+  },
+  {
+    "category": "Hasil ditemukan",
+    "text": "Anta menemukan beberapa hasil yang bisa digunakan. Saya pilihkan yang paling relevan untukmu.",
+    "voice": "Kira",
+    "voice_id": "gmnazjXOFoOcWA59sd5m",
+    "file": "backend\\anta-jarvis\\tts_cache\\anta-v2.1\\04-hasil-ditemukan\\03-anta_menemukan_beberapa_hasil_yang_bisa_digunakan._saya_pilihkan_yang_paling_relevan_untukmu.-a2c5b80101.mp3"
+  },
+  {
+    "category": "Hasil ditemukan",
+    "text": "Hasilnya sudah siap, Bos. Saya akan membacakan bagian pentingnya terlebih dahulu.",
+    "voice": "Kira",
+    "voice_id": "gmnazjXOFoOcWA59sd5m",
+    "file": "backend\\anta-jarvis\\tts_cache\\anta-v2.1\\04-hasil-ditemukan\\04-hasilnya_sudah_siap_bos._saya_akan_membacakan_bagian_pentingnya_terlebih_dahulu.-cf1d38d781.mp3"
+  },
+  {
+    "category": "Hasil ditemukan",
+    "text": "Saya sudah mendapatkan datanya. Silakan cek hasil yang Anta tampilkan di layar.",
+    "voice": "Kira",
+    "voice_id": "gmnazjXOFoOcWA59sd5m",
+    "file": "backend\\anta-jarvis\\tts_cache\\anta-v2.1\\04-hasil-ditemukan\\05-saya_sudah_mendapatkan_datanya._silakan_cek_hasil_yang_anta_tampilkan_di_layar.-1077cb0301.mp3"
+  },
+  {
+    "category": "Tidak ditemukan",
+    "text": "Maaf, Bos. Anta belum menemukan hasil yang benar-benar cocok dengan permintaanmu.",
+    "voice": "Kira",
+    "voice_id": "gmnazjXOFoOcWA59sd5m",
+    "file": "backend\\anta-jarvis\\tts_cache\\anta-v2.1\\05-tidak-ditemukan\\01-maaf_bos._anta_belum_menemukan_hasil_yang_benar-benar_cocok_dengan_permintaanmu.-948bacfc25.mp3"
+  },
+  {
+    "category": "Tidak ditemukan",
+    "text": "Saya sudah mencoba mencari datanya, tetapi belum ada hasil yang cukup relevan untuk ditampilkan.",
+    "voice": "Kira",
+    "voice_id": "gmnazjXOFoOcWA59sd5m",
+    "file": "backend\\anta-jarvis\\tts_cache\\anta-v2.1\\05-tidak-ditemukan\\02-saya_sudah_mencoba_mencari_datanya_tetapi_belum_ada_hasil_yang_cukup_relevan_untuk_ditampilkan.-b8d2203b9a.mp3"
+  },
+  {
+    "category": "Tidak ditemukan",
+    "text": "Sepertinya hasilnya belum tersedia, Bos. Coba gunakan kata kunci yang lebih spesifik.",
+    "voice": "Kira",
+    "voice_id": "gmnazjXOFoOcWA59sd5m",
+    "file": "backend\\anta-jarvis\\tts_cache\\anta-v2.1\\05-tidak-ditemukan\\03-sepertinya_hasilnya_belum_tersedia_bos._coba_gunakan_kata_kunci_yang_lebih_spesifik.-01168986ef.mp3"
+  },
+  {
+    "category": "Tidak ditemukan",
+    "text": "Maaf, saya belum berhasil menemukan informasi yang kamu minta saat ini.",
+    "voice": "Kira",
+    "voice_id": "gmnazjXOFoOcWA59sd5m",
+    "file": "backend\\anta-jarvis\\tts_cache\\anta-v2.1\\05-tidak-ditemukan\\04-maaf_saya_belum_berhasil_menemukan_informasi_yang_kamu_minta_saat_ini.-8f17e52efa.mp3"
+  },
+  {
+    "category": "Tidak ditemukan",
+    "text": "Anta belum mendapatkan hasil yang tepat. Kalau mau, saya bisa mencoba mencari dengan kata lain.",
+    "voice": "Kira",
+    "voice_id": "gmnazjXOFoOcWA59sd5m",
+    "file": "backend\\anta-jarvis\\tts_cache\\anta-v2.1\\05-tidak-ditemukan\\05-anta_belum_mendapatkan_hasil_yang_tepat._kalau_mau_saya_bisa_mencoba_mencari_dengan_kata_lain.-01e81e0344.mp3"
+  },
+  {
+    "category": "Error / gagal",
+    "text": "Maaf, Bos. Terjadi kendala saat Anta memproses permintaanmu.",
+    "voice": "Kira",
+    "voice_id": "gmnazjXOFoOcWA59sd5m",
+    "file": "backend\\anta-jarvis\\tts_cache\\anta-v2.1\\06-error-gagal\\01-maaf_bos._terjadi_kendala_saat_anta_memproses_permintaanmu.-c673b96fd7.mp3"
+  },
+  {
+    "category": "Error / gagal",
+    "text": "Sepertinya ada gangguan. Anta akan mencoba memproses permintaanmu lagi sebentar lagi.",
+    "voice": "Kira",
+    "voice_id": "gmnazjXOFoOcWA59sd5m",
+    "file": "backend\\anta-jarvis\\tts_cache\\anta-v2.1\\06-error-gagal\\02-sepertinya_ada_gangguan._anta_akan_mencoba_memproses_permintaanmu_lagi_sebentar_lagi.-587cab8e0f.mp3"
+  },
+  {
+    "category": "Error / gagal",
+    "text": "Maaf, permintaanmu belum berhasil diproses.",
+    "voice": "Kira",
+    "voice_id": "gmnazjXOFoOcWA59sd5m",
+    "file": "backend\\anta-jarvis\\tts_cache\\anta-v2.1\\06-error-gagal\\03-maaf_permintaanmu_belum_berhasil_diproses.-b47d22aae9.mp3"
+  },
+  {
+    "category": "Error / gagal",
+    "text": "Ada kendala teknis, Bos. Coba ulangi perintahmu sebentar lagi.",
+    "voice": "Kira",
+    "voice_id": "gmnazjXOFoOcWA59sd5m",
+    "file": "backend\\anta-jarvis\\tts_cache\\anta-v2.1\\06-error-gagal\\04-ada_kendala_teknis_bos._coba_ulangi_perintahmu_sebentar_lagi.-ad89e89440.mp3"
+  },
+  {
+    "category": "Error / gagal",
+    "text": "Anta mengalami gangguan sementara saat menjalankan tugasmu. Mohon coba lagi.",
+    "voice": "Kira",
+    "voice_id": "gmnazjXOFoOcWA59sd5m",
+    "file": "backend\\anta-jarvis\\tts_cache\\anta-v2.1\\06-error-gagal\\05-anta_mengalami_gangguan_sementara_saat_menjalankan_tugasmu._mohon_coba_lagi.-1e93c5fd6b.mp3"
+  },
+  {
+    "category": "Suara aktif / mendengarkan",
+    "text": "Mode suara aktif, Bos. Silakan beri perintah dengan suara.",
+    "voice": "Kira",
+    "voice_id": "gmnazjXOFoOcWA59sd5m",
+    "file": "backend\\anta-jarvis\\tts_cache\\anta-v2.1\\07-suara-aktif-mendengarkan\\01-mode_suara_aktif_bos._silakan_beri_perintah_dengan_suara.-dc3538d581.mp3"
+  },
+  {
+    "category": "Suara aktif / mendengarkan",
+    "text": "Anta sedang mendengarkan. Silakan sampaikan perintahmu.",
+    "voice": "Kira",
+    "voice_id": "gmnazjXOFoOcWA59sd5m",
+    "file": "backend\\anta-jarvis\\tts_cache\\anta-v2.1\\07-suara-aktif-mendengarkan\\02-anta_sedang_mendengarkan._silakan_sampaikan_perintahmu.-e65f75dcfb.mp3"
+  },
+  {
+    "category": "Suara aktif / mendengarkan",
+    "text": "Saya siap mendengar perintahmu, Bos.",
+    "voice": "Kira",
+    "voice_id": "gmnazjXOFoOcWA59sd5m",
+    "file": "backend\\anta-jarvis\\tts_cache\\anta-v2.1\\07-suara-aktif-mendengarkan\\03-saya_siap_mendengar_perintahmu_bos.-9da072d111.mp3"
+  },
+  {
+    "category": "Suara aktif / mendengarkan",
+    "text": "Silakan bicara, Bos. Anta sedang menunggu instruksimu.",
+    "voice": "Kira",
+    "voice_id": "gmnazjXOFoOcWA59sd5m",
+    "file": "backend\\anta-jarvis\\tts_cache\\anta-v2.1\\07-suara-aktif-mendengarkan\\04-silakan_bicara_bos._anta_sedang_menunggu_instruksimu.-9579f9cb86.mp3"
+  },
+  {
+    "category": "Suara aktif / mendengarkan",
+    "text": "Mode suara sudah menyala. Saya siap menerima instruksi darimu.",
+    "voice": "Kira",
+    "voice_id": "gmnazjXOFoOcWA59sd5m",
+    "file": "backend\\anta-jarvis\\tts_cache\\anta-v2.1\\07-suara-aktif-mendengarkan\\05-mode_suara_sudah_menyala._saya_siap_menerima_instruksi_darimu.-20f785a4ab.mp3"
+  },
+  {
+    "category": "Tidak jelas mendengar",
+    "text": "Maaf, Bos. Anta belum menangkap perintahmu dengan jelas. Bisa diulangi?",
+    "voice": "Kira",
+    "voice_id": "gmnazjXOFoOcWA59sd5m",
+    "file": "backend\\anta-jarvis\\tts_cache\\anta-v2.1\\08-tidak-jelas-mendengar\\01-maaf_bos._anta_belum_menangkap_perintahmu_dengan_jelas._bisa_diulangi-b7effed969.mp3"
+  },
+  {
+    "category": "Tidak jelas mendengar",
+    "text": "Saya kurang jelas mendengarnya. Tolong ulangi perintahmu pelan-pelan.",
+    "voice": "Kira",
+    "voice_id": "gmnazjXOFoOcWA59sd5m",
+    "file": "backend\\anta-jarvis\\tts_cache\\anta-v2.1\\08-tidak-jelas-mendengar\\02-saya_kurang_jelas_mendengarnya._tolong_ulangi_perintahmu_pelan-pelan.-39c1acca2b.mp3"
+  },
+  {
+    "category": "Tidak jelas mendengar",
+    "text": "Maaf, suara kamu belum tertangkap dengan jelas.",
+    "voice": "Kira",
+    "voice_id": "gmnazjXOFoOcWA59sd5m",
+    "file": "backend\\anta-jarvis\\tts_cache\\anta-v2.1\\08-tidak-jelas-mendengar\\03-maaf_suara_kamu_belum_tertangkap_dengan_jelas.-a90ce8c61a.mp3"
+  },
+  {
+    "category": "Tidak jelas mendengar",
+    "text": "Anta belum memahami perintahmu. Bisa ulangi sekali lagi?",
+    "voice": "Kira",
+    "voice_id": "gmnazjXOFoOcWA59sd5m",
+    "file": "backend\\anta-jarvis\\tts_cache\\anta-v2.1\\08-tidak-jelas-mendengar\\04-anta_belum_memahami_perintahmu._bisa_ulangi_sekali_lagi-e3e1ad9f89.mp3"
+  },
+  {
+    "category": "Tidak jelas mendengar",
+    "text": "Sepertinya audio kurang jelas, Bos. Coba sampaikan perintahmu sekali lagi.",
+    "voice": "Kira",
+    "voice_id": "gmnazjXOFoOcWA59sd5m",
+    "file": "backend\\anta-jarvis\\tts_cache\\anta-v2.1\\08-tidak-jelas-mendengar\\05-sepertinya_audio_kurang_jelas_bos._coba_sampaikan_perintahmu_sekali_lagi.-e62f6ccab0.mp3"
+  },
+  {
+    "category": "Membuka aplikasi / website",
+    "text": "Baik, Bos. Anta akan membuka halaman yang kamu minta sekarang.",
+    "voice": "Kira",
+    "voice_id": "gmnazjXOFoOcWA59sd5m",
+    "file": "backend\\anta-jarvis\\tts_cache\\anta-v2.1\\09-membuka-aplikasi-website\\01-baik_bos._anta_akan_membuka_halaman_yang_kamu_minta_sekarang.-9c151e3569.mp3"
+  },
+  {
+    "category": "Membuka aplikasi / website",
+    "text": "Saya akan membuka aplikasi itu untukmu.",
+    "voice": "Kira",
+    "voice_id": "gmnazjXOFoOcWA59sd5m",
+    "file": "backend\\anta-jarvis\\tts_cache\\anta-v2.1\\09-membuka-aplikasi-website\\02-saya_akan_membuka_aplikasi_itu_untukmu.-670130817e.mp3"
+  },
+  {
+    "category": "Membuka aplikasi / website",
+    "text": "Anta sedang membuka tujuan yang kamu minta.",
+    "voice": "Kira",
+    "voice_id": "gmnazjXOFoOcWA59sd5m",
+    "file": "backend\\anta-jarvis\\tts_cache\\anta-v2.1\\09-membuka-aplikasi-website\\03-anta_sedang_membuka_tujuan_yang_kamu_minta.-e8fcf6e300.mp3"
+  },
+  {
+    "category": "Membuka aplikasi / website",
+    "text": "Siap, saya buka di layar sekarang.",
+    "voice": "Kira",
+    "voice_id": "gmnazjXOFoOcWA59sd5m",
+    "file": "backend\\anta-jarvis\\tts_cache\\anta-v2.1\\09-membuka-aplikasi-website\\04-siap_saya_buka_di_layar_sekarang.-ce152302ce.mp3"
+  },
+  {
+    "category": "Membuka aplikasi / website",
+    "text": "Baik, saya arahkan ke halaman yang kamu minta.",
+    "voice": "Kira",
+    "voice_id": "gmnazjXOFoOcWA59sd5m",
+    "file": "backend\\anta-jarvis\\tts_cache\\anta-v2.1\\09-membuka-aplikasi-website\\05-baik_saya_arahkan_ke_halaman_yang_kamu_minta.-6481117caf.mp3"
+  },
+  {
+    "category": "Panel / tampilan",
+    "text": "Baik, Bos. Anta kecilkan panelnya sekarang.",
+    "voice": "Kira",
+    "voice_id": "gmnazjXOFoOcWA59sd5m",
+    "file": "backend\\anta-jarvis\\tts_cache\\anta-v2.1\\10-panel-tampilan\\01-baik_bos._anta_kecilkan_panelnya_sekarang.-6c50208340.mp3"
+  },
+  {
+    "category": "Panel / tampilan",
+    "text": "Siap, saya tutup panel yang kamu minta.",
+    "voice": "Kira",
+    "voice_id": "gmnazjXOFoOcWA59sd5m",
+    "file": "backend\\anta-jarvis\\tts_cache\\anta-v2.1\\10-panel-tampilan\\02-siap_saya_tutup_panel_yang_kamu_minta.-771d98f23b.mp3"
+  },
+  {
+    "category": "Panel / tampilan",
+    "text": "Saya besarkan panelnya agar hasilnya lebih mudah dilihat.",
+    "voice": "Kira",
+    "voice_id": "gmnazjXOFoOcWA59sd5m",
+    "file": "backend\\anta-jarvis\\tts_cache\\anta-v2.1\\10-panel-tampilan\\03-saya_besarkan_panelnya_agar_hasilnya_lebih_mudah_dilihat.-3e84aa5225.mp3"
+  },
+  {
+    "category": "Panel / tampilan",
+    "text": "Baik, saya rapikan tampilan layar untukmu.",
+    "voice": "Kira",
+    "voice_id": "gmnazjXOFoOcWA59sd5m",
+    "file": "backend\\anta-jarvis\\tts_cache\\anta-v2.1\\10-panel-tampilan\\04-baik_saya_rapikan_tampilan_layar_untukmu.-9371f2c6b1.mp3"
+  },
+  {
+    "category": "Panel / tampilan",
+    "text": "Panel sudah saya atur, Bos.",
+    "voice": "Kira",
+    "voice_id": "gmnazjXOFoOcWA59sd5m",
+    "file": "backend\\anta-jarvis\\tts_cache\\anta-v2.1\\10-panel-tampilan\\05-panel_sudah_saya_atur_bos.-2de0bf4e50.mp3"
+  },
+  {
+    "category": "Mengganti suara",
+    "text": "Baik, Bos. Anta akan menggunakan mode suara yang baru.",
+    "voice": "Kira",
+    "voice_id": "gmnazjXOFoOcWA59sd5m",
+    "file": "backend\\anta-jarvis\\tts_cache\\anta-v2.1\\11-mengganti-suara\\01-baik_bos._anta_akan_menggunakan_mode_suara_yang_baru.-e74a6048f3.mp3"
+  },
+  {
+    "category": "Mengganti suara",
+    "text": "Mode suara sudah saya ubah, Bos. Silakan lanjutkan perintahmu.",
+    "voice": "Kira",
+    "voice_id": "gmnazjXOFoOcWA59sd5m",
+    "file": "backend\\anta-jarvis\\tts_cache\\anta-v2.1\\11-mengganti-suara\\02-mode_suara_sudah_saya_ubah_bos._silakan_lanjutkan_perintahmu.-d65966d862.mp3"
+  },
+  {
+    "category": "Mengganti suara",
+    "text": "Baik, saya sudah mengganti cara Anta berbicara.",
+    "voice": "Kira",
+    "voice_id": "gmnazjXOFoOcWA59sd5m",
+    "file": "backend\\anta-jarvis\\tts_cache\\anta-v2.1\\11-mengganti-suara\\03-baik_saya_sudah_mengganti_cara_anta_berbicara.-9dcf2512f6.mp3"
+  },
+  {
+    "category": "Mengganti suara",
+    "text": "Pengaturan suara sudah diperbarui, Bos.",
+    "voice": "Kira",
+    "voice_id": "gmnazjXOFoOcWA59sd5m",
+    "file": "backend\\anta-jarvis\\tts_cache\\anta-v2.1\\11-mengganti-suara\\04-pengaturan_suara_sudah_diperbarui_bos.-57928a79fe.mp3"
+  },
+  {
+    "category": "Mengganti suara",
+    "text": "Selesai, Bos. Anta sudah memakai suara yang kamu pilih.",
+    "voice": "Kira",
+    "voice_id": "gmnazjXOFoOcWA59sd5m",
+    "file": "backend\\anta-jarvis\\tts_cache\\anta-v2.1\\11-mengganti-suara\\05-selesai_bos._anta_sudah_memakai_suara_yang_kamu_pilih.-f6b321d0df.mp3"
+  },
+  {
+    "category": "Selesai tugas",
+    "text": "Selesai, Bos. Tugasmu sudah Anta jalankan.",
+    "voice": "Kira",
+    "voice_id": "gmnazjXOFoOcWA59sd5m",
+    "file": "backend\\anta-jarvis\\tts_cache\\anta-v2.1\\12-selesai-tugas\\01-selesai_bos._tugasmu_sudah_anta_jalankan.-17ae28c7b4.mp3"
+  },
+  {
+    "category": "Selesai tugas",
+    "text": "Permintaanmu sudah selesai saya proses.",
+    "voice": "Kira",
+    "voice_id": "gmnazjXOFoOcWA59sd5m",
+    "file": "backend\\anta-jarvis\\tts_cache\\anta-v2.1\\12-selesai-tugas\\02-permintaanmu_sudah_selesai_saya_proses.-0d02ec4305.mp3"
+  },
+  {
+    "category": "Selesai tugas",
+    "text": "Baik, Bos. Tugas yang kamu minta sudah selesai.",
+    "voice": "Kira",
+    "voice_id": "gmnazjXOFoOcWA59sd5m",
+    "file": "backend\\anta-jarvis\\tts_cache\\anta-v2.1\\12-selesai-tugas\\03-baik_bos._tugas_yang_kamu_minta_sudah_selesai.-0f21a00d14.mp3"
+  },
+  {
+    "category": "Selesai tugas",
+    "text": "Anta sudah menyelesaikan tugasmu.",
+    "voice": "Kira",
+    "voice_id": "gmnazjXOFoOcWA59sd5m",
+    "file": "backend\\anta-jarvis\\tts_cache\\anta-v2.1\\12-selesai-tugas\\04-anta_sudah_menyelesaikan_tugasmu.-805b12d104.mp3"
+  },
+  {
+    "category": "Selesai tugas",
+    "text": "Selesai. Anta siap menerima perintah berikutnya.",
+    "voice": "Kira",
+    "voice_id": "gmnazjXOFoOcWA59sd5m",
+    "file": "backend\\anta-jarvis\\tts_cache\\anta-v2.1\\12-selesai-tugas\\05-selesai._anta_siap_menerima_perintah_berikutnya.-8390c9b97e.mp3"
+  }
+]

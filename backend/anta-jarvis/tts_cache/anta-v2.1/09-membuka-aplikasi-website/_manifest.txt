@@ -1,0 +1,5 @@
+Baik, Bos. Anta akan membuka halaman yang kamu minta sekarang.
+Saya akan membuka aplikasi itu untukmu.
+Anta sedang membuka tujuan yang kamu minta.
+Siap, saya buka di layar sekarang.
+Baik, saya arahkan ke halaman yang kamu minta.

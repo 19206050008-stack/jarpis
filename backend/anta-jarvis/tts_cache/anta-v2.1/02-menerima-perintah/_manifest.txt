@@ -1,0 +1,5 @@
+Baik, Bos. Anta akan membantu memproses permintaanmu sekarang. Mohon tunggu sebentar, ya.
+Siap, Bos. Anta akan menjalankan perintahmu dan menampilkan hasilnya setelah selesai.
+Baik, saya sudah memahami permintaanmu. Anta akan mencoba mengerjakannya dengan cara paling cepat.
+Perintahmu sudah diterima, Bos. Anta akan memprosesnya dan segera menampilkan hasilnya.
+Siap. Anta mulai mengerjakan tugasmu sekarang. Mohon tunggu sebentar, ya.

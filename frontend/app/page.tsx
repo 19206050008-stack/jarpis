@@ -165,6 +165,9 @@ export default function Home() {
   // Audio States
   const [audioUrl, setAudioUrl] = useState<string>("");
   const [speaker, setSpeaker] = useState("andi");
+  const [authRole, setAuthRole] = useState("user");
+  const [authToken, setAuthToken] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
   const [speakEnabled, setSpeakEnabled] = useState(true);
   const [isAiSpeaking, setIsAiSpeaking] = useState(false);
   const [audioLevel, setAudioLevel] = useState(0);
@@ -181,6 +184,35 @@ export default function Home() {
   const [backendAlive, setBackendAlive] = useState(true);
   const [agentAccepted, setAgentAccepted] = useState(true); // default to true (hidden) to prevent layout shift / background check first
   const [showAgentBanner, setShowAgentBanner] = useState(false);
+
+  useEffect(() => {
+    setAuthRole(localStorage.getItem("anta_role") || "user");
+    setAuthToken(localStorage.getItem("anta_token") || "");
+  }, []);
+
+  async function loginAs(username: "anta" | "admin") {
+    const res = await fetch(`${apiUrl}/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password: loginPassword }),
+    }).catch(() => null);
+    if (!res?.ok) return alert("Login gagal");
+    const data = await res.json();
+    localStorage.setItem("anta_role", data.role);
+    localStorage.setItem("anta_token", data.token);
+    setAuthRole(data.role);
+    setAuthToken(data.token);
+    setLoginPassword("");
+    if (data.role !== "superadmin") setSpeaker("andi");
+  }
+
+  function logout() {
+    localStorage.removeItem("anta_role");
+    localStorage.removeItem("anta_token");
+    setAuthRole("user");
+    setAuthToken("");
+    setSpeaker("andi");
+  }
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -395,7 +427,7 @@ export default function Home() {
       const endpoint = speaker.startsWith("elevenlabs") ? "/speak-eleven-smart" : "/speak";
       const speakRes = await fetch(`${apiUrl}${endpoint}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}) },
         body: JSON.stringify({ text: clean.slice(0, 700), speaker }),
       });
       if (speakRes.ok) {
@@ -412,6 +444,18 @@ export default function Home() {
         attachPlayListener();
         // Safety timeout
         setTimeout(() => { setSubtitle(""); setVoiceTranscript(""); setIsAiSpeaking(false); }, Math.max(8000, clean.length * 150));
+      } else if (speaker.startsWith("elevenlabs")) {
+        setSpeaker("andi");
+        const fallback = await fetch(`${apiUrl}/speak`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: clean.slice(0, 700), speaker: "andi" }),
+        }).catch(() => null);
+        if (fallback?.ok) {
+          const url = URL.createObjectURL(await fallback.blob());
+          setAudioUrl(url);
+          attachPlayListener();
+        } else playTypingEffect();
       } else {
         // TTS failed - fallback to typing effect
         playTypingEffect();
@@ -597,7 +641,7 @@ export default function Home() {
       }
     }, 4000);
     return () => clearInterval(interval);
-  }, [apiUrl, speaker, speakEnabled, agentAccepted]);
+  }, [apiUrl, speaker, speakEnabled, agentAccepted, authToken]);
 
   // Orb stays idle — gentle breathing animation only, no random mode switching
 
@@ -914,8 +958,9 @@ export default function Home() {
 
     if (lower.includes("buka aplikasi") || lower.includes("jalankan aplikasi")) return openKnownApp(rest || text);
 
-    const voice = voices.find((v) => lower.includes(v.id) || lower.includes(v.label.toLowerCase().split(" ")[0]));
-    if ((lower.includes("ganti suara") || lower.includes("ubah suara")) && voice) {
+    const voice = voices.find((v) => lower.includes(v.id) || lower.includes(v.label.toLowerCase().split(" ")[0]) || (v.id === "elevenlabs" && lower.includes("versi dua")) || (v.id === "andi" && lower.includes("versi satu")));
+    if ((lower.includes("ganti suara") || lower.includes("ubah suara") || lower.includes("pakai suara") || lower.includes("aktifkan anta")) && voice) {
+      if (voice.id === "elevenlabs" && authRole !== "superadmin") return "Maaf, Bos. Anta versi dua hanya bisa digunakan oleh superadmin.";
       setSpeaker(voice.id);
       return `Baik, suara Anta saya ganti ke ${voice.label}.`;
     }
@@ -1399,6 +1444,20 @@ export default function Home() {
           <button onClick={acceptAgent}>Aktifkan Pemantauan</button>
         </div>
       )}
+
+      <div style={{ position: "fixed", top: 10, right: 10, zIndex: 500, display: "flex", gap: 6, alignItems: "center", fontSize: 11 }}>
+        <span style={{ color: "#67e8f9" }}>{authRole}</span>
+        <input
+          value={loginPassword}
+          onChange={(e) => setLoginPassword(e.target.value)}
+          placeholder="password"
+          type="password"
+          style={{ width: 110, background: "#020617", color: "#dffbff", border: "1px solid #22d3ee55", borderRadius: 6, padding: "5px 7px" }}
+        />
+        <button type="button" onClick={() => void loginAs("anta")}>User</button>
+        <button type="button" onClick={() => void loginAs("admin")}>Superadmin</button>
+        <button type="button" onClick={logout}>Logout</button>
+      </div>
 
       {paletteOpen && (
         <div className="command-palette" onClick={() => setPaletteOpen(false)}>

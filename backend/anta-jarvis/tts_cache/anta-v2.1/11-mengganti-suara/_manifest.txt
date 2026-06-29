@@ -1,0 +1,5 @@
+Baik, Bos. Anta akan menggunakan mode suara yang baru.
+Mode suara sudah saya ubah, Bos. Silakan lanjutkan perintahmu.
+Baik, saya sudah mengganti cara Anta berbicara.
+Pengaturan suara sudah diperbarui, Bos.
+Selesai, Bos. Anta sudah memakai suara yang kamu pilih.
