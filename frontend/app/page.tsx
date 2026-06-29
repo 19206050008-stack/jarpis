@@ -152,8 +152,6 @@ export default function Home() {
   const [articleText, setArticleText] = useState("");
   const [articleSource, setArticleSource] = useState("");
   const [jarvisStatus, setJarvisStatus] = useState<any>(null);
-  const [jarvisPrompt, setJarvisPrompt] = useState("Halo Jarvis, jawab singkat: kamu aktif?");
-  const [jarvisAnswer, setJarvisAnswer] = useState("");
   
   // Popup States: 'closed' | 'open' | 'minimized'
   const [chatState, setChatState] = useState<'closed' | 'open' | 'minimized'>('closed');
@@ -255,8 +253,8 @@ export default function Home() {
   const lastActiveAppRef = useRef("");
 
   async function openOpenJarvis() {
-    setArticleText(""); setNews([]); setVideos([]); setImages([]); setSelectedVideo(null); setJarvisAnswer("");
-    setView({ title: "OpenJarvis", url: "", note: "Anta Jarvis sudah digabung. Pakai panel ini untuk cek status dan tes." });
+    setArticleText(""); setNews([]); setVideos([]); setImages([]); setSelectedVideo(null);
+    setView({ title: "OpenJarvis", url: "", note: "Anta Jarvis aktif di background. Chat dan suara Anta otomatis memakai router ini." });
     setViewerState("open");
     if (apiUrl) fetch(`${apiUrl}/openjarvis/status`, { cache: "no-store" }).then((r) => r.json()).then(setJarvisStatus).catch(() => setJarvisStatus({ ok: false }));
   }
@@ -276,6 +274,14 @@ export default function Home() {
     { label: "Kunci orb", hint: "Orb tidak bisa digeser", run: () => setOrbMoveEnabled(false) },
     { label: "Bebaskan orb", hint: "Orb bisa digeser", run: () => setOrbMoveEnabled(true) },
   ], []);
+
+  useEffect(() => {
+    if (!apiUrl) return;
+    const load = () => fetch(`${apiUrl}/openjarvis/status`, { cache: "no-store" }).then((r) => r.json()).then(setJarvisStatus).catch(() => setJarvisStatus({ ok: false }));
+    load();
+    const timer = setInterval(load, 30000);
+    return () => clearInterval(timer);
+  }, []);
 
   const voices = useMemo(() => [
     { id: "sari", label: "Sari — Wanita" },
@@ -1451,8 +1457,9 @@ export default function Home() {
           <button className={listening ? 'active' : ''} onClick={startVoiceInput} title="Perintah Suara">
             <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
           </button>
-          <button onClick={openOpenJarvis} title="OpenJarvis">
+          <button className={jarvisStatus?.ok ? "active jarvis-ready" : ""} onClick={openOpenJarvis} title={jarvisStatus?.ok ? "OpenJarvis aktif" : "OpenJarvis"}>
             <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none"><path d="M12 2l8 4v6c0 5-3.4 8.7-8 10-4.6-1.3-8-5-8-10V6l8-4z"></path><path d="M9 12h6"></path><path d="M12 9v6"></path></svg>
+            <span className="jarvis-status-dot" />
           </button>
         </nav>
       </div>
@@ -1499,17 +1506,16 @@ export default function Home() {
             {!articleText && news.length === 0 && videos.length === 0 && images.length === 0 && view.title === "OpenJarvis" && (
               <div className="article-view">
                 <h3>Anta Jarvis</h3>
-                <p>Status: {jarvisStatus ? (jarvisStatus.ok ? "tersambung" : "belum tersambung") : "memeriksa..."}</p>
+                <p>Status: {jarvisStatus ? (jarvisStatus.ok ? "aktif di background" : "belum tersambung") : "memeriksa..."}</p>
                 {jarvisStatus?.agents?.length > 0 && <p>Agents: {jarvisStatus.agents.slice(0, 8).map((a: any) => a.key).join(", ")}</p>}
-                <div className="form" style={{ borderTop: 0, padding: 0, margin: "12px 0" }}>
-                  <input value={jarvisPrompt} onChange={(e) => setJarvisPrompt(e.target.value)} />
-                  <button type="button" onClick={async () => {
-                    setJarvisAnswer("memproses...");
-                    const res = await fetch(`${apiUrl}/chat`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: jarvisPrompt, try_all: false }) });
-                    setJarvisAnswer(cleanText(await res.text()));
-                  }}>Tes</button>
-                </div>
-                {jarvisAnswer && <p>{jarvisAnswer}</p>}
+                <h4>Cara pakai</h4>
+                <ul>
+                  <li>Chat biasa: ketik perintah di panel chat Anta.</li>
+                  <li>Suara: tekan tombol mikrofon lalu bicara seperti biasa.</li>
+                  <li>Untuk memaksa pakai Jarvis, awali dengan: “pakai Jarvis ...”.</li>
+                  <li>Contoh: “pakai Jarvis riset singkat tentang energi surya”.</li>
+                  <li>Contoh suara: “Halo Anta, pakai Jarvis buat rencana kerja hari ini”.</li>
+                </ul>
               </div>
             )}
             {!articleText && news.length === 0 && videos.length === 0 && images.length === 0 && view.title !== "OpenJarvis" && view.url && <iframe className="viewer-frame" src={view.url} title={view.title || "OpenJarvis"} />}

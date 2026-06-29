@@ -235,6 +235,7 @@
 .dock.orbit-menu button:before,.dock.orbit-menu button:after{display:none!important}
 .dock.orbit-menu button svg{width:13px;height:13px;stroke:#e0fbff;filter:drop-shadow(0 0 5px #e0fbff) drop-shadow(0 0 10px #22d3ee)}
 .dock.orbit-menu button:hover,.dock.orbit-menu button.active{transform:scale(1.08);background:radial-gradient(circle at 38% 30%,#fff 0 5%,#22d3ee 11%,#22d3ee 40%,#22d3ee 72%,#02131d 100%);box-shadow:0 0 0 4px #22d3ee33,0 0 34px #22d3ee,inset 0 0 22px #e0fbff66}
+.jarvis-status-dot{position:absolute;right:3px;top:3px;width:6px;height:6px;border-radius:50%;background:#64748b;box-shadow:0 0 8px #64748b}.jarvis-ready .jarvis-status-dot{background:#22c55e;box-shadow:0 0 10px #22c55e}
 @keyframes magnet-pull{50%{opacity:.45;transform:translate(-10px,-50%) scaleX(1.14)}}
 @keyframes magnet-line{50%{opacity:.45;transform:scaleX(.72)}}
 @keyframes button-ring{50%{transform:scale(1.12);opacity:.35}}
