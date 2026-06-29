@@ -694,6 +694,14 @@ async def delete_chat_history(session_id: str):
     return {"ok": True}
 
 
+@app.post("/memory/backfill")
+async def memory_backfill(limit: int = 100):
+    rows = await _supabase_get("memories", {"embedding": "is.null", "select": "id,content", "limit": str(limit)})
+    for row in rows:
+        await _supabase_patch("memories", {"id": f"eq.{row['id']}"}, {"embedding": _vector_literal(_hash_embedding(row.get("content", "")))})
+    return {"ok": True, "updated": len(rows)}
+
+
 @app.websocket("/ws/chat")
 async def chat_ws(ws: WebSocket):
     await ws.accept()
@@ -1096,6 +1104,18 @@ async def _supabase_delete(table: str, params: dict):
             f"{SUPABASE_URL.rstrip('/')}/rest/v1/{table}",
             headers={"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"},
             params=params,
+        )
+
+
+async def _supabase_patch(table: str, params: dict, row: dict):
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        return
+    async with httpx.AsyncClient(timeout=10) as client:
+        await client.patch(
+            f"{SUPABASE_URL.rstrip('/')}/rest/v1/{table}",
+            headers={"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}", "Content-Type": "application/json"},
+            params=params,
+            json=row,
         )
 
 
