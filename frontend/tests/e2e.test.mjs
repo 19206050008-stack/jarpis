@@ -42,7 +42,7 @@ async function runTests() {
     // Test 1: Page loads
     log('Test 1: Page loads correctly', colors.yellow);
     await page.goto(BASE_URL, { waitUntil: 'networkidle' });
-    await page.waitForSelector('.anta-desktop', { timeout: TIMEOUT });
+    await page.waitForSelector('.jarvis-desktop', { timeout: TIMEOUT });
     log('✓ Page loaded', colors.green);
     passed++;
 

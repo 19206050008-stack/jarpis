@@ -7,7 +7,7 @@ const page = await browser.newPage({ viewport: { width: 1920, height: 945 } });
 
 try {
   await page.goto(BASE_URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
-  await page.waitForSelector('.anta-orb', { timeout: 30000 });
+  await page.waitForSelector('.jarvis-orb', { timeout: 30000 });
   await page.waitForTimeout(500);
 
   const data = await page.evaluate(() => {
@@ -16,17 +16,17 @@ try {
       if (!r) throw new Error(`${selector} not found`);
       return { x: r.x, y: r.y, w: r.width, h: r.height, cx: r.x + r.width / 2, cy: r.y + r.height / 2 };
     };
-    const lines = [...document.querySelectorAll('.anta-eq line')].map((line) => line.getBoundingClientRect());
+    const lines = [...document.querySelectorAll('.jarvis-eq line')].map((line) => line.getBoundingClientRect());
     const minX = Math.min(...lines.map((r) => r.x));
     const maxX = Math.max(...lines.map((r) => r.x + r.width));
     const minY = Math.min(...lines.map((r) => r.y));
     const maxY = Math.max(...lines.map((r) => r.y + r.height));
     return {
-      orb: box('.anta-orb'),
-      core: box('.anta-core'),
-      main: box('.anta-ring.main'),
+      orb: box('.jarvis-orb'),
+      core: box('.jarvis-core'),
+      main: box('.jarvis-ring.main'),
       subtitle: box('.subtitle-bubble'),
-      hud: box('.anta-hud'),
+      hud: box('.jarvis-hud'),
       left: box('.hud-readout.left'),
       right: box('.hud-readout.right'),
       bars: { x: minX, y: minY, w: maxX - minX, h: maxY - minY, cx: (minX + maxX) / 2, cy: (minY + maxY) / 2 },
