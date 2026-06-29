@@ -22,16 +22,6 @@ def _ensure_anta_jarvis() -> bool:
         pass
 
     for base in ("anta-jarvis", "backend/anta-jarvis"):
-        src = os.path.abspath(os.path.join(base, "src"))
-        if os.path.isdir(src):
-            os.environ["PYTHONPATH"] = src + os.pathsep + os.getenv("PYTHONPATH", "")
-            sys.path.insert(0, src)
-            try:
-                import openjarvis  # noqa: F401
-                return True
-            except ModuleNotFoundError:
-                pass
-
         if os.path.isdir(base):
             print("Installing Anta Jarvis package...", flush=True)
             subprocess.check_call([sys.executable, "-m", "pip", "install", "--no-cache-dir", f"./{base}[server,inference-cloud]"])
