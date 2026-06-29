@@ -132,7 +132,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [providerBadge, setProviderBadge] = useState("");
-  const [tasks, setTasks] = useState<string[]>([]);
+
   const [lastProvider, setLastProvider] = useState("");
 
   useEffect(() => {
@@ -295,16 +295,7 @@ export default function Home() {
     { label: "Voice", hint: "Mulai perintah suara", run: () => startVoiceInput() },
     { label: "Berita hari ini", hint: "Cari berita terbaru", run: () => send("berita hari ini") },
     { label: "Cari gambar", hint: "Cari gambar dengan Anta", run: () => { setViewerState("open"); setViewerFullscreen(true); setInput("gambar "); } },
-    { label: "Task planner", hint: "Buat checklist kerja", run: () => {
-      const q = prompt("Masukkan tugas/rencana kerja:");
-      if (q) setTasks(q.split(",").map(t => t.trim()));
-    } },
-    { label: "Memory", hint: "Buka dashboard memori", run: () => window.open("/memory", "_blank") },
-    { label: "Monitoring", hint: "Buka halaman monitoring", run: () => window.open("/monitoring", "_blank") },
-    { label: "OpenJarvis", hint: "Buka di Monitor Anta", run: openOpenJarvis },
-    { label: "Kunci orb", hint: "Orb tidak bisa digeser", run: () => setOrbMoveEnabled(false) },
-    { label: "Bebaskan orb", hint: "Orb bisa digeser", run: () => setOrbMoveEnabled(true) },
-  ], [openOpenJarvis]);
+  ], []);
 
   useEffect(() => {
     if (!apiUrl) return;
@@ -1484,9 +1475,6 @@ export default function Home() {
 
         {/* Orbit Menu — inside center-container so it follows orb animations */}
         <nav className="dock orbit-menu">
-          <button className={jarvisStatus?.ok ? "jarvis-ready" : ""} onClick={openOpenJarvis} title={jarvisStatus?.ok ? "OpenJarvis aktif" : "OpenJarvis"}>
-            <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none"><path d="M12 2l8 4v6c0 5-3.4 8.7-8 10-4.6-1.3-8-5-8-10V6l8-4z"></path><path d="M9 12h6"></path><path d="M12 9v6"></path></svg>
-          </button>
           <button className={listening ? 'active' : ''} onClick={startVoiceInput} title="Perintah Suara">
             <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
           </button>
@@ -1647,23 +1635,7 @@ export default function Home() {
       {/* Hidden Audio Player for TTS */}
       {audioUrl && <audio key={audioUrl} ref={audioRef} src={audioUrl} autoPlay style={{ display: "none" }} />}
 
-      {/* Task Planner Sidebar */}
-      {tasks.length > 0 && (
-        <aside className="task-planner-sidebar" style={{ position: "fixed", right: 20, top: 120, zIndex: 100, width: 220, padding: 14, border: "1px solid #22d3ee55", borderRadius: 18, background: "linear-gradient(180deg,#020617f2,#031228f2)", boxShadow: "0 12px 40px #0009, 0 0 28px #22d3ee33", color: "#d8faff", fontFamily: "Arial, sans-serif" }}>
-          <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, borderBottom: "1px solid #22d3ee22", paddingBottom: 6 }}>
-            <b style={{ color: "#67e8f9", fontSize: 13, letterSpacing: 0.6 }}>Task Planner</b>
-            <button onClick={() => setTasks([])} style={{ background: "none", border: "0", color: "#fb7185", cursor: "pointer", fontSize: 11 }}>Clear</button>
-          </header>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {tasks.map((task, idx) => (
-              <div key={idx} style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 12 }}>
-                <input type="checkbox" id={`task-${idx}`} style={{ cursor: "pointer", marginTop: 2 }} />
-                <label htmlFor={`task-${idx}`} style={{ cursor: "pointer", userSelect: "none" }}>{task}</label>
-              </div>
-            ))}
-          </div>
-        </aside>
-      )}
+
     </main>
   );
 }
