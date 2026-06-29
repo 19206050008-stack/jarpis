@@ -254,7 +254,7 @@ export default function Home() {
 
   async function openOpenJarvis() {
     setArticleText(""); setNews([]); setVideos([]); setImages([]); setSelectedVideo(null);
-    setView({ title: "OpenJarvis UI", url: `${apiUrl}/jarvis/`, note: "UI asli OpenJarvis dibuka di dalam Anta." });
+    setView({ title: "OpenJarvis UI", url: `${apiUrl}/jarvis/?t=${Date.now()}`, note: "UI asli OpenJarvis dibuka di dalam Anta." });
     setViewerState("open");
     if (apiUrl) fetch(`${apiUrl}/openjarvis/status`, { cache: "no-store" }).then((r) => r.json()).then(setJarvisStatus).catch(() => setJarvisStatus({ ok: false }));
   }
