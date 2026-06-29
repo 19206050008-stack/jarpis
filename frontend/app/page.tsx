@@ -156,6 +156,7 @@ export default function Home() {
   const [researchMessages, setResearchMessages] = useState<Array<{role: string, content: string}>>([]);
   const [researchInput, setResearchInput] = useState("");
   const [researchLoading, setResearchLoading] = useState(false);
+  const [researchChatOpen, setResearchChatOpen] = useState(false);
   
   // Popup States: 'closed' | 'open' | 'minimized'
   const [chatState, setChatState] = useState<'closed' | 'open' | 'minimized'>('closed');
@@ -1502,6 +1503,9 @@ export default function Home() {
 
         {/* Orbit Menu — inside center-container so it follows orb animations */}
         <nav className="dock orbit-menu">
+          <button onClick={() => setResearchChatOpen(true)} title="Riset API Key">
+            <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+          </button>
           <button onClick={openOpenJarvis} title="OpenJarvis / Provider">
             <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none"><path d="M12 2l8 4v6c0 5-3.4 8.7-8 10-4.6-1.3-8-5-8-10V6l8-4z"></path><path d="M9 12h6"></path><path d="M12 9v6"></path></svg>
           </button>
@@ -1684,6 +1688,51 @@ export default function Home() {
       {/* Hidden Audio Player for TTS */}
       {audioUrl && <audio key={audioUrl} ref={audioRef} src={audioUrl} autoPlay style={{ display: "none" }} />}
 
+      {/* Research Chat Popup */}
+      {researchChatOpen && (
+        <section className="popup-window chat-window" style={{ left: 60, top: 60, width: 420, height: 520, zIndex: 400 }}>
+          <header className="window-header">
+            <span className="title">Riset API Key — Analisa Mendalam</span>
+            <div className="controls">
+              <IconButton icon="close" label="Tutup" onClick={() => setResearchChatOpen(false)} type="button" />
+            </div>
+          </header>
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+            <div style={{ flex: 1, overflowY: "auto", padding: 14, display: "flex", flexDirection: "column", gap: 10, fontSize: 13 }}>
+              {researchMessages.length === 0 && (
+                <div style={{ opacity: 0.6 }}>
+                  Contoh:<br />
+                  • Model apa saja yang tersedia?<br />
+                  • Bisa generate gambar?<br />
+                  • Support STT / voice?<br />
+                  • TTS suara Indonesia?<br />
+                  • Rate limit tiap key?
+                </div>
+              )}
+              {researchMessages.map((m, i) => (
+                <div key={i} style={{ alignSelf: m.role === "user" ? "flex-end" : "flex-start", maxWidth: "85%" }}>
+                  <div style={{ padding: "8px 12px", borderRadius: 10, background: m.role === "user" ? "#22d3ee22" : "#031228", border: "1px solid #22d3ee33", whiteSpace: "pre-wrap" }}>
+                    {m.content}
+                  </div>
+                </div>
+              ))}
+              {researchLoading && <div style={{ opacity: 0.6, fontSize: 12 }}>Riset...</div>}
+            </div>
+            <div style={{ padding: 12, borderTop: "1px solid #22d3ee22", background: "#020a1a" }}>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input
+                  value={researchInput}
+                  onChange={(e) => setResearchInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && sendResearch()}
+                  placeholder="Tanya kemampuan API key..."
+                  style={{ flex: 1, padding: "8px 12px", border: "1px solid #22d3ee44", borderRadius: 8, background: "#010409", color: "#d8faff", fontSize: 13 }}
+                />
+                <button onClick={sendResearch} disabled={researchLoading} style={{ padding: "8px 14px", borderRadius: 8, background: "#22d3ee22", border: "1px solid #22d3ee55", color: "#e0f4ff", fontSize: 13 }}>Riset</button>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
 
     </main>
   );
