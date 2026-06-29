@@ -195,55 +195,11 @@ export default function Home() {
   }
 
   return (
-    <main className="app">
-      <section className="panel">
-        <header>
-          <div>
-            <p>Mode suara aktif. Backend: {apiUrl}</p>
-          </div>
-          <nav>
-            <a href="/">Chat</a>
-            <a href="/settings">Status</a>
-          </nav>
-          <button className="ghost" onClick={newSession} type="button">Sesi baru</button>
-          <button className="ghost" onClick={copyChat} type="button">Salin</button>
-          <button className="ghost" onClick={clearSession} type="button">Hapus</button>
-          <span className={loading ? "dot busy" : "dot"} />
-        </header>
-
-        <div className="voice-stage">
-          <button className={listening ? "orb listening" : loading ? "orb thinking" : "orb"} onClick={listen} type="button" disabled={loading} aria-label="Bicara">
-            <span />
-          </button>
-          <div className="subtitle-live">{subtitle}</div>
-          <small>Contoh: cari gambar bunga, cari video kucing, cek jadwal kalender, putar lagu Queen.</small>
-        </div>
-
-        <div className="toolbar">
-          <label><input type="checkbox" checked={tts} onChange={(e) => setTts(e.target.checked)} /> Balas suara</label>
-          <select value={voice} onChange={(e) => setVoice(e.target.value)}>
-            <option value="kira">Kira</option>
-          </select>
-        </div>
-
-        <div className="chat compact">
-          {messages.map((m, i) => (
-            <div className={`msg ${m.role}`} key={i}>{m.text}</div>
-          ))}
-          {loading && <div className="msg ai">Mengetik...</div>}
-          <div ref={bottomRef} />
-        </div>
-
-        <form onSubmit={send}>
-          <input
-            autoFocus
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Fallback teks..."
-          />
-          <button disabled={loading || !input.trim()}>Kirim</button>
-        </form>
-      </section>
+    <main className="voice-only">
+      <button className={listening ? "orb-gif listening" : loading ? "orb-gif thinking" : "orb-gif"} onClick={listen} type="button" disabled={loading} aria-label="Bicara dengan Anta">
+        <img src="https://iili.io/FapFCu9.gif" alt="" />
+      </button>
+      <div className="subtitle-live">{subtitle}</div>
     </main>
   );
 }
