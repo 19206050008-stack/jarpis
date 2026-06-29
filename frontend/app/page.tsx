@@ -1461,7 +1461,7 @@ export default function Home() {
             {view.note && <p className="viewer-note">{view.note}</p>}
             
             {!articleText && news.length === 0 && videos.length === 0 && images.length === 0 && view.url && <iframe className="viewer-frame" src={view.url} title={view.title || "Anta Viewer"} />}
-            {!articleText && news.length === 0 && videos.length === 0 && images.length === 0 && !view.url && <div className="browser-empty">Ketik: gambar burung, lagu jazz, berita hari ini, atau cari sesuatu.</div>}
+            {!articleText && news.length === 0 && videos.length === 0 && images.length === 0 && !view.url && <div className="browser-empty">UI Anta siap. Klik monitor hijau atau ketik perintah.</div>}
 
             {imagePreview && (
               <div className="image-preview" onClick={() => setImagePreview(null)}>
