@@ -19,7 +19,6 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://jarpis-production-a270.up.railway.app";
-const openJarvisUiUrl = process.env.NEXT_PUBLIC_OPENJARVIS_UI_URL || `${apiUrl}/jarvis/`;
 const pageVisible = () => typeof document === "undefined" || document.visibilityState === "visible";
 const getAgentId = () => localStorage.getItem("anta_agent_id") || "default";
 
@@ -152,6 +151,9 @@ export default function Home() {
   const [news, setNews] = useState<{ title: string; link: string; source: string; pubDate?: string }[]>([]);
   const [articleText, setArticleText] = useState("");
   const [articleSource, setArticleSource] = useState("");
+  const [jarvisStatus, setJarvisStatus] = useState<any>(null);
+  const [jarvisPrompt, setJarvisPrompt] = useState("Halo Jarvis, jawab singkat: kamu aktif?");
+  const [jarvisAnswer, setJarvisAnswer] = useState("");
   
   // Popup States: 'closed' | 'open' | 'minimized'
   const [chatState, setChatState] = useState<'closed' | 'open' | 'minimized'>('closed');
@@ -252,6 +254,13 @@ export default function Home() {
   })()));
   const lastActiveAppRef = useRef("");
 
+  async function openOpenJarvis() {
+    setArticleText(""); setNews([]); setVideos([]); setImages([]); setSelectedVideo(null); setJarvisAnswer("");
+    setView({ title: "OpenJarvis", url: "", note: "Anta Jarvis sudah digabung. Pakai panel ini untuk cek status dan tes." });
+    setViewerState("open");
+    if (apiUrl) fetch(`${apiUrl}/openjarvis/status`, { cache: "no-store" }).then((r) => r.json()).then(setJarvisStatus).catch(() => setJarvisStatus({ ok: false }));
+  }
+
   const commands = useMemo(() => [
     { label: "Chat", hint: "Buka panel chat", run: () => setChatState("open") },
     { label: "Voice", hint: "Mulai perintah suara", run: () => startVoiceInput() },
@@ -263,11 +272,7 @@ export default function Home() {
     } },
     { label: "Memory", hint: "Buka dashboard memori", run: () => window.open("/memory", "_blank") },
     { label: "Monitoring", hint: "Buka halaman monitoring", run: () => window.open("/monitoring", "_blank") },
-    { label: "OpenJarvis", hint: "Buka di Monitor Anta", run: () => {
-      setArticleText(""); setNews([]); setVideos([]); setImages([]); setSelectedVideo(null);
-      setView({ title: "OpenJarvis", url: openJarvisUiUrl, note: openJarvisUiUrl ? "OpenJarvis dibuka di dalam Anta." : "NEXT_PUBLIC_OPENJARVIS_UI_URL belum diset." });
-      setViewerState("open");
-    } },
+    { label: "OpenJarvis", hint: "Buka di Monitor Anta", run: openOpenJarvis },
     { label: "Kunci orb", hint: "Orb tidak bisa digeser", run: () => setOrbMoveEnabled(false) },
     { label: "Bebaskan orb", hint: "Orb bisa digeser", run: () => setOrbMoveEnabled(true) },
   ], []);
@@ -1446,11 +1451,7 @@ export default function Home() {
           <button className={listening ? 'active' : ''} onClick={startVoiceInput} title="Perintah Suara">
             <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
           </button>
-          <button onClick={() => {
-            setArticleText(""); setNews([]); setVideos([]); setImages([]); setSelectedVideo(null);
-            setView({ title: "OpenJarvis", url: openJarvisUiUrl, note: openJarvisUiUrl ? "OpenJarvis dibuka di dalam Anta." : "NEXT_PUBLIC_OPENJARVIS_UI_URL belum diset." });
-            setViewerState("open");
-          }} title="OpenJarvis">
+          <button onClick={openOpenJarvis} title="OpenJarvis">
             <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none"><path d="M12 2l8 4v6c0 5-3.4 8.7-8 10-4.6-1.3-8-5-8-10V6l8-4z"></path><path d="M9 12h6"></path><path d="M12 9v6"></path></svg>
           </button>
         </nav>
@@ -1495,8 +1496,24 @@ export default function Home() {
             {viewerLoading && <div className="anta-loading"><span></span><b>Anta memuat data...</b></div>}
             {view.note && <p className="viewer-note">{view.note}</p>}
             
-            {!articleText && news.length === 0 && videos.length === 0 && images.length === 0 && view.url && <iframe className="viewer-frame" src={view.url} title={view.title || "OpenJarvis"} />}
-            {!articleText && news.length === 0 && videos.length === 0 && images.length === 0 && !view.url && <div className="browser-empty">Ketik: gambar burung, lagu jazz, berita hari ini, atau cari sesuatu.</div>}
+            {!articleText && news.length === 0 && videos.length === 0 && images.length === 0 && view.title === "OpenJarvis" && (
+              <div className="article-view">
+                <h3>Anta Jarvis</h3>
+                <p>Status: {jarvisStatus ? (jarvisStatus.ok ? "tersambung" : "belum tersambung") : "memeriksa..."}</p>
+                {jarvisStatus?.agents?.length > 0 && <p>Agents: {jarvisStatus.agents.slice(0, 8).map((a: any) => a.key).join(", ")}</p>}
+                <div className="form" style={{ borderTop: 0, padding: 0, margin: "12px 0" }}>
+                  <input value={jarvisPrompt} onChange={(e) => setJarvisPrompt(e.target.value)} />
+                  <button type="button" onClick={async () => {
+                    setJarvisAnswer("memproses...");
+                    const res = await fetch(`${apiUrl}/chat`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: jarvisPrompt, try_all: false }) });
+                    setJarvisAnswer(cleanText(await res.text()));
+                  }}>Tes</button>
+                </div>
+                {jarvisAnswer && <p>{jarvisAnswer}</p>}
+              </div>
+            )}
+            {!articleText && news.length === 0 && videos.length === 0 && images.length === 0 && view.title !== "OpenJarvis" && view.url && <iframe className="viewer-frame" src={view.url} title={view.title || "OpenJarvis"} />}
+            {!articleText && news.length === 0 && videos.length === 0 && images.length === 0 && view.title !== "OpenJarvis" && !view.url && <div className="browser-empty">Ketik: gambar burung, lagu jazz, berita hari ini, atau cari sesuatu.</div>}
 
             {imagePreview && (
               <div className="image-preview" onClick={() => setImagePreview(null)}>
