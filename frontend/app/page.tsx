@@ -167,6 +167,7 @@ export default function Home() {
   const [speaker, setSpeaker] = useState("andi");
   const [authRole, setAuthRole] = useState("user");
   const [authToken, setAuthToken] = useState("");
+  const [loginUsername, setLoginUsername] = useState<"anta" | "admin">("anta");
   const [loginPassword, setLoginPassword] = useState("");
   const [speakEnabled, setSpeakEnabled] = useState(true);
   const [isAiSpeaking, setIsAiSpeaking] = useState(false);
@@ -1435,6 +1436,23 @@ export default function Home() {
     setShowAgentBanner(false);
   }
 
+  if (!authToken) {
+    return (
+      <main className="jarvis-desktop" style={{ display: "grid", placeItems: "center", minHeight: "100vh" }}>
+        <section className="popup-window" style={{ position: "relative", width: 340, height: "auto", padding: 22 }}>
+          <h2 style={{ margin: "0 0 8px", color: "#67e8f9" }}>Login Anta</h2>
+          <p style={{ margin: "0 0 18px", fontSize: 12, opacity: 0.75 }}>Masuk dulu untuk membuka orb.</p>
+          <select value={loginUsername} onChange={(e) => setLoginUsername(e.target.value as "anta" | "admin")} style={{ width: "100%", marginBottom: 10, padding: 10, borderRadius: 8, background: "#020617", color: "#dffbff", border: "1px solid #22d3ee55" }}>
+            <option value="anta">User</option>
+            <option value="admin">Superadmin</option>
+          </select>
+          <input value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void loginAs(loginUsername); }} placeholder="Password" type="password" style={{ width: "100%", marginBottom: 12, padding: 10, borderRadius: 8, background: "#020617", color: "#dffbff", border: "1px solid #22d3ee55" }} />
+          <button type="button" onClick={() => void loginAs(loginUsername)} style={{ width: "100%", padding: 10, borderRadius: 8 }}>Masuk</button>
+        </section>
+      </main>
+    );
+  }
+
   return (
     <main className="jarvis-desktop">
       {/* Agent Activation Banner */}
@@ -1447,15 +1465,6 @@ export default function Home() {
 
       <div style={{ position: "fixed", top: 10, right: 10, zIndex: 500, display: "flex", gap: 6, alignItems: "center", fontSize: 11 }}>
         <span style={{ color: "#67e8f9" }}>{authRole}</span>
-        <input
-          value={loginPassword}
-          onChange={(e) => setLoginPassword(e.target.value)}
-          placeholder="password"
-          type="password"
-          style={{ width: 110, background: "#020617", color: "#dffbff", border: "1px solid #22d3ee55", borderRadius: 6, padding: "5px 7px" }}
-        />
-        <button type="button" onClick={() => void loginAs("anta")}>User</button>
-        <button type="button" onClick={() => void loginAs("admin")}>Superadmin</button>
         <button type="button" onClick={logout}>Logout</button>
       </div>
 
