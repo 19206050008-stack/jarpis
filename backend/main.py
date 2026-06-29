@@ -469,8 +469,33 @@ async def openjarvis_proxy(req: Request, path: str = ""):
     target = f"{OPENJARVIS_URL}/{path}" if path else f"{OPENJARVIS_URL}/"
     headers = {k: v for k, v in req.headers.items() if k.lower() not in {"host", "content-length"}}
     headers |= _openjarvis_headers()
+    body = await req.body()
+    fake_stream = False
+    if req.method == "POST" and path == "v1/chat/completions":
+        try:
+            import json
+            payload = json.loads(body or b"{}")
+            fake_stream = bool(payload.get("stream"))
+            if fake_stream:
+                payload["stream"] = False
+                body = json.dumps(payload).encode()
+        except Exception:
+            fake_stream = False
     async with httpx.AsyncClient(timeout=120, follow_redirects=False) as client:
-        res = await client.request(req.method, target, params=req.query_params, content=await req.body(), headers=headers)
+        res = await client.request(req.method, target, params=req.query_params, content=body, headers=headers)
+    if fake_stream and res.status_code < 400:
+        import json, time, uuid
+        data = res.json()
+        content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+        model = data.get("model", "")
+        cid = data.get("id") or f"chatcmpl-{uuid.uuid4().hex[:12]}"
+        created = int(time.time())
+        lines = [
+            {"id": cid, "object": "chat.completion.chunk", "created": created, "model": model, "choices": [{"index": 0, "delta": {"role": "assistant", "content": None, "tool_calls": None}, "finish_reason": None}]},
+            {"id": cid, "object": "chat.completion.chunk", "created": created, "model": model, "choices": [{"index": 0, "delta": {"role": None, "content": content, "tool_calls": None}, "finish_reason": None}]},
+            {"id": cid, "object": "chat.completion.chunk", "created": created, "model": model, "choices": [{"index": 0, "delta": {"role": None, "content": None, "tool_calls": None}, "finish_reason": "stop"}]},
+        ]
+        return Response("".join(f"data: {json.dumps(x)}\n\n" for x in lines) + "data: [DONE]\n\n", media_type="text/event-stream")
     if req.method == "GET" and path == "v1/models" and res.status_code < 400:
         try:
             data = res.json()
