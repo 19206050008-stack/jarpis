@@ -153,6 +153,9 @@ export default function Home() {
   const [articleSource, setArticleSource] = useState("");
   const [jarvisStatus, setJarvisStatus] = useState<any>(null);
   const [jarvisCatalog, setJarvisCatalog] = useState<any>(null);
+  const [researchMessages, setResearchMessages] = useState<Array<{role: string, content: string}>>([]);
+  const [researchInput, setResearchInput] = useState("");
+  const [researchLoading, setResearchLoading] = useState(false);
   
   // Popup States: 'closed' | 'open' | 'minimized'
   const [chatState, setChatState] = useState<'closed' | 'open' | 'minimized'>('closed');
@@ -255,6 +258,8 @@ export default function Home() {
 
   async function openOpenJarvis() {
     setArticleText(""); setNews([]); setVideos([]); setImages([]); setSelectedVideo(null);
+    setResearchMessages([]);
+    setResearchInput("");
     setViewerLoading(false);
     setViewerFullscreen(true);
     setViewerState("open");
@@ -270,24 +275,44 @@ export default function Home() {
       setJarvisStatus(status);
       setJarvisCatalog(providers);
       
-      // If OpenJarvis backend is not available, use existing providers
       if (!status?.ok && providers?.chat_router) {
         setView({
           title: "OpenJarvis UI",
           url: "",
-          note: "Menggunakan provider yang sudah dikonfigurasi: OpenRouter, OpenAgentic, dll.",
+          note: "Riset kemampuan API key — ketik pertanyaan di bawah",
         });
       } else {
         setView({
           title: "OpenJarvis UI",
           url: status?.ok ? `${apiUrl}/jarvis/` : "",
-          note: status?.ok ? "UI asli OpenJarvis dibuka di dalam Anta." : "OpenJarvis belum tersambung; capability aktif backend ditampilkan di bawah.",
+          note: status?.ok ? "UI asli OpenJarvis dibuka di dalam Anta." : "OpenJarvis belum tersambung.",
         });
       }
     } catch {
       setJarvisStatus({ ok: false });
       setJarvisCatalog(null);
-      setView({ title: "OpenJarvis UI", url: "", note: "Menggunakan provider yang sudah dikonfigurasi." });
+      setView({ title: "OpenJarvis UI", url: "", note: "Riset kemampuan API key." });
+    }
+  }
+
+  async function sendResearch() {
+    if (!researchInput.trim() || !apiUrl) return;
+    const q = researchInput.trim();
+    setResearchMessages(m => [...m, { role: "user", content: q }]);
+    setResearchInput("");
+    setResearchLoading(true);
+    try {
+      const res = await fetch(`${apiUrl}/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: `Riset API key: ${q}. Jawab singkat dan jelas berdasarkan provider yang terpasang (OpenRouter, OpenAgentic, dll).` }),
+      });
+      const data = await res.json();
+      setResearchMessages(m => [...m, { role: "ai", content: data.answer || "Tidak ada jawaban." }]);
+    } catch {
+      setResearchMessages(m => [...m, { role: "ai", content: "Gagal menghubungi backend." }]);
+    } finally {
+      setResearchLoading(false);
     }
   }
 
@@ -1527,28 +1552,47 @@ export default function Home() {
             
             {!articleText && news.length === 0 && videos.length === 0 && images.length === 0 && view.title === "OpenJarvis UI" && view.url && <iframe className="viewer-frame" src={view.url} title={view.title} />}
             {!articleText && news.length === 0 && videos.length === 0 && images.length === 0 && view.title === "OpenJarvis UI" && !view.url && (
-              <div style={{ flex: 1, overflow: "auto", padding: 16, display: "grid", gap: 12 }}>
-                <div style={{ color: "#67e8f9", fontWeight: 700 }}>Provider yang tersedia</div>
-                <div style={{ display: "grid", gap: 8, fontSize: 12 }}>
-                  {(jarvisCatalog?.chat_router || []).map((p: any) => (
-                    <div key={p.name} style={{ padding: 10, border: "1px solid #22d3ee22", borderRadius: 12, background: "#030712" }}>
-                      <b style={{ color: "#dffbff" }}>{p.name}</b>
-                      <div style={{ color: "#67e8f9", marginTop: 4 }}>{(p.capabilities || []).join(", ") || "chat"}</div>
-                      <div style={{ opacity: 0.7, marginTop: 4 }}>{p.model}</div>
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+                <div style={{ padding: 16, borderBottom: "1px solid #22d3ee22", background: "#020a1a" }}>
+                  <div style={{ color: "#67e8f9", fontWeight: 700, fontSize: 14 }}>Riset API Key — Apa yang bisa dilakukan?</div>
+                  <div style={{ fontSize: 11, opacity: 0.6, marginTop: 4 }}>Tanya apa saja tentang kemampuan provider yang terpasang</div>
+                </div>
+
+                <div style={{ flex: 1, overflowY: "auto", padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
+                  {researchMessages.length === 0 && (
+                    <div style={{ fontSize: 12, opacity: 0.7 }}>
+                      Contoh pertanyaan:<br />
+                      • Model apa saja yang tersedia di OpenRouter?<br />
+                      • Bisa generate gambar?<br />
+                      • Support STT / voice input?<br />
+                      • TTS lokal bisa pakai suara Indonesia?<br />
+                      • Limit rate / quota tiap key?
+                    </div>
+                  )}
+                  {researchMessages.map((m, i) => (
+                    <div key={i} style={{ alignSelf: m.role === "user" ? "flex-end" : "flex-start", maxWidth: "85%" }}>
+                      <div style={{ padding: "8px 12px", borderRadius: 10, background: m.role === "user" ? "#22d3ee22" : "#031228", border: "1px solid #22d3ee33", fontSize: 13, whiteSpace: "pre-wrap" }}>
+                        {m.content}
+                      </div>
                     </div>
                   ))}
+                  {researchLoading && <div style={{ fontSize: 12, opacity: 0.6 }}>Riset...</div>}
                 </div>
-                <div style={{ display: "grid", gap: 6, fontSize: 12, color: "#dffbff" }}>
-                  <div>Search: {(jarvisCatalog?.search?.capabilities || []).join(", ") || "-"}</div>
-                  <div>TTS lokal: {jarvisCatalog?.local_tts?.configured ? "aktif" : "off"}</div>
-                </div>
-                {(!jarvisCatalog || jarvisCatalog.chat_router?.length === 0) && (
-                  <div style={{ color: "#ef4444", fontStyle: "italic" }}>
-                    Belum ada provider AI yang dikonfigurasi. Cek file .env untuk API keys.
+
+                <div style={{ padding: 12, borderTop: "1px solid #22d3ee22", background: "#020a1a" }}>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <input
+                      value={researchInput}
+                      onChange={(e) => setResearchInput(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && sendResearch()}
+                      placeholder="Tanya kemampuan API key..."
+                      style={{ flex: 1, padding: "8px 12px", border: "1px solid #22d3ee44", borderRadius: 8, background: "#010409", color: "#d8faff", fontSize: 13 }}
+                    />
+                    <button onClick={sendResearch} disabled={researchLoading} style={{ padding: "8px 16px", borderRadius: 8, background: "#22d3ee22", border: "1px solid #22d3ee55", color: "#e0f4ff", fontSize: 13 }}>Riset</button>
                   </div>
-                )}
+                </div>
               </div>
-            )}
+            )
             {!articleText && news.length === 0 && videos.length === 0 && images.length === 0 && view.title !== "OpenJarvis UI" && view.url && <iframe className="viewer-frame" src={view.url} title={view.title || "OpenJarvis"} />}
             {!articleText && news.length === 0 && videos.length === 0 && images.length === 0 && view.title !== "OpenJarvis UI" && !view.url && <div className="browser-empty">Ketik: gambar burung, lagu jazz, berita hari ini, atau cari sesuatu.</div>}
 
