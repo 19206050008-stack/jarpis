@@ -7,12 +7,12 @@ import win32gui
 import win32process
 import psutil
 
-# Jarpis Local Agent
-# Runs on Windows/Mac/Linux to report active windows to the Jarpis web application.
+# Anta Local Agent
+# Runs on Windows/Mac/Linux to report active windows to the Anta web application.
 
-API_URL = os.getenv("JARPIS_API_URL", "https://jarpis-production-a270.up.railway.app")
+API_URL = os.getenv("ANTA_API_URL") or os.getenv("JARPIS_API_URL", "https://jarpis-production-a270.up.railway.app")
 INTERVAL = int(os.getenv("CHECK_INTERVAL", "3"))
-AGENT_ID = os.getenv("JARPIS_AGENT_ID", "default")
+AGENT_ID = os.getenv("ANTA_AGENT_ID") or os.getenv("JARPIS_AGENT_ID", "default")
 
 def get_active_window_title_win():
     hwnd = win32gui.GetForegroundWindow()
@@ -40,7 +40,7 @@ def get_active_window():
     return {"title": "Unsupported Platform (Directly)", "process": sys.platform}
 
 def main():
-    print(f"Jarpis Local Agent started. Reporting to {API_URL} every {INTERVAL}s.")
+    print(f"Anta Local Agent started. Reporting to {API_URL} every {INTERVAL}s.")
     last_reported = None
     
     while True:
@@ -52,7 +52,7 @@ def main():
                 httpx.post(f"{API_URL}/agent/state", json={**info, "agent_id": AGENT_ID}, timeout=5)
                 last_reported = info
             except Exception as e:
-                print(f"Failed to report to Jarpis: {e}")
+                print(f"Failed to report to Anta: {e}")
         time.sleep(INTERVAL)
 
 if __name__ == "__main__":

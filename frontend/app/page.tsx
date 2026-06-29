@@ -6,7 +6,8 @@ type Message = { role: "user" | "ai"; text: string };
 type SpeechRecognitionLike = {
   lang: string;
   interimResults: boolean;
-  onresult: ((event: { results: { 0: { transcript: string } }[] }) => void) | null;
+  continuous: boolean;
+  onresult: ((event: any) => void) | null;
   onend: (() => void) | null;
   start(): void;
 };
@@ -21,7 +22,7 @@ declare global {
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 const wsUrl = apiUrl.replace(/^http/, "ws") + "/ws/chat";
 const sessionId = () => {
-  const key = "jarpis_session_id";
+  const key = "anta_session_id";
   const existing = localStorage.getItem(key);
   if (existing) return existing;
   const fresh = crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -31,13 +32,14 @@ const sessionId = () => {
 
 export default function Home() {
   const [messages, setMessages] = useState<Message[]>([
-    { role: "ai", text: "Halo, saya Jarpis. Mau mulai dari mana?" },
+    { role: "ai", text: "Siap. Ketuk orb lalu bicara." },
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [voice, setVoice] = useState("andi");
-  const [tts, setTts] = useState(false);
+  const [voice, setVoice] = useState("kira");
+  const [tts, setTts] = useState(true);
   const [listening, setListening] = useState(false);
+  const [subtitle, setSubtitle] = useState("Ketuk orb lalu bicara");
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -52,7 +54,7 @@ export default function Home() {
   }, [messages, loading]);
 
   function newSession() {
-    localStorage.removeItem("jarpis_session_id");
+    localStorage.removeItem("anta_session_id");
     setMessages([{ role: "ai", text: "Sesi baru. Mau bahas apa?" }]);
   }
 
@@ -62,13 +64,44 @@ export default function Home() {
   }
 
   async function copyChat() {
-    const text = messages.map((m) => `${m.role === "user" ? "User" : "Jarpis"}: ${m.text}`).join("\n\n");
+    const text = messages.map((m) => `${m.role === "user" ? "User" : "Anta"}: ${m.text}`).join("\n\n");
     await navigator.clipboard.writeText(text).catch(() => {});
   }
 
+  function categoryFor(text: string) {
+    const lower = text.toLowerCase();
+    if (lower.includes("buka") || lower.includes("open")) return "Membuka aplikasi";
+    if (lower.includes("cari") || lower.includes("berita") || lower.includes("gambar") || lower.includes("video") || lower.includes("harga")) return "Loading / mencari";
+    if (lower.includes("dengar") || lower.includes("bicara")) return "Suara aktif";
+    return "Menerima perintah";
+  }
+
+  async function playTemplate(category: string) {
+    const res = await fetch(`${apiUrl}/speak-template`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ category }),
+    }).catch(() => null);
+    if (!res?.ok) return;
+    const encoded = res.headers.get("x-anta-text");
+    if (encoded) setSubtitle(decodeURIComponent(escape(atob(encoded.replace(/-/g, "+").replace(/_/g, "/")))));
+    const url = URL.createObjectURL(await res.blob());
+    const audio = new Audio(url);
+    audio.onended = () => URL.revokeObjectURL(url);
+    await audio.play().catch(() => URL.revokeObjectURL(url));
+  }
+
   async function speak(text: string) {
+    const words = text.split(/\s+/).filter(Boolean);
+    let i = 0;
+    const karaoke = setInterval(() => {
+      i = Math.min(words.length, i + 2);
+      setSubtitle(words.slice(0, i).join(" "));
+      if (i >= words.length) clearInterval(karaoke);
+    }, 180);
+
     if (!tts) return;
-    const res = await fetch(`${apiUrl}/speak`, {
+    const res = await fetch(`${apiUrl}/speak-kira`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text: text.slice(0, 500), speaker: voice }),
@@ -76,7 +109,7 @@ export default function Home() {
     if (!res.ok) return;
     const url = URL.createObjectURL(await res.blob());
     const audio = new Audio(url);
-    audio.onended = () => URL.revokeObjectURL(url);
+    audio.onended = () => { clearInterval(karaoke); setSubtitle(text); URL.revokeObjectURL(url); };
     await audio.play().catch(() => URL.revokeObjectURL(url));
   }
 
@@ -84,10 +117,24 @@ export default function Home() {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) return alert("Browser belum mendukung voice input.");
     const rec = new SR();
+    let sent = false;
     rec.lang = "id-ID";
-    rec.interimResults = false;
-    rec.onresult = (event) => setInput(event.results[0][0].transcript);
+    rec.interimResults = true;
+    rec.continuous = false;
+    rec.onresult = (event) => {
+      let text = "";
+      for (let i = 0; i < event.results.length; i++) text += event.results[i][0].transcript;
+      text = text.trim();
+      setInput(text);
+      setSubtitle(text || "Mendengar...");
+      const last = event.results[event.results.length - 1];
+      if (last?.isFinal && text && !sent) {
+        sent = true;
+        sendText(text);
+      }
+    };
     rec.onend = () => setListening(false);
+    setSubtitle("Mendengar...");
     setListening(true);
     rec.start();
   }
@@ -112,17 +159,19 @@ export default function Home() {
     });
   }
 
-  async function send(e: FormEvent) {
-    e.preventDefault();
-    const text = input.trim();
+  async function sendText(raw: string) {
+    const text = raw.trim();
     if (!text || loading) return;
 
     setInput("");
     setLoading(true);
+    setSubtitle(text);
     setMessages((m) => [...m, { role: "user", text }]);
+    playTemplate(categoryFor(text));
 
     if (/\b(buka|open)\b.*\bspotify\b|\bspotify\b.*\b(buka|open)\b/i.test(text)) {
       openSpotify();
+      setSubtitle("Spotify saya buka di tab baru.");
       setMessages((m) => [...m, { role: "ai", text: "Spotify saya buka di tab baru." }]);
       setLoading(false);
       return;
@@ -130,6 +179,7 @@ export default function Home() {
 
     try {
       const answer = (await askWs(text)).trim() || "Tidak ada jawaban.";
+      setSubtitle(answer);
       setMessages((m) => [...m, { role: "ai", text: answer }]);
       await speak(answer);
     } catch (err) {
@@ -139,13 +189,17 @@ export default function Home() {
     }
   }
 
+  async function send(e: FormEvent) {
+    e.preventDefault();
+    await sendText(input);
+  }
+
   return (
     <main className="app">
       <section className="panel">
         <header>
           <div>
-            <h1>Jarpis</h1>
-            <p>UI sederhana dulu. Backend: {apiUrl}</p>
+            <p>Mode suara aktif. Backend: {apiUrl}</p>
           </div>
           <nav>
             <a href="/">Chat</a>
@@ -157,15 +211,22 @@ export default function Home() {
           <span className={loading ? "dot busy" : "dot"} />
         </header>
 
-        <div className="toolbar">
-          <label><input type="checkbox" checked={tts} onChange={(e) => setTts(e.target.checked)} /> Suara</label>
-          <select value={voice} onChange={(e) => setVoice(e.target.value)}>
-            {"andi budi agus bayu dimas sari dewi ayu rina maya".split(" ").map((v) => <option key={v}>{v}</option>)}
-          </select>
-          <button className="ghost" onClick={listen} type="button">{listening ? "Dengar..." : "Mic"}</button>
+        <div className="voice-stage">
+          <button className={listening ? "orb listening" : loading ? "orb thinking" : "orb"} onClick={listen} type="button" disabled={loading} aria-label="Bicara">
+            <span />
+          </button>
+          <div className="subtitle-live">{subtitle}</div>
+          <small>Contoh: cari gambar bunga, cari video kucing, cek jadwal kalender, putar lagu Queen.</small>
         </div>
 
-        <div className="chat">
+        <div className="toolbar">
+          <label><input type="checkbox" checked={tts} onChange={(e) => setTts(e.target.checked)} /> Balas suara</label>
+          <select value={voice} onChange={(e) => setVoice(e.target.value)}>
+            <option value="kira">Kira</option>
+          </select>
+        </div>
+
+        <div className="chat compact">
           {messages.map((m, i) => (
             <div className={`msg ${m.role}`} key={i}>{m.text}</div>
           ))}
@@ -178,7 +239,7 @@ export default function Home() {
             autoFocus
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Tulis pesan..."
+            placeholder="Fallback teks..."
           />
           <button disabled={loading || !input.trim()}>Kirim</button>
         </form>

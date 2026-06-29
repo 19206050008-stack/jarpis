@@ -1,11 +1,11 @@
-# Jarpis Backend
+# Anta Backend
 
 Backend AI minimal untuk Railway.
 
 ## Local test
 
 ```bash
-cd jarpis/backend
+cd anta/backend
 python -m venv .venv
 . .venv/Scripts/activate  # Windows
 pip install -r requirements.txt
@@ -17,7 +17,7 @@ Test:
 
 ```bash
 curl http://localhost:8000/health
-curl -X POST http://localhost:8000/chat -H "Content-Type: application/json" -d "{\"message\":\"Halo Jarpis\"}"
+curl -X POST http://localhost:8000/chat -H "Content-Type: application/json" -d "{\"message\":\"Halo Anta\"}"
 ```
 
 ## Railway start command

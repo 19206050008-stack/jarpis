@@ -184,7 +184,7 @@ def _samples_to_wav(samples, sample_rate: int) -> bytes:
     return buf.getvalue()
 
 class SpeakRequest(BaseModel):
-    text: str
+    text: str = ""
     speaker: str | None = None
     speed: float | None = None
     category: str | None = None
@@ -268,7 +268,10 @@ def _elevenlabs_voice(speaker: str | None) -> str:
 
 
 def _anta_v2_manifest() -> list[dict]:
-    path = Path("backend/tts_cache/anta-v2.1/_manifest.json")
+    root = Path(__file__).resolve().parent.parent
+    path = root / "backend/tts_cache/anta-v2.1/_manifest.json"
+    if not path.exists():
+        path = Path("tts_cache/anta-v2.1/_manifest.json")
     if not path.exists():
         return []
     import json
@@ -276,6 +279,14 @@ def _anta_v2_manifest() -> list[dict]:
         return json.loads(path.read_text(encoding="utf-8"))
     except Exception:
         return []
+
+
+def _manifest_path(item: dict) -> Path:
+    root = Path(__file__).resolve().parent.parent
+    raw = item.get("file", "").replace("\\", "/")
+    fixed = raw.replace("backend/anta-jarvis/tts_cache", "backend/tts_cache")
+    candidates = [Path(raw), Path(fixed), root / fixed, Path(__file__).resolve().parent / fixed.replace("backend/", "")]
+    return next((p for p in candidates if p.exists()), candidates[-1])
 
 
 def _anta_v2_cached_reply(text: str, category: str | None = None) -> bytes | None:
@@ -286,9 +297,19 @@ def _anta_v2_cached_reply(text: str, category: str | None = None) -> bytes | Non
         items = [x for x in items if wanted in x.get("category", "").lower()]
     for item in items:
         if re.sub(r"\s+", " ", item.get("text", "").strip()).lower() == clean:
-            path = Path(item.get("file", ""))
+            path = _manifest_path(item)
             if path.exists():
                 return path.read_bytes()
+    return None
+
+
+def _anta_v2_template(category: str) -> tuple[str, bytes] | None:
+    wanted = category.lower().replace("-", " ")
+    items = [x for x in _anta_v2_manifest() if wanted in x.get("category", "").lower()]
+    for item in items:
+        path = _manifest_path(item)
+        if path.exists():
+            return item.get("text", ""), path.read_bytes()
     return None
 
 llm = None
@@ -421,7 +442,7 @@ async def _safe_image_results(q: str) -> list[dict]:
             "gsrnamespace": "6",
             "gsrlimit": "8",
             "format": "json",
-        }, headers={"User-Agent": "jarpis/1.0"})
+        }, headers={"User-Agent": "anta/1.0"})
     pages = res.json().get("query", {}).get("pages", {}) if res.status_code == 200 else {}
     return [{
         "title": p.get("title", "").replace("File:", ""),
@@ -749,7 +770,7 @@ async def chat(payload: dict):
     if not message:
         raise HTTPException(status_code=400, detail="message is required")
 
-    system = "Kamu Anta, asisten AI. Jawab langsung, ringkas, natural. Jangan pakai markdown. Jika tidak yakin atau tidak menemukan info, bilang singkat saja."
+    system = "Kamu Anta, asisten AI. Jawab langsung, ringkas, natural, seperti ngobrol santai. Jangan pakai markdown. Jika tidak yakin atau tidak menemukan info, bilang singkat saja."
     prompt = f"{system}\n\nUser: {message}\nAnta:"
     task = payload.get("task") or _intent_task(message)
     session_id = (payload.get("session_id") or "").strip() or None
@@ -1350,6 +1371,26 @@ async def speak_eleven_words(req: SpeakRequest):
         raise HTTPException(status_code=400, detail="Teks wajib diisi")
     chunks = [await _elevenlabs_word_audio(word) for word in words[:80]]
     return Response(content=b"".join(chunks), media_type="audio/mpeg")
+
+@app.post("/speak-template")
+async def speak_template(req: SpeakRequest):
+    tpl = _anta_v2_template(req.category or "menerima perintah")
+    if not tpl:
+        raise HTTPException(status_code=404, detail="Template suara tidak ditemukan")
+    text, audio = tpl
+    return Response(content=audio, media_type="audio/mpeg", headers={"X-Anta-Text": base64.urlsafe_b64encode(text.encode()).decode()})
+
+
+@app.post("/speak-kira")
+async def speak_kira(req: SpeakRequest):
+    text = re.sub(r"\s+", " ", (req.text or "").strip())[:500]
+    if not text:
+        raise HTTPException(status_code=400, detail="Teks wajib diisi")
+    cached = _anta_v2_cached_reply(text, req.category)
+    if cached:
+        return Response(content=cached, media_type="audio/mpeg")
+    return Response(content=await _elevenlabs_cached_audio(text, "elevenlabs_kira", _elevenlabs_voice("elevenlabs-kira")), media_type="audio/mpeg")
+
 
 @app.post("/speak-eleven-smart")
 async def speak_eleven_smart(req: SpeakRequest, request: Request):

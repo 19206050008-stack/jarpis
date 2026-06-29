@@ -1,4 +1,4 @@
-# JARPIS
+# ANTA
 
 Asisten AI personal minimal: Next.js frontend + FastAPI backend + Supabase history.
 

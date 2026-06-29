@@ -45,6 +45,58 @@ a:hover { text-decoration: underline; }
   box-shadow: 0 0 18px #22c55e;
 }
 .dot.busy { background: #f59e0b; box-shadow: 0 0 18px #f59e0b; }
+.voice-stage {
+  display: grid;
+  place-items: center;
+  gap: 10px;
+  padding: 28px 20px 18px;
+  border-bottom: 1px solid #26324f;
+  text-align: center;
+}
+.orb {
+  position: relative;
+  width: 190px;
+  height: 190px;
+  border-radius: 999px;
+  padding: 0;
+  overflow: visible;
+  background:
+    radial-gradient(circle at 32% 24%, #ffffff 0 6%, #93c5fd 10%, transparent 24%),
+    radial-gradient(circle at 50% 55%, #67e8f9 0 18%, #2563eb 42%, #0f172a 72%);
+  box-shadow: 0 0 45px #38bdf8aa, inset -22px -28px 50px #020617cc, inset 18px 18px 42px #ffffff22;
+}
+.orb::before,
+.orb::after,
+.orb span {
+  content: "";
+  position: absolute;
+  inset: -18px;
+  border-radius: 50%;
+  border: 2px solid #38bdf855;
+  animation: spin 7s linear infinite;
+}
+.orb::after { inset: -34px; border-style: dashed; animation-duration: 11s; animation-direction: reverse; }
+.orb span { inset: 26px; border-color: #e0f2fe88; border-width: 1px; animation-duration: 5s; }
+.orb.listening {
+  background:
+    radial-gradient(circle at 32% 24%, #ffffff 0 6%, #fde68a 10%, transparent 24%),
+    radial-gradient(circle at 50% 55%, #fbbf24 0 18%, #f97316 42%, #431407 72%);
+  box-shadow: 0 0 65px #f59e0bcc, inset -22px -28px 50px #020617cc, inset 18px 18px 42px #ffffff22;
+  animation: pulse 1s infinite;
+}
+.orb.thinking { animation: pulse 1.2s infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes pulse { 50% { transform: scale(1.04); } }
+.subtitle-live {
+  min-height: 54px;
+  max-width: 680px;
+  padding: 10px 14px;
+  color: #e0f2fe;
+  text-align: center;
+  line-height: 1.45;
+  text-shadow: 0 0 18px #38bdf8;
+}
+.voice-stage small { color: #64748b; }
 .toolbar {
   display: flex;
   align-items: center;
@@ -70,6 +122,7 @@ a:hover { text-decoration: underline; }
   flex-direction: column;
   gap: 12px;
 }
+.chat.compact { max-height: 260px; }
 .msg {
   max-width: 78%;
   padding: 11px 13px;
