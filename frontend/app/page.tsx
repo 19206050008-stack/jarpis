@@ -32,7 +32,7 @@ async function saveMemory(kind: string, content: string) {
   await supabase.from("memories").insert({ kind, content }).then(() => {}, () => {});
 }
 
-type NewsBankItem = { id: number; title: string; source: string; link: string; summary: string; spoken: boolean };
+type NewsBankItem = { id: number; title: string; source: string; link: string; summary: string; spoken: boolean; dbId?: number };
 
 function readNewsBank(): { date: string; items: NewsBankItem[] } {
   const today = new Date().toDateString();
@@ -53,23 +53,60 @@ async function cleanOldNews() {
   readNewsBank();
 }
 
-async function saveNewsToBank(title: string, source: string, link: string, summary: string) {
+async function saveNewsToBank(title: string, source: string, link: string, summary: string, pubDate?: string) {
   const bank = readNewsBank();
   const key = `${title}|${link}`;
-  if (bank.items.some((x) => `${x.title}|${x.link}` === key)) return;
-  bank.items.push({ id: Date.now(), title, source, link, summary, spoken: false });
+  if (!bank.items.some((x) => `${x.title}|${x.link}` === key)) {
+    bank.items.push({ id: Date.now(), title, source, link, summary, spoken: false });
+    writeNewsBank(bank);
+  }
+  if (supabase) {
+    const { error } = await supabase.from("anta_news").upsert({
+      title,
+      source,
+      link,
+      summary,
+      spoken: false,
+      pub_date: pubDate || null,
+    }, { onConflict: "link" });
+    if (error) console.warn("Supabase news save failed", error.message);
+  }
+}
+
+async function loadNewsFromDb() {
+  if (!supabase) return;
+  const { data, error } = await supabase
+    .from("anta_news")
+    .select("id,title,source,link,summary,spoken")
+    .eq("spoken", false)
+    .order("created_at", { ascending: false })
+    .limit(20);
+  if (error || !data?.length) return;
+  const bank = readNewsBank();
+  for (const item of data) {
+    if (!bank.items.some((x) => x.link === item.link)) {
+      bank.items.push({ id: Date.now() + Number(item.id || 0), dbId: item.id, title: item.title, source: item.source, link: item.link, summary: item.summary, spoken: false });
+    }
+  }
   writeNewsBank(bank);
 }
 
 async function getUnspokenNews(): Promise<{ id: number; summary: string; source: string } | null> {
-  const item = readNewsBank().items.find((x) => !x.spoken);
+  let item = readNewsBank().items.find((x) => !x.spoken);
+  if (!item) {
+    await loadNewsFromDb();
+    item = readNewsBank().items.find((x) => !x.spoken);
+  }
   return item ? { id: item.id, summary: item.summary, source: item.source } : null;
 }
 
 async function markNewsSpoken(id: number) {
   const bank = readNewsBank();
   const item = bank.items.find((x) => x.id === id);
-  if (item) item.spoken = true;
+  if (item) {
+    item.spoken = true;
+    if (supabase && item.dbId) await supabase.from("anta_news").update({ spoken: true }).eq("id", item.dbId);
+  }
   writeNewsBank(bank);
 }
 
@@ -691,7 +728,7 @@ export default function Home() {
             const summaryLower = summary.toLowerCase();
             if (summaryLower.includes("javascript") || summaryLower.includes("undefined") || summaryLower.includes("error") || summary.length < 20) continue;
           
-            await saveNewsToBank(item.title || "", source, item.link, summary);
+            await saveNewsToBank(item.title || "", source, item.link, summary, item.pubDate);
             addedAny = true;
             
             // Delay between items to avoid rate limiting
