@@ -417,24 +417,6 @@ export default function Home() {
     return () => clearTimeout(timer);
   }, []);
 
-  // Keep-alive ping — check backend health every 60s
-  useEffect(() => {
-    if (!apiUrl) { setBackendAlive(false); return; }
-    let active = true;
-    const ping = async () => {
-      try {
-        if (!pageVisible()) return;
-        const res = await fetch(`${apiUrl}/health`, { signal: AbortSignal.timeout(5000) });
-        if (active) setBackendAlive(res.ok);
-      } catch {
-        if (active) setBackendAlive(false);
-      }
-    };
-    void ping();
-    const interval = setInterval(ping, 60000);
-    return () => { active = false; clearInterval(interval); };
-  }, []);
-
   // Wake Word "Halo Anta" — continuous listening for activation
   useEffect(() => {
     const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
