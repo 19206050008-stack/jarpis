@@ -452,6 +452,18 @@ async def openjarvis_status():
             out["agents"] = agents.json().get("registered", [])
     return out
 
+@app.api_route("/jarvis", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"])
+@app.api_route("/jarvis/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"])
+async def openjarvis_proxy(req: Request, path: str = ""):
+    if not OPENJARVIS_URL:
+        raise HTTPException(status_code=503, detail="OPENJARVIS_URL belum aktif")
+    target = f"{OPENJARVIS_URL}/{path}" if path else f"{OPENJARVIS_URL}/"
+    headers = {k: v for k, v in req.headers.items() if k.lower() not in {"host", "content-length"}}
+    headers |= _openjarvis_headers()
+    async with httpx.AsyncClient(timeout=120, follow_redirects=False) as client:
+        res = await client.request(req.method, target, params=req.query_params, content=await req.body(), headers=headers)
+    return Response(content=res.content, status_code=res.status_code, media_type=res.headers.get("content-type"))
+
 @app.get("/monitoring")
 async def monitoring(req: Request):
     _check_monitoring_token(req)

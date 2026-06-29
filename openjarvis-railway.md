@@ -1,42 +1,41 @@
-# Deploy OpenJarvis ke Railway
+# Anta Jarvis di Railway
 
-Paling aman: OpenJarvis jadi service Railway terpisah, Jarpis/Anta tetap service sendiri.
+Sekarang OpenJarvis sudah digabung ke backend sebagai `backend/anta-jarvis`.
 
-## Service OpenJarvis
+Tidak perlu service Railway kedua.
 
-Buat service baru di Railway dari repo Jarpis ini, pakai folder `backend/anta-jarvis`.
+Railway cukup deploy backend Jarpis seperti biasa. Saat start, `backend/start.py` akan:
 
-Start command:
+1. ambil `OPENROUTER_API_KEYS` pertama,
+2. menjalankan Anta Jarvis internal di `127.0.0.1:8765`,
+3. menjalankan backend Jarpis di `$PORT`,
+4. expose Anta Jarvis lewat proxy publik `/jarvis`.
 
-```bash
-cd backend/anta-jarvis && python -m pip install uv && python -m uv sync --extra server --extra inference-cloud && python -m uv run jarvis serve --host 0.0.0.0 --port $PORT --engine cloud --model $OPENJARVIS_MODEL --agent simple
-```
-
-Env service OpenJarvis:
+Env yang perlu ada di Railway backend Jarpis:
 
 ```text
-OPENROUTER_API_KEY=sk-or-...
+OPENROUTER_API_KEYS=sk-or-...
+OPENROUTER_MODEL=openai/gpt-oss-20b:free
+ENABLE_ANTA_JARVIS=1
+```
+
+Opsional:
+
+```text
 OPENJARVIS_MODEL=openai/gpt-oss-20b:free
+ANTA_JARVIS_PORT=8765
 ```
 
-Catatan: jangan pakai local Ollama/model besar di Railway dulu. Pakai cloud engine supaya service hidup cepat.
-
-## Service Jarpis backend
-
-Set env Railway backend Jarpis:
+Frontend tidak perlu setting tambahan. Tombol OpenJarvis di orb membuka:
 
 ```text
-OPENJARVIS_URL=https://openjarvis-service.up.railway.app
-OPENJARVIS_API_KEY=
-OPENJARVIS_MODEL=openai/gpt-oss-20b:free
+https://jarpis-production-a270.up.railway.app/jarvis/
 ```
 
-## Vercel frontend Anta
+di dalam panel Monitor Anta.
 
-Set env:
+Matikan Anta Jarvis internal:
 
 ```text
-NEXT_PUBLIC_OPENJARVIS_UI_URL=https://openjarvis-service.up.railway.app
+ENABLE_ANTA_JARVIS=0
 ```
-
-Lalu buka Anta, tekan Ctrl/⌘+K, pilih `OpenJarvis`. UI OpenJarvis muncul di panel Monitor Anta.

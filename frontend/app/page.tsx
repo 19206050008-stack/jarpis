@@ -19,7 +19,7 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://jarpis-production-a270.up.railway.app";
-const openJarvisUiUrl = process.env.NEXT_PUBLIC_OPENJARVIS_UI_URL || "";
+const openJarvisUiUrl = process.env.NEXT_PUBLIC_OPENJARVIS_UI_URL || `${apiUrl}/jarvis/`;
 const pageVisible = () => typeof document === "undefined" || document.visibilityState === "visible";
 const getAgentId = () => localStorage.getItem("anta_agent_id") || "default";
 

@@ -1,23 +1,23 @@
-# Anta Jarvis on Railway
+# Anta Jarvis internal
 
-Folder ini adalah salinan OpenJarvis yang dipasang di backend repo Jarpis.
+Folder ini vendored OpenJarvis untuk backend Jarpis.
 
-Start command service Railway terpisah:
-
-```bash
-cd backend/anta-jarvis && python -m pip install uv && python -m uv sync --extra server --extra inference-cloud && python -m uv run jarvis serve --host 0.0.0.0 --port $PORT --engine cloud --model $OPENJARVIS_MODEL --agent simple
-```
-
-Env:
+Tidak perlu service Railway terpisah. `../start.py` menjalankan service ini otomatis kalau env berikut ada:
 
 ```text
-OPENROUTER_API_KEY=sk-or-...
-OPENJARVIS_MODEL=openai/gpt-oss-20b:free
+OPENROUTER_API_KEYS=sk-or-...
+OPENROUTER_MODEL=openai/gpt-oss-20b:free
+ENABLE_ANTA_JARVIS=1
 ```
 
-Lalu di service backend Jarpis isi:
+Service internal berjalan di:
 
 ```text
-OPENJARVIS_URL=https://service-anta-jarvis.up.railway.app
-OPENJARVIS_MODEL=openai/gpt-oss-20b:free
+http://127.0.0.1:8765
+```
+
+Backend Jarpis expose ke publik lewat:
+
+```text
+/jarvis
 ```

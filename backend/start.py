@@ -1,12 +1,43 @@
+import atexit
 import os
 import subprocess
 import sys
+import time
+
+
+def _first_env_key(*names: str) -> str:
+    for name in names:
+        for value in os.getenv(name, "").split(","):
+            value = value.strip()
+            if value:
+                return value
+    return ""
+
 
 # download supertonic tts automatically if models not present
 subprocess.check_call([sys.executable, "download_models.py"])
 
 if os.getenv("AI_PROVIDER") == "local" and not os.getenv("OPENROUTER_API_KEY"):
     subprocess.check_call([sys.executable, "download_model.py"])
+
+jarvis_proc = None
+if os.getenv("ENABLE_ANTA_JARVIS", "1") != "0":
+    openrouter_key = _first_env_key("OPENROUTER_API_KEY", "OPENROUTER_API_KEYS")
+    if openrouter_key:
+        os.environ.setdefault("OPENROUTER_API_KEY", openrouter_key)
+        os.environ.setdefault("OPENJARVIS_MODEL", os.getenv("OPENROUTER_MODEL", "openai/gpt-oss-20b:free"))
+        os.environ.setdefault("OPENJARVIS_URL", "http://127.0.0.1:8765")
+        jarvis_port = os.getenv("ANTA_JARVIS_PORT", "8765")
+        jarvis_proc = subprocess.Popen([
+            sys.executable, "-m", "openjarvis.cli", "serve",
+            "--host", "127.0.0.1",
+            "--port", jarvis_port,
+            "--engine", "cloud",
+            "--model", os.environ["OPENJARVIS_MODEL"],
+            "--agent", "simple",
+        ])
+        atexit.register(lambda: jarvis_proc and jarvis_proc.terminate())
+        time.sleep(3)
 
 subprocess.check_call([
     "uvicorn",
