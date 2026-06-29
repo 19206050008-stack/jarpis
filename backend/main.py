@@ -5,6 +5,7 @@ import time
 import sys
 import asyncio
 import hashlib
+import re
 import getpass
 import platform
 from pathlib import Path
@@ -40,6 +41,13 @@ _monitoring_cache = {"time": 0.0, "data": None}
 
 MODELS_DIR = os.getenv("MODELS_DIR", "models")
 SUPERTONIC_DIR = "sherpa-onnx-supertonic-3-tts-int8-2026-05-11"
+ELEVENLABS_API_KEYS = [
+    k.strip() for k in (os.getenv("ELEVENLABS_API_KEYS") or os.getenv("ELEVENLABS_API_KEY", "")).split(",") if k.strip()
+]
+ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "cjVigY5qzO86Huf0OWal")
+ELEVENLABS_MODEL = os.getenv("ELEVENLABS_MODEL", "eleven_multilingual_v2")
+ELEVENLABS_CACHE_DIR = Path(os.getenv("ELEVENLABS_CACHE_DIR", "tts_cache/elevenlabs_words"))
+_elevenlabs_key_index = 0
 
 SUPERTONIC_VOICES = {
     "sari":  (0, "Sari — Wanita",  "Indonesia"),
@@ -116,6 +124,51 @@ class SpeakRequest(BaseModel):
     text: str
     speaker: str | None = None
     speed: float | None = None
+
+
+def _elevenlabs_word_path(word: str) -> Path:
+    safe = re.sub(r"[^\w.-]+", "_", word.lower(), flags=re.UNICODE).strip("_")[:40] or "word"
+    digest = hashlib.sha1(word.lower().encode("utf-8")).hexdigest()[:10]
+    return ELEVENLABS_CACHE_DIR / f"{safe}-{digest}.mp3"
+
+
+async def _elevenlabs_cached_audio(text: str, folder: str) -> bytes:
+    global _elevenlabs_key_index
+    base = Path("tts_cache") / folder
+    base.mkdir(parents=True, exist_ok=True)
+    digest = hashlib.sha1(text.lower().encode("utf-8")).hexdigest()
+    path = base / f"{digest}.mp3"
+    if path.exists():
+        return path.read_bytes()
+    if not ELEVENLABS_API_KEYS:
+        raise HTTPException(status_code=503, detail="ELEVENLABS_API_KEYS belum diset")
+    async with httpx.AsyncClient(timeout=60) as client:
+        last = ""
+        for offset in range(len(ELEVENLABS_API_KEYS)):
+            idx = (_elevenlabs_key_index + offset) % len(ELEVENLABS_API_KEYS)
+            res = await client.post(
+                f"https://api.elevenlabs.io/v1/text-to-speech/{ELEVENLABS_VOICE_ID}",
+                headers={"xi-api-key": ELEVENLABS_API_KEYS[idx], "Accept": "audio/mpeg"},
+                json={"text": text, "model_id": ELEVENLABS_MODEL},
+            )
+            if res.status_code < 400:
+                _elevenlabs_key_index = idx
+                path.write_bytes(res.content)
+                return res.content
+            last = res.text
+            if res.status_code not in {401, 402, 403, 429}:  # real request bug; don't burn every key
+                break
+    raise HTTPException(status_code=503, detail=last)
+
+
+async def _elevenlabs_word_audio(word: str) -> bytes:
+    ELEVENLABS_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    path = _elevenlabs_word_path(word)
+    if path.exists():
+        return path.read_bytes()
+    audio = await _elevenlabs_cached_audio(word, "elevenlabs_words")
+    path.write_bytes(audio)
+    return audio
 
 llm = None
 if AI_PROVIDER == "local" and not OPENROUTER_API_KEY:
@@ -316,6 +369,7 @@ def providers_status():
         "capability_db": CAPABILITY_DB,
         "chat_router": [{"order": i + 1, "name": p["name"], "model": p["model"] or "auto", "capabilities": p["capabilities"], "configured": True} for i, p in enumerate(configured)] + [{"order": len(configured) + 1, "name": "mimo", "model": "mimo-auto", "capabilities": CAPABILITY_DB["mimo"]["best_for"], "configured": _mimo_enabled()}, {"order": len(configured) + 2, "name": "pollinations", "model": os.getenv("POLLINATIONS_MODEL", "openai"), "capabilities": ["chat"], "configured": True}],
         "local_tts": {"name": "supertonic", "capabilities": CAPABILITY_DB["supertonic"]["best_for"], "configured": _supertonic_available()},
+        "elevenlabs_tts": {"name": "elevenlabs", "capabilities": ["tts-natural", "tts-id"], "configured": bool(ELEVENLABS_API_KEYS)},
         "search": {"name": "builtin_search", "capabilities": CAPABILITY_DB["builtin_search"]["best_for"], "configured": True},
     }
 
@@ -336,6 +390,7 @@ def health():
         "ok": True,
         "model": "auto-router" if AI_PROVIDER == "auto" else "mimo-auto" if AI_PROVIDER == "mimo" else OPENROUTER_MODEL if OPENROUTER_API_KEY else AI_PROVIDER if AI_PROVIDER != "local" else MODEL_PATH,
         "tts_available": _supertonic_available(),
+        "elevenlabs_tts_available": bool(ELEVENLABS_API_KEYS),
         "memory_mb": round(mem.rss / 1024 / 1024, 1),
         "cpu_percent": proc.cpu_percent(interval=0.1),
         "uptime_s": round(time.time() - _start_time),
@@ -854,6 +909,26 @@ async def search_videos(q: str):
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 
+
+@app.post("/speak-eleven-words")
+async def speak_eleven_words(req: SpeakRequest):
+    words = re.findall(r"[\w.-]+", (req.text or "").strip(), flags=re.UNICODE)
+    if not words:
+        raise HTTPException(status_code=400, detail="Teks wajib diisi")
+    chunks = [await _elevenlabs_word_audio(word) for word in words[:80]]
+    return Response(content=b"".join(chunks), media_type="audio/mpeg")
+
+@app.post("/speak-eleven-smart")
+async def speak_eleven_smart(req: SpeakRequest):
+    # ponytail: phrase cache is the natural/cheap middle ground; word-splicing stays fallback.
+    text = re.sub(r"\s+", " ", (req.text or "").strip())
+    if not text:
+        raise HTTPException(status_code=400, detail="Teks wajib diisi")
+    if len(text) <= 160:
+        return Response(content=await _elevenlabs_cached_audio(text, "elevenlabs_phrases"), media_type="audio/mpeg")
+    chunks = re.split(r"(?<=[.!?])\s+", text)
+    audio = b"".join([await _elevenlabs_cached_audio(chunk[:160], "elevenlabs_phrases") for chunk in chunks if chunk])
+    return Response(content=audio, media_type="audio/mpeg")
 
 @app.post("/speak")
 def speak(req: SpeakRequest):

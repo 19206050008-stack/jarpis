@@ -306,6 +306,8 @@ export default function Home() {
   }, []);
 
   const voices = useMemo(() => [
+    { id: "andi", label: "Railway — Andi (default)" },
+    { id: "elevenlabs", label: "ElevenLabs — Natural" },
     { id: "sari", label: "Sari — Wanita" },
     { id: "dewi", label: "Dewi — Wanita" },
     { id: "ayu", label: "Ayu — Wanita" },
@@ -315,7 +317,6 @@ export default function Home() {
     { id: "agus", label: "Agus — Pria" },
     { id: "bayu", label: "Bayu — Pria" },
     { id: "dimas", label: "Dimas — Pria" },
-    { id: "andi", label: "Andi — Pria" },
   ], []);
 
   function cleanText(text: string) {
@@ -419,7 +420,8 @@ export default function Home() {
     }
 
     try {
-      const speakRes = await fetch(`${apiUrl}/speak`, {
+      const endpoint = speaker === "elevenlabs" ? "/speak-eleven-smart" : "/speak";
+      const speakRes = await fetch(`${apiUrl}${endpoint}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: clean.slice(0, 700), speaker }),
