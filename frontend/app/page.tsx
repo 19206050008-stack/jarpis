@@ -153,9 +153,7 @@ export default function Home() {
   const [news, setNews] = useState<{ title: string; link: string; source: string; pubDate?: string }[]>([]);
   const [articleText, setArticleText] = useState("");
   const [articleSource, setArticleSource] = useState("");
-  const [jarvisStatus, setJarvisStatus] = useState<any>(null);
-  const [jarvisCatalog, setJarvisCatalog] = useState<any>(null);
-
+  // ponytail: viewer state kept minimal; chat is the only visible surface.
   
   // Popup States: 'closed' | 'open' | 'minimized'
   const [chatState, setChatState] = useState<'closed' | 'open' | 'minimized'>('closed');
@@ -257,58 +255,23 @@ export default function Home() {
   const lastActiveAppRef = useRef("");
 
   async function openOpenJarvis() {
-    setArticleText(""); setNews([]); setVideos([]); setImages([]); setSelectedVideo(null);
-    setViewerLoading(false);
-    setViewerFullscreen(true);
-    setViewerState("open");
-    if (!apiUrl) {
-      setView({ title: "OpenJarvis UI", url: "", note: "Backend belum aktif." });
-      return;
-    }
-    try {
-      const [status, providers] = await Promise.all([
-        fetch(`${apiUrl}/openjarvis/status`, { cache: "no-store" }).then((r) => r.json()),
-        fetch(`${apiUrl}/providers`, { cache: "no-store" }).then((r) => r.json()),
-      ]);
-      setJarvisStatus(status);
-      setJarvisCatalog(providers);
-      setView({
-        title: "OpenJarvis UI",
-        url: status?.ok ? `${apiUrl}/jarvis/` : "",
-        note: status?.ok ? "UI asli OpenJarvis dibuka di dalam Anta." : "OpenJarvis belum tersambung — pakai chat untuk nanya kemampuan yang aktif.",
-      });
-    } catch {
-      setJarvisStatus({ ok: false });
-      setJarvisCatalog(null);
-      setView({ title: "OpenJarvis UI", url: "", note: "OpenJarvis belum tersambung — pakai chat untuk nanya kemampuan yang aktif." });
-    }
+    setChatState('open');
   }
 
   const commands = useMemo(() => [
     { label: "Voice", hint: "Mulai perintah suara", run: () => startVoiceInput() },
     { label: "Berita hari ini", hint: "Cari berita terbaru", run: () => send("berita hari ini") },
-    { label: "Cari gambar", hint: "Cari gambar dengan Anta", run: () => { setViewerState("open"); setViewerFullscreen(true); setInput("gambar "); } },
+    { label: "Cari gambar", hint: "Cari gambar dengan Anta", run: () => { setChatState("open"); setInput("gambar "); } },
   ], []);
 
   useEffect(() => {
     if (!apiUrl) return;
-    const load = () => fetch(`${apiUrl}/openjarvis/status`, { cache: "no-store" }).then((r) => r.json()).then(setJarvisStatus).catch(() => setJarvisStatus({ ok: false }));
-    load();
-    const timer = setInterval(load, 30000);
-    return () => clearInterval(timer);
+    return;
   }, []);
 
   const voices = useMemo(() => [
-    { id: "andi", label: "Railway — Andi (default)" },
-    { id: "sari", label: "Sari — Wanita" },
-    { id: "dewi", label: "Dewi — Wanita" },
-    { id: "ayu", label: "Ayu — Wanita" },
-    { id: "rina", label: "Rina — Wanita" },
-    { id: "maya", label: "Maya — Wanita" },
-    { id: "budi", label: "Budi — Pria" },
-    { id: "agus", label: "Agus — Pria" },
-    { id: "bayu", label: "Bayu — Pria" },
-    { id: "dimas", label: "Dimas — Pria" },
+    { id: "andi", label: "Anta v1 — Railway lokal" },
+    { id: "elevenlabs", label: "Anta v2 — ElevenLabs natural" },
   ], []);
 
   function cleanText(text: string) {
@@ -330,7 +293,10 @@ export default function Home() {
     utter.lang = "id-ID";
     utter.rate = 1;
     utter.pitch = 1;
-    utter.onstart = () => { setIsAiSpeaking(true); setSubtitle(""); };
+    const voices = window.speechSynthesis.getVoices?.() || [];
+    const idVoice = voices.find((v) => (v.lang || "").toLowerCase().startsWith("id"));
+    if (idVoice) utter.voice = idVoice;
+    utter.onstart = () => { setIsAiSpeaking(true); setSubtitle(cleanText(text)); };
     utter.onend = () => { setIsAiSpeaking(false); setSubtitle(""); setVoiceTranscript(""); };
     window.speechSynthesis.cancel();
     window.speechSynthesis.speak(utter);
@@ -426,7 +392,7 @@ export default function Home() {
     }
 
     try {
-      const endpoint = speaker === "elevenlabs" ? "/speak-eleven-smart" : "/speak";
+      const endpoint = speaker.startsWith("elevenlabs") ? "/speak-eleven-smart" : "/speak";
       const speakRes = await fetch(`${apiUrl}${endpoint}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1488,9 +1454,6 @@ export default function Home() {
           <button onClick={() => setChatState('open')} title="Chat">
             <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
           </button>
-          <button onClick={openOpenJarvis} title="OpenJarvis">
-            <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none"><path d="M12 2l8 4v6c0 5-3.4 8.7-8 10-4.6-1.3-8-5-8-10V6l8-4z"></path><path d="M9 12h6"></path><path d="M12 9v6"></path></svg>
-          </button>
           <button className={listening ? 'active' : ''} onClick={startVoiceInput} title="Voice">
             <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
           </button>
@@ -1524,10 +1487,10 @@ export default function Home() {
       )}
 
       {/* Popup 2: Custom result surface */}
-      {viewerState === 'open' && (
+      {false && viewerState === 'open' && (
         <section className={`popup-window viewer-window custom-viewer ${viewerFullscreen ? 'viewer-fullscreen' : ''}`} style={viewerFullscreen ? undefined : { left: popupPos.viewer.x || undefined, right: popupPos.viewer.x ? undefined : 40, top: popupPos.viewer.y }}>
           <header className="window-header" onPointerDown={(e) => { if (window.innerWidth > 800 && !viewerFullscreen && !(e.target instanceof Element && e.target.closest('.controls'))) startPopupDrag("viewer", e); }} onPointerMove={movePopup} onPointerUp={stopPopupDrag}>
-            <span className="title">Anta Monitor</span>
+            <span className="title">Anta Chat</span>
             <div className="controls anta-toolbar">
               <IconButton icon="expand" label="Fullscreen" onClick={(e) => { e.stopPropagation(); setViewerFullscreen(!viewerFullscreen); }} type="button" />
               <IconButton icon="close" label="Tutup" onClick={(e) => { e.stopPropagation(); setViewerFullscreen(false); setViewerState('closed'); }} type="button" />
@@ -1556,11 +1519,14 @@ export default function Home() {
             {!articleText && news.length === 0 && videos.length === 0 && images.length === 0 && view.title !== "OpenJarvis UI" && view.url && <iframe className="viewer-frame" src={view.url} title={view.title || "OpenJarvis"} />}
             {!articleText && news.length === 0 && videos.length === 0 && images.length === 0 && view.title !== "OpenJarvis UI" && !view.url && <div className="browser-empty">Ketik: gambar burung, lagu jazz, berita hari ini, atau cari sesuatu.</div>}
 
-            {imagePreview && (
-              <div className="image-preview" onClick={() => setImagePreview(null)}>
-                <img src={imagePreview.image || imagePreview.thumbnail} alt={imagePreview.title || "preview"} />
-              </div>
-            )}
+            {imagePreview && (() => {
+              const img = imagePreview!;
+              return (
+                <div className="image-preview" onClick={() => setImagePreview(null)}>
+                  <img src={img.image || img.thumbnail} alt={img.title || "preview"} />
+                </div>
+              );
+            })()}
 
             {!articleText && images.length > 0 && (
               <div className="image-grid">
@@ -1625,9 +1591,11 @@ export default function Home() {
               </div>
             )}
 
-            {videos.length > 0 && (
+            {videos.length > 0 && (() => {
+              const video = selectedVideo!;
+              return (
               <div className="video-surface">
-                {selectedVideo && <iframe className="video-player" src={selectedVideo.url} title={selectedVideo.title} allowFullScreen />}
+                {selectedVideo && <iframe className="video-player" src={video.url} title={video.title} allowFullScreen />}
                 <div className="video-list">
                   {videos.map((vid, i) => (
                     <ActionButton key={i} icon="play" type="button" className={selectedVideo?.id === vid.id ? "active" : ""} onClick={() => setSelectedVideo(vid)}>
@@ -1636,7 +1604,8 @@ export default function Home() {
                   ))}
                 </div>
               </div>
-            )}
+              );
+            })()}
           </div>
         </section>
       )}

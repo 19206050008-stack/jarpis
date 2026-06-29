@@ -44,9 +44,29 @@ SUPERTONIC_DIR = "sherpa-onnx-supertonic-3-tts-int8-2026-05-11"
 ELEVENLABS_API_KEYS = [
     k.strip() for k in (os.getenv("ELEVENLABS_API_KEYS") or os.getenv("ELEVENLABS_API_KEY", "")).split(",") if k.strip()
 ]
-ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "cjVigY5qzO86Huf0OWal")
+ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "TMvmhlKUioQA4U7LOoko")
 ELEVENLABS_MODEL = os.getenv("ELEVENLABS_MODEL", "eleven_multilingual_v2")
 ELEVENLABS_CACHE_DIR = Path(os.getenv("ELEVENLABS_CACHE_DIR", "tts_cache/elevenlabs_words"))
+ELEVENLABS_VOICES = {
+    "elevenlabs": (ELEVENLABS_VOICE_ID, "Anta v2 — Andi"),
+    "elevenlabs-andi": ("TMvmhlKUioQA4U7LOoko", "Andi — clear friendly Indonesian"),
+    "elevenlabs-cahaya": ("iWydkXKoiVtvdn4vLKp9", "Cahaya"),
+    "elevenlabs-dakocan": ("plgKUYgnlZ1DCNh54DwJ", "Dakocan"),
+    "elevenlabs-yetty": ("Lpe7uP03WRpCk9XkpFnf", "Yetty"),
+    "elevenlabs-mizan": ("ACRfKVNOAnzVitkYerdl", "Mizan"),
+    "elevenlabs-kira": ("gmnazjXOFoOcWA59sd5m", "Kira"),
+    "elevenlabs-ahmad": ("d888tBvGmQT2u05J1xTv", "Ahmad"),
+    "elevenlabs-aita": ("ffTJE9l3Kt2ipEM32UOc", "Aita"),
+    "elevenlabs-zaak": ("HnnPtoATgzx4ubChwm24", "Zaak"),
+    "elevenlabs-livna": ("GdyFAZdMpKMBHw5pc1Bu", "Livna"),
+    "elevenlabs-mizani": ("IALUBpQ56gzxhNH8HDDK", "Mizani"),
+    "elevenlabs-aita-hq": ("k5eTzx1VYYlp6BE39Qrj", "Aita HQ"),
+    "elevenlabs-mila-rahmadania": ("wWRuqXP4yAwzRerUveS8", "Mila Rahmadania"),
+    "elevenlabs-mila": ("JHVoEhIATOgU9MXpfMYg", "Mila"),
+    "elevenlabs-ami": ("oEOMTAySmTfDmVF6zZ2i", "Ami"),
+    "elevenlabs-mizani-assertive": ("xChNffR8mWkGIrdSUYsg", "Mizani Assertive"),
+    "elevenlabs-devi": ("hNbh1PL2BQ5XtGBJqEiu", "Devi"),
+}
 _elevenlabs_key_index = 0
 
 SUPERTONIC_VOICES = {
@@ -132,11 +152,12 @@ def _elevenlabs_word_path(word: str) -> Path:
     return ELEVENLABS_CACHE_DIR / f"{safe}-{digest}.mp3"
 
 
-async def _elevenlabs_cached_audio(text: str, folder: str) -> bytes:
+async def _elevenlabs_cached_audio(text: str, folder: str, voice_id: str | None = None) -> bytes:
     global _elevenlabs_key_index
+    voice_id = voice_id or ELEVENLABS_VOICE_ID
     base = Path("tts_cache") / folder
     base.mkdir(parents=True, exist_ok=True)
-    digest = hashlib.sha1(text.lower().encode("utf-8")).hexdigest()
+    digest = hashlib.sha1(f"{voice_id}\n{text.lower()}".encode("utf-8")).hexdigest()
     path = base / f"{digest}.mp3"
     if path.exists():
         return path.read_bytes()
@@ -147,7 +168,7 @@ async def _elevenlabs_cached_audio(text: str, folder: str) -> bytes:
         for offset in range(len(ELEVENLABS_API_KEYS)):
             idx = (_elevenlabs_key_index + offset) % len(ELEVENLABS_API_KEYS)
             res = await client.post(
-                f"https://api.elevenlabs.io/v1/text-to-speech/{ELEVENLABS_VOICE_ID}",
+                f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}",
                 headers={"xi-api-key": ELEVENLABS_API_KEYS[idx], "Accept": "audio/mpeg"},
                 json={"text": text, "model_id": ELEVENLABS_MODEL},
             )
@@ -156,7 +177,7 @@ async def _elevenlabs_cached_audio(text: str, folder: str) -> bytes:
                 path.write_bytes(res.content)
                 return res.content
             last = res.text
-            if res.status_code not in {401, 402, 403, 429}:  # real request bug; don't burn every key
+            if res.status_code not in {400, 401, 402, 403, 429}:  # try creator key after free-tier voice rejects
                 break
     raise HTTPException(status_code=503, detail=last)
 
@@ -169,6 +190,10 @@ async def _elevenlabs_word_audio(word: str) -> bytes:
     audio = await _elevenlabs_cached_audio(word, "elevenlabs_words")
     path.write_bytes(audio)
     return audio
+
+
+def _elevenlabs_voice(speaker: str | None) -> str:
+    return ELEVENLABS_VOICES.get((speaker or "").lower(), ELEVENLABS_VOICES["elevenlabs"])[0]
 
 llm = None
 if AI_PROVIDER == "local" and not OPENROUTER_API_KEY:
@@ -369,7 +394,7 @@ def providers_status():
         "capability_db": CAPABILITY_DB,
         "chat_router": [{"order": i + 1, "name": p["name"], "model": p["model"] or "auto", "capabilities": p["capabilities"], "configured": True} for i, p in enumerate(configured)] + [{"order": len(configured) + 1, "name": "mimo", "model": "mimo-auto", "capabilities": CAPABILITY_DB["mimo"]["best_for"], "configured": _mimo_enabled()}, {"order": len(configured) + 2, "name": "pollinations", "model": os.getenv("POLLINATIONS_MODEL", "openai"), "capabilities": ["chat"], "configured": True}],
         "local_tts": {"name": "supertonic", "capabilities": CAPABILITY_DB["supertonic"]["best_for"], "configured": _supertonic_available()},
-        "elevenlabs_tts": {"name": "elevenlabs", "capabilities": ["tts-natural", "tts-id"], "configured": bool(ELEVENLABS_API_KEYS)},
+        "elevenlabs_tts": {"name": "elevenlabs", "capabilities": ["tts-natural", "tts-id"], "configured": bool(ELEVENLABS_API_KEYS), "voices": [{"id": k, "label": v[1]} for k, v in ELEVENLABS_VOICES.items()]},
         "search": {"name": "builtin_search", "capabilities": CAPABILITY_DB["builtin_search"]["best_for"], "configured": True},
     }
 
@@ -924,10 +949,11 @@ async def speak_eleven_smart(req: SpeakRequest):
     text = re.sub(r"\s+", " ", (req.text or "").strip())
     if not text:
         raise HTTPException(status_code=400, detail="Teks wajib diisi")
+    voice_id = _elevenlabs_voice(req.speaker)
     if len(text) <= 160:
-        return Response(content=await _elevenlabs_cached_audio(text, "elevenlabs_phrases"), media_type="audio/mpeg")
+        return Response(content=await _elevenlabs_cached_audio(text, "elevenlabs_phrases", voice_id), media_type="audio/mpeg")
     chunks = re.split(r"(?<=[.!?])\s+", text)
-    audio = b"".join([await _elevenlabs_cached_audio(chunk[:160], "elevenlabs_phrases") for chunk in chunks if chunk])
+    audio = b"".join([await _elevenlabs_cached_audio(chunk[:160], "elevenlabs_phrases", voice_id) for chunk in chunks if chunk])
     return Response(content=audio, media_type="audio/mpeg")
 
 @app.post("/speak")

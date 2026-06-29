@@ -72,7 +72,7 @@
     display:none!important;
   }
   .center-container.orb-chat-open .subtitle-bubble {
-    display:none!important;
+    display:block!important;
   }
   .orb-equalizer {
     width:90px;
