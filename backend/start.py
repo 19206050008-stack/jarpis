@@ -31,8 +31,9 @@ def _ensure_anta_jarvis() -> bool:
     return False
 
 
-# download supertonic tts automatically if models not present
-subprocess.check_call([sys.executable, "download_models.py"])
+# ponytail: hosted deploy should not download a TTS model unless explicitly asked.
+if os.getenv("ENABLE_TTS") == "1":
+    subprocess.check_call([sys.executable, "download_models.py"])
 
 if os.getenv("AI_PROVIDER") == "local" and not os.getenv("OPENROUTER_API_KEY"):
     subprocess.check_call([sys.executable, "download_model.py"])

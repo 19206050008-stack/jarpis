@@ -1,28 +1,53 @@
 "use client";
+
+import { useEffect, useState } from "react";
+
+const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+
+type Health = { ok?: boolean; model?: string; uptime_s?: number; memory_mb?: number; tts_available?: boolean };
+type Provider = { name: string; model: string; configured: boolean };
+
 export default function Settings() {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://jarpis-production-a270.up.railway.app";
+  const [health, setHealth] = useState<Health | null>(null);
+  const [providers, setProviders] = useState<Provider[]>([]);
+
+  useEffect(() => {
+    fetch(`${apiUrl}/health`).then((r) => r.json()).then(setHealth).catch(() => setHealth({ ok: false }));
+    fetch(`${apiUrl}/providers`).then((r) => r.json()).then((x) => setProviders(x.chat_router || [])).catch(() => {});
+  }, []);
+
   return (
-    <main className="jarvis-desktop" style={{ padding: 24 }}>
-      <div style={{ maxWidth: 520, margin: "40px auto" }}>
-        <div className="popup-window" style={{ position: "static", width: "100%", padding: 20 }}>
-          <div style={{ marginBottom: 20 }}>
-            <div style={{ color: "#67e8f9", fontSize: 13, marginBottom: 6 }}>Backend</div>
-            <div style={{ fontFamily: "monospace", color: "#22d3ee", fontSize: 13 }}>{apiUrl}</div>
-          </div>
-          <div style={{ marginBottom: 20 }}>
-            <div style={{ color: "#67e8f9", fontSize: 13, marginBottom: 8 }}>Provider</div>
-            {["OpenRouter", "OpenAgentic", "Pollinations"].map((p, i) => (
-              <div key={i} style={{ padding: "8px 12px", border: "1px solid #22d3ee22", borderRadius: 8, background: "#020a1a", marginBottom: 6, fontSize: 13, display: "flex", justifyContent: "space-between" }}>
-                <span>{p}</span><span style={{ color: "#22c55e" }}>Aktif</span>
-              </div>
-            ))}
-          </div>
+    <main className="app">
+      <section className="panel status-panel">
+        <header>
           <div>
-            <div style={{ color: "#67e8f9", fontSize: 13, marginBottom: 6 }}>Voice & TTS</div>
-            <div style={{ fontSize: 13, opacity: 0.8 }}>Supertonic • 10 suara Indonesia</div>
+            <h1>Status</h1>
+            <p>{apiUrl}</p>
           </div>
+          <nav><a href="/">Chat</a></nav>
+          <span className={health?.ok ? "dot" : "dot busy"} />
+        </header>
+
+        <div className="status">
+          <div className="card">
+            <b>Backend</b>
+            <span>{health ? (health.ok ? "Online" : "Offline") : "Memuat..."}</span>
+          </div>
+          <div className="card"><b>Model</b><span>{health?.model || "-"}</span></div>
+          <div className="card"><b>Uptime</b><span>{health?.uptime_s ?? "-"}s</span></div>
+          <div className="card"><b>Memory</b><span>{health?.memory_mb ?? "-"} MB</span></div>
+          <div className="card"><b>TTS lokal</b><span>{health?.tts_available ? "Ada" : "Tidak"}</span></div>
+
+          <h2>Provider chat</h2>
+          {providers.map((p, i) => (
+            <div className="provider" key={i}>
+              <span>{p.name}</span>
+              <small>{p.model}</small>
+              <b>{p.configured ? "aktif" : "belum"}</b>
+            </div>
+          ))}
         </div>
-      </div>
+      </section>
     </main>
   );
 }

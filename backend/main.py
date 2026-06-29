@@ -4,6 +4,7 @@ import wave
 import time
 import sys
 import json
+from datetime import datetime, timedelta
 import hmac
 import base64
 import asyncio
@@ -18,12 +19,14 @@ from threading import Lock
 try:
     from dotenv import load_dotenv
     load_dotenv()
+    load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+    load_dotenv(Path(__file__).resolve().parent.parent / ".env.local")
 except ImportError:
     pass  # python-dotenv not installed, rely on system env vars
 
 import httpx
 import numpy as np
-from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi import FastAPI, HTTPException, Request, Response, WebSocket, WebSocketDisconnect
 
 _start_time = time.time()
 from fastapi.middleware.cors import CORSMiddleware
@@ -34,6 +37,18 @@ USER_PASSWORD = os.getenv("ANTA_USER_PASSWORD", "")
 SUPERADMIN_PASSWORD = os.getenv("ANTA_SUPERADMIN_PASSWORD", "")
 SUPABASE_URL = os.getenv("SUPABASE_URL") or os.getenv("NEXT_PUBLIC_SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_KEY") or os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
+GOOGLE_CALENDAR_ID = os.getenv("GOOGLE_CALENDAR_ID", "primary")
+GOOGLE_CALENDAR_TOKEN = os.getenv("GOOGLE_CALENDAR_TOKEN", "")
+BACKEND_PUBLIC_URL = os.getenv("BACKEND_PUBLIC_URL", "").rstrip("/")
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
+GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
+GOOGLE_REFRESH_TOKEN = os.getenv("GOOGLE_REFRESH_TOKEN", "")
+GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI") or (f"{BACKEND_PUBLIC_URL}/oauth/google/callback" if BACKEND_PUBLIC_URL else "http://localhost:8000/oauth/google/callback")
+SPOTIFY_ACCESS_TOKEN = os.getenv("SPOTIFY_ACCESS_TOKEN", "")
+SPOTIFY_CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID", "")
+SPOTIFY_CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET", "")
+SPOTIFY_REFRESH_TOKEN = os.getenv("SPOTIFY_REFRESH_TOKEN", "")
+SPOTIFY_REDIRECT_URI = os.getenv("SPOTIFY_REDIRECT_URI") or (f"{BACKEND_PUBLIC_URL}/oauth/spotify/callback" if BACKEND_PUBLIC_URL else "http://localhost:8000/oauth/spotify/callback")
 
 MODEL_PATH = os.getenv("MODEL_PATH", "models/Qwen3-0.6B-Q8_0.gguf")
 AI_PROVIDER = os.getenv("AI_PROVIDER", "auto")
@@ -44,6 +59,7 @@ MIMO_JWT = ""
 MIMO_JWT_TIME = 0.0
 MIMO_JWT_TTL = 50 * 60
 _monitoring_cache = {"time": 0.0, "data": None}
+_local_memories: list[str] = []
 
 MODELS_DIR = os.getenv("MODELS_DIR", "models")
 SUPERTONIC_DIR = "sherpa-onnx-supertonic-3-tts-int8-2026-05-11"
@@ -93,6 +109,9 @@ _cors_origins = list(dict.fromkeys(os.getenv("CORS_ORIGINS", "*").split(",") + [
     "https://antasiar.my.id",
     "https://www.antasiar.my.id",
     "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:3010",
+    "http://127.0.0.1:3010",
 ]))
 app.add_middleware(
     CORSMiddleware,
@@ -318,6 +337,14 @@ def _intent_task(message: str) -> str:
         return "image_search"
     if any(x in lower for x in ["berita", "artikel"]):
         return "news"
+    if any(x in lower for x in ["kalender", "jadwal", "calendar"]):
+        return "calendar"
+    if "spotify" in lower or any(x in lower for x in ["putar lagu", "pause lagu", "lagu "]):
+        return "spotify"
+    if any(x in lower for x in ["harga", "marketplace", "shopee", "tokopedia", "tcg"]):
+        return "marketplace"
+    if any(x in lower for x in ["cari ", "search ", "googling"]):
+        return "web_search"
     return "chat"
 
 
@@ -337,6 +364,156 @@ def _get_soup_parser() -> str:
         return "lxml"
     except ImportError:
         return "html.parser"
+
+
+async def _search_web_results(q: str) -> list[dict]:
+    import urllib.parse
+    from bs4 import BeautifulSoup
+    url = f"https://duckduckgo.com/html/?q={urllib.parse.quote(q)}"
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+    # ponytail: local Windows cert stores can break DDG; public search carries no secrets, so allow verify override here only.
+    async with httpx.AsyncClient(timeout=15, follow_redirects=True, verify=os.getenv("SEARCH_VERIFY_SSL", "0") == "1") as client:
+        res = await client.get(url, headers=headers)
+    soup = BeautifulSoup(res.text, _get_soup_parser())
+    results = []
+    for item in soup.select(".result")[:5]:
+        a = item.select_one(".result__a")
+        if not a:
+            continue
+        link = a.get("href", "")
+        if "uddg=" in link:
+            link = urllib.parse.unquote(urllib.parse.parse_qs(urllib.parse.urlparse(link).query).get("uddg", [link])[0])
+        snippet = item.select_one(".result__snippet")
+        results.append({"title": a.get_text(" ", strip=True), "link": link, "snippet": snippet.get_text(" ", strip=True) if snippet else ""})
+    return results
+
+
+async def _news_results(q: str) -> list[dict]:
+    import urllib.parse
+    import xml.etree.ElementTree as ET
+    url = f"https://news.google.com/rss/search?q={urllib.parse.quote(q)}&hl=id&gl=ID&ceid=ID:id"
+    async with httpx.AsyncClient(timeout=15, follow_redirects=True, verify=os.getenv("SEARCH_VERIFY_SSL", "0") == "1") as client:
+        res = await client.get(url)
+    root = ET.fromstring(res.text)
+    return [{
+        "title": item.findtext("title", ""),
+        "link": item.findtext("link", ""),
+        "pubDate": item.findtext("pubDate", ""),
+        "source": item.findtext("source", ""),
+    } for item in root.findall(".//item")[:5]]
+
+
+async def _article_text(url: str) -> str:
+    from bs4 import BeautifulSoup
+    headers = {"User-Agent": "Mozilla/5.0", "Accept-Language": "id-ID,id;q=0.9,en;q=0.8"}
+    async with httpx.AsyncClient(follow_redirects=True, timeout=20) as client:
+        res = await client.get(url, headers=headers)
+    soup = BeautifulSoup(res.text, _get_soup_parser())
+    for tag in soup.find_all(["script", "style", "nav", "header", "footer", "aside", "iframe", "noscript", "form", "button"]):
+        tag.decompose()
+    container = soup.find("article") or soup.find("main") or soup.find("body")
+    paragraphs = (container or soup).find_all("p")
+    text = " ".join(p.get_text(" ", strip=True) for p in paragraphs if len(p.get_text(" ", strip=True)) > 30)
+    return re.sub(r"\s+", " ", text).strip()[:6000]
+
+
+async def _google_access_token() -> str:
+    if GOOGLE_CALENDAR_TOKEN:
+        return GOOGLE_CALENDAR_TOKEN
+    if not (GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET and GOOGLE_REFRESH_TOKEN):
+        return ""
+    async with httpx.AsyncClient(timeout=20) as client:
+        res = await client.post("https://oauth2.googleapis.com/token", data={
+            "client_id": GOOGLE_CLIENT_ID,
+            "client_secret": GOOGLE_CLIENT_SECRET,
+            "refresh_token": GOOGLE_REFRESH_TOKEN,
+            "grant_type": "refresh_token",
+        })
+    return res.json().get("access_token", "") if res.status_code < 400 else ""
+
+
+async def _spotify_access_token() -> str:
+    if SPOTIFY_ACCESS_TOKEN:
+        return SPOTIFY_ACCESS_TOKEN
+    if not (SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET and SPOTIFY_REFRESH_TOKEN):
+        return ""
+    auth = base64.b64encode(f"{SPOTIFY_CLIENT_ID}:{SPOTIFY_CLIENT_SECRET}".encode()).decode()
+    async with httpx.AsyncClient(timeout=20) as client:
+        res = await client.post("https://accounts.spotify.com/api/token", headers={"Authorization": f"Basic {auth}"}, data={
+            "grant_type": "refresh_token",
+            "refresh_token": SPOTIFY_REFRESH_TOKEN,
+        })
+    return res.json().get("access_token", "") if res.status_code < 400 else ""
+
+
+async def _calendar_upcoming() -> str:
+    token = await _google_access_token()
+    if not token:
+        return "Google Calendar belum aktif. Buka /oauth/google/url lalu simpan GOOGLE_REFRESH_TOKEN."
+    now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    async with httpx.AsyncClient(timeout=20) as client:
+        res = await client.get(
+            f"https://www.googleapis.com/calendar/v3/calendars/{GOOGLE_CALENDAR_ID}/events",
+            headers={"Authorization": f"Bearer {token}"},
+            params={"timeMin": now, "singleEvents": "true", "orderBy": "startTime", "maxResults": "10"},
+        )
+    if res.status_code >= 400:
+        return f"Google Calendar gagal: {res.status_code} {res.text[:160]}"
+    items = res.json().get("items", [])
+    if not items:
+        return "Tidak ada jadwal terdekat."
+    return "\n".join(f"{i+1}. {x.get('summary','(tanpa judul)')} — {x.get('start',{}).get('dateTime') or x.get('start',{}).get('date')}" for i, x in enumerate(items))
+
+
+async def _calendar_create(summary: str, start: datetime | None = None) -> str:
+    token = await _google_access_token()
+    if not token:
+        return "Google Calendar belum aktif. Buka /oauth/google/url lalu simpan GOOGLE_REFRESH_TOKEN."
+    start = start or (datetime.now() + timedelta(days=1)).replace(hour=9, minute=0, second=0, microsecond=0)
+    end = start + timedelta(hours=1)
+    event = {
+        "summary": summary,
+        "start": {"dateTime": start.isoformat(), "timeZone": "Asia/Jakarta"},
+        "end": {"dateTime": end.isoformat(), "timeZone": "Asia/Jakarta"},
+    }
+    async with httpx.AsyncClient(timeout=20) as client:
+        res = await client.post(
+            f"https://www.googleapis.com/calendar/v3/calendars/{GOOGLE_CALENDAR_ID}/events",
+            headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+            json=event,
+        )
+    if res.status_code >= 400:
+        return f"Google Calendar gagal buat jadwal: {res.status_code} {res.text[:160]}"
+    data = res.json()
+    return f"Jadwal dibuat: {data.get('summary', summary)} — {data.get('htmlLink', '')}"
+
+
+async def _spotify(action: str, q: str = "") -> str:
+    token = await _spotify_access_token()
+    if not token:
+        return "Spotify belum aktif. Buka /oauth/spotify/url lalu simpan SPOTIFY_REFRESH_TOKEN."
+    headers = {"Authorization": f"Bearer {token}"}
+    async with httpx.AsyncClient(timeout=20) as client:
+        if action == "pause":
+            res = await client.put("https://api.spotify.com/v1/me/player/pause", headers=headers)
+            return "Spotify dipause." if res.status_code in {200, 202, 204} else f"Spotify gagal pause: {res.status_code} {res.text[:120]}"
+        if action == "current":
+            res = await client.get("https://api.spotify.com/v1/me/player/currently-playing", headers=headers)
+            if res.status_code == 204:
+                return "Tidak ada lagu yang sedang diputar."
+            if res.status_code >= 400:
+                return f"Spotify gagal cek lagu: {res.status_code} {res.text[:120]}"
+            item = res.json().get("item") or {}
+            return f"Sedang diputar: {item.get('name', '(tidak diketahui)')}"
+        res = await client.get("https://api.spotify.com/v1/search", headers=headers, params={"q": q, "type": "track", "limit": "1"})
+        if res.status_code >= 400:
+            return f"Spotify gagal cari lagu: {res.status_code} {res.text[:120]}"
+        tracks = res.json().get("tracks", {}).get("items", [])
+        if not tracks:
+            return "Lagu tidak ditemukan."
+        track = tracks[0]
+        res = await client.put("https://api.spotify.com/v1/me/player/play", headers=headers | {"Content-Type": "application/json"}, json={"uris": [track["uri"]]})
+        return f"Memutar Spotify: {track['name']}" if res.status_code in {200, 202, 204} else f"Spotify gagal play: {res.status_code} {res.text[:120]}"
 
 
 def _weak_answer(text: str) -> bool:
@@ -467,6 +644,42 @@ def health():
     }
 
 
+@app.get("/chat/history")
+async def chat_history(session_id: str):
+    rows = await _supabase_get("messages", {
+        "session_id": f"eq.{session_id}",
+        "select": "role,content,created_at",
+        "order": "created_at.asc",
+        "limit": "100",
+    })
+    return [{"role": "ai" if r.get("role") == "ai" else "user", "text": r.get("content", "")} for r in rows if r.get("role") in {"user", "ai"}]
+
+
+@app.delete("/chat/history")
+async def delete_chat_history(session_id: str):
+    await _supabase_delete("messages", {"session_id": f"eq.{session_id}"})
+    await _supabase_delete("sessions", {"id": f"eq.{session_id}"})
+    return {"ok": True}
+
+
+@app.websocket("/ws/chat")
+async def chat_ws(ws: WebSocket):
+    await ws.accept()
+    try:
+        while True:
+            data = await ws.receive_json()
+            if data.get("type") == "ping":
+                await ws.send_json({"type": "pong"})
+                continue
+            try:
+                res = await chat({"message": data.get("message", ""), "session_id": data.get("session_id"), "try_all": True})
+                await ws.send_json({"type": "answer", "text": res.body.decode("utf-8")})
+            except Exception as e:
+                await ws.send_json({"type": "answer", "text": f"Gagal memproses: {e}"})
+    except WebSocketDisconnect:
+        return
+
+
 @app.post("/chat")
 async def chat(payload: dict):
     message = (payload.get("message") or "").strip()
@@ -476,47 +689,97 @@ async def chat(payload: dict):
     system = "Kamu Anta, asisten AI. Jawab langsung, ringkas, natural. Jangan pakai markdown. Jika tidak yakin atau tidak menemukan info, bilang singkat saja."
     prompt = f"{system}\n\nUser: {message}\nAnta:"
     task = payload.get("task") or _intent_task(message)
+    session_id = (payload.get("session_id") or "").strip() or None
     errors: list[str] = []
 
+    url_match = re.search(r"https?://\S+", message)
+    if url_match and any(x in message.lower() for x in ["ringkas", "summarize", "resume", "jelaskan"]):
+        article = await _article_text(url_match.group(0).rstrip(".,)"))
+        routed_message = f"Ringkas dan jelaskan artikel ini dalam bahasa Indonesia.\n\nURL: {url_match.group(0)}\n\nISI:\n{article or 'Artikel tidak terbaca.'}"
+        task = "summarize"
+    else:
+        routed_message = await _chat_context(session_id, message) if task in {"chat", "reasoning", "code", "summarize"} else message
+    await _save_message(session_id, "user", message)
+
+    async def reply(answer: str, headers: dict | None = None):
+        await _save_message(session_id, "ai", answer)
+        return Response(answer, media_type="text/plain; charset=utf-8", headers=headers or {})
+
+    remember = re.match(r"^(ingat|simpan memori)(?:\s+bahwa)?\s+(.+)", message, flags=re.I)
+    if remember:
+        memory = remember.group(2).strip()
+        await _save_memory(memory)
+        return await reply(f"Saya ingat: {memory}", {"X-Anta-Task": "memory_write"})
+
     if task in {"image_generation", "video_generation", "stt"}:
-        return Response(f"Fitur {task} belum punya provider aktif. Yang tersedia sekarang: chat/reasoning/code via AI keys, TTS Indonesia lokal, dan pencarian gambar/video/berita lewat backend.", media_type="text/plain; charset=utf-8", headers={"X-Anta-Task": task})
+        return await reply(f"Fitur {task} belum punya provider aktif. Yang tersedia sekarang: chat/reasoning/code via AI keys, TTS Indonesia lokal, dan pencarian gambar/video/berita lewat backend.", {"X-Anta-Task": task})
+
+    if task in {"web_search", "news", "marketplace"}:
+        q = re.sub(r"^(cari|search|googling|berita|artikel|harga)\s+", "", message, flags=re.I).strip() or message
+        if task == "marketplace":
+            q = f"{q} harga marketplace shopee tokopedia"
+        rows = await (_news_results(q) if task == "news" else _search_web_results(q))
+        text = "\n".join(f"{i + 1}. {r.get('title')}\n{r.get('link')}" for i, r in enumerate(rows))
+        if not text and task == "marketplace":
+            import urllib.parse
+            clean = urllib.parse.quote(q.replace(" harga marketplace shopee tokopedia", ""))
+            text = f"1. Shopee\nhttps://shopee.co.id/search?keyword={clean}\n2. Tokopedia\nhttps://www.tokopedia.com/search?st=product&q={clean}"
+        return await reply(text or "Tidak ada hasil.", {"X-Anta-Task": task})
+
+    if task == "calendar":
+        lower = message.lower()
+        if any(x in lower for x in ["buat jadwal", "tambah jadwal", "atur jadwal", "buat kalender"]):
+            title = re.sub(r"^(buat|tambah|atur)\s+(jadwal|kalender)\s*", "", message, flags=re.I).strip() or "Jadwal baru"
+            when = None
+            m = re.search(r"(20\d\d-\d\d-\d\d)(?:[ T](\d\d):(\d\d))?", message)
+            if m:
+                when = datetime.fromisoformat(f"{m.group(1)}T{m.group(2) or '09'}:{m.group(3) or '00'}:00")
+                title = title.replace(m.group(0), "").strip() or "Jadwal baru"
+            return await reply(await _calendar_create(title, when), {"X-Anta-Task": "calendar_create"})
+        return await reply(await _calendar_upcoming(), {"X-Anta-Task": "calendar"})
+
+    if task == "spotify":
+        lower = message.lower()
+        action = "pause" if "pause" in lower or "berhenti" in lower else "current" if "sedang" in lower or "apa" in lower else "play"
+        q = re.sub(r"^(putar lagu|putar|spotify|lagu)\s+", "", message, flags=re.I).strip()
+        return await reply(await _spotify(action, q), {"X-Anta-Task": "spotify"})
 
     for provider in _providers_for_task(task):
         try:
-            answer = await _openai_chat(provider, system, message, payload)
+            answer = await _openai_chat(provider, system, routed_message, payload)
             if payload.get("try_all") and _weak_answer(answer):
                 errors.append(f"{provider['name']}: weak")
                 continue
-            return Response(answer, media_type="text/plain; charset=utf-8", headers={"X-Anta-Provider": provider["name"], "X-Anta-Model": provider["model"], "X-Anta-Task": task})
+            return await reply(answer, {"X-Anta-Provider": provider["name"], "X-Anta-Model": provider["model"], "X-Anta-Task": task})
         except Exception as e:
             errors.append(f"{provider['name']}: {e}")
 
     if _mimo_enabled() and task in {"chat", "reasoning", "code", "summarize"}:
         try:
-            answer = await _mimo_chat(system, message, payload)
-            return Response(answer, media_type="text/plain; charset=utf-8", headers={"X-Anta-Provider": "mimo", "X-Anta-Model": "mimo-auto", "X-Anta-Task": task})
+            answer = await _mimo_chat(system, routed_message, payload)
+            return await reply(answer, {"X-Anta-Provider": "mimo", "X-Anta-Model": "mimo-auto", "X-Anta-Task": task})
         except Exception as e:
             errors.append(f"mimo: {e}")
 
     if AI_PROVIDER == "local" and llm is not None:
         if not lock.acquire(blocking=False):
-            return Response("Anta masih memproses pesan sebelumnya. Coba lagi sebentar.", media_type="text/plain; charset=utf-8")
+            return await reply("Anta masih memproses pesan sebelumnya. Coba lagi sebentar.")
         try:
             answer = "".join(chunk["choices"][0]["text"] for chunk in llm(
-                prompt,
+                f"{system}\n\nUser: {routed_message}\nAnta:",
                 max_tokens=int(payload.get("max_tokens", os.getenv("MAX_TOKENS", "80"))),
                 temperature=float(payload.get("temperature", 0.7)),
                 stream=True,
                 stop=["User:", "</s>"],
             )).strip()
             if answer:
-                return Response(answer, media_type="text/plain; charset=utf-8", headers={"X-Anta-Provider": "local", "X-Anta-Task": task})
+                return await reply(answer, {"X-Anta-Provider": "local", "X-Anta-Task": task})
         finally:
             lock.release()
 
     try:
-        answer = await _pollinations_chat(prompt)
-        return Response(answer, media_type="text/plain; charset=utf-8", headers={"X-Anta-Provider": "pollinations", "X-Anta-Task": task})
+        answer = await _pollinations_chat(f"{system}\n\nUser: {routed_message}\nAnta:")
+        return await reply(answer, {"X-Anta-Provider": "pollinations", "X-Anta-Task": task})
     except Exception as e:
         errors.append(f"pollinations: {e}")
         raise HTTPException(status_code=503, detail="; ".join(errors[-4:]))
@@ -658,36 +921,10 @@ async def web_proxy(url: str):
 
 @app.get("/search")
 async def search_web(q: str):
-    import urllib.parse
-    from bs4 import BeautifulSoup
-    url = f"https://duckduckgo.com/html/?q={urllib.parse.quote(q)}"
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
-    async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
-        try:
-            res = await client.get(url, headers=headers)
-            soup = BeautifulSoup(res.text, _get_soup_parser())
-            results = []
-            for item in soup.select(".result")[:10]:
-                a = item.select_one(".result__a")
-                if not a:
-                    continue
-                link = a.get("href", "")
-                if "uddg=" in link:
-                    link = urllib.parse.unquote(urllib.parse.parse_qs(urllib.parse.urlparse(link).query).get("uddg", [link])[0])
-                snippet = item.select_one(".result__snippet")
-                try:
-                    source = urllib.parse.urlparse(link).netloc.replace("www.", "")
-                except Exception:
-                    source = "web"
-                results.append({
-                    "title": a.get_text(" ", strip=True),
-                    "link": link,
-                    "source": source,
-                    "pubDate": snippet.get_text(" ", strip=True) if snippet else "",
-                })
-            return results
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=str(e))
+    try:
+        return await _search_web_results(q)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/images")
@@ -776,118 +1013,109 @@ async def search_images(q: str):
 
 @app.get("/news")
 async def get_news(q: str):
-    import urllib.parse
-    import xml.etree.ElementTree as ET
-    url = f"https://news.google.com/rss/search?q={urllib.parse.quote(q)}&hl=id&gl=ID&ceid=ID:id"
-    async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
-        try:
-            res = await client.get(url)
-            root = ET.fromstring(res.text)
-            items = []
-            for item in root.findall(".//item")[:10]:
-                link = item.find("link").text if item.find("link") is not None else ""
-                # Google News links redirect — try to resolve them
-                if link and "news.google.com" in link:
-                    try:
-                        head_res = await client.head(link, follow_redirects=True)
-                        resolved = str(head_res.url)
-                        if resolved and "news.google.com" not in resolved:
-                            link = resolved
-                    except Exception:
-                        pass
-                items.append({
-                    "title": item.find("title").text if item.find("title") is not None else "",
-                    "link": link,
-                    "pubDate": item.find("pubDate").text if item.find("pubDate") is not None else "",
-                    "source": item.find("source").text if item.find("source") is not None else ""
-                })
-            return items
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=str(e))
+    try:
+        return await _news_results(q)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/article")
 async def get_article(url: str):
-    from bs4 import BeautifulSoup
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "id-ID,id;q=0.9,en;q=0.8",
-    }
-    async with httpx.AsyncClient(follow_redirects=True, timeout=20) as client:
-        try:
-            res = await client.get(url, headers=headers)
-            html = res.text
-            soup = BeautifulSoup(html, _get_soup_parser())
-            
-            # Remove unwanted elements
-            for tag in soup.find_all(["script", "style", "nav", "header", "footer", "aside", "iframe", "noscript", "form", "button"]):
-                tag.decompose()
-            
-            # Try to find article content in common selectors
-            article_text = ""
-            
-            # Strategy 1: Look for article/main content tags
-            content_selectors = [
-                soup.find("article"),
-                soup.find("div", class_=lambda c: c and any(x in str(c).lower() for x in ["article", "content", "body-text", "post-content", "entry-content", "read__content"])),
-                soup.find("div", id=lambda i: i and any(x in str(i).lower() for x in ["article", "content", "body"])),
-                soup.find("main"),
-            ]
-            
-            for container in content_selectors:
-                if container:
-                    # Get all paragraph text
-                    paragraphs = container.find_all("p")
-                    if paragraphs:
-                        article_text = " ".join(p.get_text(strip=True) for p in paragraphs if len(p.get_text(strip=True)) > 30)
-                    if len(article_text) > 200:
-                        break
-            
-            # Strategy 2: Fallback to all <p> tags if nothing found
-            if len(article_text) < 200:
-                paragraphs = soup.find_all("p")
-                article_text = " ".join(p.get_text(strip=True) for p in paragraphs if len(p.get_text(strip=True)) > 30)
-            
-            # Strategy 3: Last resort — get all text from body
-            if len(article_text) < 100:
-                body = soup.find("body")
-                if body:
-                    article_text = body.get_text(separator=" ", strip=True)
-            
-            # Clean up
-            import re
-            article_text = re.sub(r"\s+", " ", article_text).strip()
-            
-            # Validate: if text looks like garbage (too much code/JS), return empty
-            if not article_text or len(article_text) < 50:
-                return {"url": url, "text": "", "error": "no_content"}
-            
-            # Check for code/garbage indicators
-            code_indicators = ["function(", "var ", "const ", "window.", "document.", "{\"", "};", "createElement"]
-            code_count = sum(1 for ind in code_indicators if ind in article_text[:500])
-            if code_count >= 3:
-                return {"url": url, "text": "", "error": "code_content"}
-            
-            return {"url": url, "text": article_text[:6000]}
-        except Exception as e:
-            return {"url": url, "text": "", "error": str(e)}
+    try:
+        text = await _article_text(url)
+        return {"url": url, "text": text, "error": "" if text else "no_content"}
+    except Exception as e:
+        return {"url": url, "text": "", "error": str(e)}
 
 
-async def _save_login(username: str, role: str):
+async def _supabase_insert(table: str, row: dict):
     if not SUPABASE_URL or not SUPABASE_KEY:
         return
     async with httpx.AsyncClient(timeout=10) as client:
         await client.post(
-            f"{SUPABASE_URL.rstrip('/')}/rest/v1/anta_logins",
+            f"{SUPABASE_URL.rstrip('/')}/rest/v1/{table}",
             headers={
                 "apikey": SUPABASE_KEY,
                 "Authorization": f"Bearer {SUPABASE_KEY}",
                 "Content-Type": "application/json",
-                "Prefer": "resolution=merge-duplicates",
+                "Prefer": "return=minimal",
             },
-            json={"username": username, "role": role},
+            json=row,
         )
+
+
+async def _supabase_get(table: str, params: dict):
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        return []
+    async with httpx.AsyncClient(timeout=10) as client:
+        res = await client.get(
+            f"{SUPABASE_URL.rstrip('/')}/rest/v1/{table}",
+            headers={"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"},
+            params=params,
+        )
+    return res.json() if res.status_code < 400 else []
+
+
+async def _supabase_delete(table: str, params: dict):
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        return
+    async with httpx.AsyncClient(timeout=10) as client:
+        await client.delete(
+            f"{SUPABASE_URL.rstrip('/')}/rest/v1/{table}",
+            headers={"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"},
+            params=params,
+        )
+
+
+async def _save_message(session_id: str | None, role: str, content: str):
+    if session_id:
+        await _supabase_insert("sessions", {"id": session_id})
+        await _supabase_insert("messages", {"session_id": session_id, "role": role, "content": content[:8000]})
+
+
+async def _save_memory(content: str):
+    _local_memories.append(content[:4000])
+    await _supabase_insert("memories", {"content": content[:4000]})
+
+
+async def _search_memories(message: str) -> list[str]:
+    words = [w for w in re.findall(r"[\w-]{4,}", message.lower(), flags=re.UNICODE) if w not in {"yang", "dengan", "tentang", "siapa", "apakah", "bagaimana"}]
+    if not words:
+        return []
+    rows = []
+    for word in words[:4]:
+        rows += [{"content": m} for m in _local_memories if word in m.lower()]
+        rows += await _supabase_get("memories", {"content": f"ilike.*{word}*", "select": "content", "limit": "5"})
+    seen, found = set(), []
+    for row in rows:
+        content = row.get("content", "")
+        if content and content not in seen:
+            seen.add(content)
+            found.append(content)
+    return found[:5]
+
+
+async def _chat_context(session_id: str | None, message: str) -> str:
+    parts = []
+    memories = await _search_memories(message)
+    if memories:
+        parts.append("Memori relevan:\n" + "\n".join(f"- {m}" for m in memories))
+    if session_id:
+        rows = await _supabase_get("messages", {
+            "session_id": f"eq.{session_id}",
+            "select": "role,content,created_at",
+            "order": "created_at.desc",
+            "limit": "12",
+        })
+        rows = list(reversed(rows))
+        if rows:
+            parts.append("Riwayat singkat:\n" + "\n".join(f"{r.get('role')}: {r.get('content')}" for r in rows if r.get("content")))
+    parts.append(f"Pesan terbaru user: {message}")
+    return "\n\n".join(parts)
+
+
+async def _save_login(username: str, role: str):
+    await _supabase_insert("anta_logins", {"username": username, "role": role})
 
 @app.post("/auth/login")
 async def login(req: LoginRequest):
@@ -902,6 +1130,73 @@ async def login(req: LoginRequest):
 @app.get("/auth/me")
 def me(request: Request):
     return {"role": _role_from_auth(request)}
+
+@app.get("/oauth/google/url")
+def google_oauth_url():
+    import urllib.parse
+    scope = "https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/calendar.events"
+    return {"url": "https://accounts.google.com/o/oauth2/v2/auth?" + urllib.parse.urlencode({
+        "client_id": GOOGLE_CLIENT_ID,
+        "redirect_uri": GOOGLE_REDIRECT_URI,
+        "response_type": "code",
+        "scope": scope,
+        "access_type": "offline",
+        "prompt": "consent",
+    })}
+
+
+@app.get("/oauth/google/callback")
+async def google_oauth_callback(code: str):
+    async with httpx.AsyncClient(timeout=20) as client:
+        res = await client.post("https://oauth2.googleapis.com/token", data={
+            "client_id": GOOGLE_CLIENT_ID,
+            "client_secret": GOOGLE_CLIENT_SECRET,
+            "code": code,
+            "redirect_uri": GOOGLE_REDIRECT_URI,
+            "grant_type": "authorization_code",
+        })
+    return res.json()
+
+
+@app.get("/oauth/spotify/url")
+def spotify_oauth_url():
+    import urllib.parse
+    scope = "user-read-playback-state user-read-currently-playing user-modify-playback-state"
+    return {"url": "https://accounts.spotify.com/authorize?" + urllib.parse.urlencode({
+        "client_id": SPOTIFY_CLIENT_ID,
+        "redirect_uri": SPOTIFY_REDIRECT_URI,
+        "response_type": "code",
+        "scope": scope,
+    })}
+
+
+@app.get("/oauth/spotify/callback")
+async def spotify_oauth_callback(code: str):
+    auth = base64.b64encode(f"{SPOTIFY_CLIENT_ID}:{SPOTIFY_CLIENT_SECRET}".encode()).decode()
+    async with httpx.AsyncClient(timeout=20) as client:
+        res = await client.post("https://accounts.spotify.com/api/token", headers={"Authorization": f"Basic {auth}"}, data={
+            "grant_type": "authorization_code",
+            "code": code,
+            "redirect_uri": SPOTIFY_REDIRECT_URI,
+        })
+    return res.json()
+
+
+@app.get("/calendar/upcoming")
+async def calendar_upcoming():
+    return {"text": await _calendar_upcoming()}
+
+
+@app.post("/calendar/create")
+async def calendar_create(payload: dict):
+    start = datetime.fromisoformat(payload["start"]) if payload.get("start") else None
+    return {"text": await _calendar_create(payload.get("summary", "Jadwal baru"), start)}
+
+
+@app.post("/spotify/{action}")
+async def spotify_action(action: str, payload: dict | None = None):
+    return {"text": await _spotify(action, (payload or {}).get("q", ""))}
+
 
 @app.get("/videos")
 async def search_videos(q: str):

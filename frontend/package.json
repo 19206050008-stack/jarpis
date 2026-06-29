@@ -2,30 +2,16 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
-    "test": "node tests/e2e.test.mjs",
-    "test:headed": "TEST_HEADED=true node tests/e2e.test.mjs",
-    "test:orb": "node tests/orb-alignment.test.mjs",
-    "test:hud": "node tests/hud-assets.test.mjs",
-    "test:orb-lock": "node tests/orb-lock.test.mjs",
-    "test:buttons": "node tests/button-assets.test.mjs",
-    "test:subtitle": "node tests/subtitle-ui.test.mjs",
-    "test:orbit-menu": "node tests/orbit-menu.test.mjs",
-    "test:orb-free": "node tests/orb-free.test.mjs"
+    "start": "next start"
   },
   "dependencies": {
-    "@react-three/fiber": "^9.6.1",
-    "@supabase/supabase-js": "latest",
     "next": "latest",
     "react": "latest",
-    "react-dom": "latest",
-    "three": "^0.185.0"
+    "react-dom": "latest"
   },
   "devDependencies": {
     "@types/node": "latest",
     "@types/react": "latest",
-    "@types/three": "^0.185.0",
-    "playwright": "^1.61.1",
     "typescript": "latest"
   }
 }

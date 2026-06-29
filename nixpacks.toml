@@ -4,8 +4,8 @@ aptPkgs = ["libgomp1"]
 
 [phases.install]
 cmds = [
-  "pip install --no-cache-dir -r requirements.txt"
+  "cd backend && pip install --no-cache-dir -r requirements.txt"
 ]
 
 [start]
-cmd = "python start.py"
+cmd = "cd backend && python start.py"
