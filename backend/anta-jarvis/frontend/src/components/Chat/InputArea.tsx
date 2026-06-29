@@ -478,11 +478,14 @@ export function InputArea() {
       // Check if the response has digest audio available
       let audioMeta: { url: string } | undefined;
       try {
-        const digestRes = await fetch(`${getBase()}/api/digest`);
+        const baseUrl = getBase();
+        // Use the correct path for the digest API through the proxy
+        const digestPath = baseUrl.includes('/jarvis') ? '/jarvis/api/digest' : '/api/digest';
+        const digestRes = await fetch(`${baseUrl}${digestPath}`);
         if (digestRes.ok) {
           const digest = await digestRes.json();
           if (digest.audio_available) {
-            audioMeta = { url: `${getBase()}/api/digest/audio` };
+            audioMeta = { url: `${baseUrl}${digestPath}/audio` };
           }
         }
       } catch {

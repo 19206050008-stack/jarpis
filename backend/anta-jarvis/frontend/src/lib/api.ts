@@ -224,9 +224,9 @@ export async function preloadModel(modelName: string): Promise<void> {
     return;
   }
   // Trigger Ollama to load the model into memory (empty prompt, no generation).
-  const ollamaUrl = 'http://127.0.0.1:11434';
+  // Use the base URL instead of hardcoded localhost to respect proxy settings
   try {
-    const res = await fetch(`${ollamaUrl}/api/generate`, {
+    const res = await apiFetch(`/api/generate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ model: modelName, prompt: '', keep_alive: '5m' }),
@@ -1007,9 +1007,14 @@ async function memoryErrorDetail(res: Response, fallback: string): Promise<strin
 }
 
 export async function getMemoryStats(): Promise<MemoryStats> {
-  const res = await apiFetch(`/v1/memory/stats`);
-  if (!res.ok) throw new Error('Failed to fetch memory stats');
-  return res.json();
+  try {
+    const res = await apiFetch(`/v1/memory/stats`);
+    if (!res.ok) throw new Error('Failed to fetch memory stats');
+    return res.json();
+  } catch (error) {
+    // Return a default response if the memory stats endpoint is not available
+    return { entries: 0, backend: 'unavailable' };
+  }
 }
 
 export async function searchMemory(query: string, topK: number = 5): Promise<MemorySearchResult[]> {

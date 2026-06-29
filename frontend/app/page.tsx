@@ -3,7 +3,6 @@
 import { useMemo, useState, useRef, useEffect, type CSSProperties, type PointerEvent } from "react";
 import { createClient } from "@supabase/supabase-js";
 import AntaOrb3D from "./AntaOrb3D";
-import { SKILLS, type SkillId } from "./skills";
 import type { DirectoryHandle, ImageResult, LocalFile, Message, SpeechRecognitionLike, View } from "./types";
 import { ActionButton, ActionLink, IconButton } from "./ui";
 
@@ -18,7 +17,7 @@ declare global {
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
-const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://jarpis-production-a270.up.railway.app";
+const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 const pageVisible = () => typeof document === "undefined" || document.visibilityState === "visible";
 const getAgentId = () => localStorage.getItem("anta_agent_id") || "default";
 
@@ -93,8 +92,6 @@ function numberFromText(text: string) {
   return key ? words[key] : -1;
 }
 
-const AI_PERSONA = "Kamu Anta, asisten AI yang natural dan ramah. Jawab dengan gaya bicara santai seperti teman ngobrol biasa. Jangan gunakan markdown, jangan sebut dirimu sebagai AI/bot. Jawab langsung sesuai konteks.";
-
 async function askBackendChat(prompt: string): Promise<string> {
   if (!apiUrl) throw new Error("No API URL");
   const res = await fetch(`${apiUrl}/chat`, {
@@ -131,7 +128,6 @@ export default function Home() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const [providerBadge, setProviderBadge] = useState("");
   const [tasks, setTasks] = useState<string[]>([]);
   const [lastProvider, setLastProvider] = useState("");
 
@@ -151,7 +147,7 @@ export default function Home() {
   const [news, setNews] = useState<{ title: string; link: string; source: string; pubDate?: string }[]>([]);
   const [articleText, setArticleText] = useState("");
   const [articleSource, setArticleSource] = useState("");
-  const [jarvisStatus, setJarvisStatus] = useState<any>(null);
+
   
   // Popup States: 'closed' | 'open' | 'minimized'
   const [chatState, setChatState] = useState<'closed' | 'open' | 'minimized'>('closed');
@@ -176,7 +172,6 @@ export default function Home() {
   const [orbShake, setOrbShake] = useState(false);
   const [orbDragging, setOrbDragging] = useState(false);
   const [orbMoveEnabled, setOrbMoveEnabled] = useState(true);
-  const [backendAlive, setBackendAlive] = useState(true);
   const [agentAccepted, setAgentAccepted] = useState(true); // default to true (hidden) to prevent layout shift / background check first
   const [showAgentBanner, setShowAgentBanner] = useState(false);
 
@@ -252,14 +247,6 @@ export default function Home() {
   })()));
   const lastActiveAppRef = useRef("");
 
-  async function openOpenJarvis() {
-    setArticleText(""); setNews([]); setVideos([]); setImages([]); setSelectedVideo(null);
-    setView({ title: "OpenJarvis UI", url: `${apiUrl}/jarvis/`, note: "UI asli OpenJarvis dibuka di dalam Anta." });
-    setViewerFullscreen(true);
-    setViewerState("open");
-    if (apiUrl) fetch(`${apiUrl}/openjarvis/status`, { cache: "no-store" }).then((r) => r.json()).then(setJarvisStatus).catch(() => setJarvisStatus({ ok: false }));
-  }
-
   const commands = useMemo(() => [
     { label: "Voice", hint: "Mulai perintah suara", run: () => startVoiceInput() },
     { label: "Berita hari ini", hint: "Cari berita terbaru", run: () => send("berita hari ini") },
@@ -270,18 +257,9 @@ export default function Home() {
     } },
     { label: "Memory", hint: "Buka dashboard memori", run: () => window.open("/memory", "_blank") },
     { label: "Monitoring", hint: "Buka halaman monitoring", run: () => window.open("/monitoring", "_blank") },
-    { label: "OpenJarvis", hint: "Buka di Monitor Anta", run: openOpenJarvis },
     { label: "Kunci orb", hint: "Orb tidak bisa digeser", run: () => setOrbMoveEnabled(false) },
     { label: "Bebaskan orb", hint: "Orb bisa digeser", run: () => setOrbMoveEnabled(true) },
-  ], [openOpenJarvis]);
-
-  useEffect(() => {
-    if (!apiUrl) return;
-    const load = () => fetch(`${apiUrl}/openjarvis/status`, { cache: "no-store" }).then((r) => r.json()).then(setJarvisStatus).catch(() => setJarvisStatus({ ok: false }));
-    load();
-    const timer = setInterval(load, 30000);
-    return () => clearInterval(timer);
-  }, []);
+  ], []);
 
   const voices = useMemo(() => [
     { id: "sari", label: "Sari — Wanita" },
@@ -503,7 +481,7 @@ export default function Home() {
     return () => { active = false; clearTimeout(delay); try { wakeRec?.stop?.(); } catch {} };
   }, [listening, isAiSpeaking, chatState, loading, voiceTranscript]);
 
-  // Realtime, lightweight Web Audio analyser for the Jarvis orb.
+  // Realtime, lightweight Web Audio analyser for the Anta orb.
   useEffect(() => {
     const el = audioRef.current;
     const orb = orbRef.current;
@@ -1393,7 +1371,7 @@ export default function Home() {
   }
 
   return (
-    <main className="jarvis-desktop">
+    <main className="anta-desktop">
       {/* Agent Activation Banner */}
       {showAgentBanner && (
         <div className="agent-banner">
@@ -1416,8 +1394,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* Background Equalizer Visualizer */}
-      <div className={`center-container ${orbSide} ${viewerState === 'open' && viewerFullscreen ? 'orb-mini orb-hidden-hud' : ''} ${chatState === 'open' ? 'orb-chat-open' : ''}`} style={{ "--orb-x": `${orbOffset.x}px`, "--orb-y": `${orbOffset.y}px` } as CSSProperties}>
+      <div className={`center-container ${orbSide} ${viewerState === 'open' && viewerFullscreen ? 'orb-hidden' : ''} ${chatState === 'open' ? 'orb-chat-open' : ''}`} style={{ "--orb-x": `${orbOffset.x}px`, "--orb-y": `${orbOffset.y}px` } as CSSProperties}>
 
         <div
           ref={orbRef}
@@ -1432,7 +1409,6 @@ export default function Home() {
           <div className="ring ring-1" />
           <AntaOrb3D active={isAiSpeaking} level={audioLevel} />
         </div>
-        {/* Voice conversation view (user + anta) */}
         {voiceTranscript && voiceTranscript !== "listening" && (
           <div className="voice-chat-view">
             <div className="voice-msg user-msg">
@@ -1447,17 +1423,12 @@ export default function Home() {
             )}
           </div>
         )}
-        {/* Anta-only speech bubble (greeting, news readout) */}
         {!voiceTranscript && subtitle && <div className="subtitle-bubble">{subtitle}</div>}
 
 
-        {/* Orbit Menu — inside center-container so it follows orb animations */}
         <nav className="dock orbit-menu">
           <button className={listening ? 'active' : ''} onClick={startVoiceInput} title="Perintah Suara">
             <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
-          </button>
-          <button className={jarvisStatus?.ok ? "jarvis-ready" : ""} onClick={openOpenJarvis} title={jarvisStatus?.ok ? "OpenJarvis aktif" : "OpenJarvis"}>
-            <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none"><path d="M12 2l8 4v6c0 5-3.4 8.7-8 10-4.6-1.3-8-5-8-10V6l8-4z"></path><path d="M9 12h6"></path><path d="M12 9v6"></path></svg>
           </button>
         </nav>
       </div>
@@ -1504,9 +1475,8 @@ export default function Home() {
             {viewerLoading && <div className="anta-loading"><span></span><b>Anta memuat data...</b></div>}
             {view.note && <p className="viewer-note">{view.note}</p>}
             
-            {!articleText && news.length === 0 && videos.length === 0 && images.length === 0 && view.title === "OpenJarvis UI" && view.url && <iframe className="viewer-frame" src={view.url} title={view.title} />}
-            {!articleText && news.length === 0 && videos.length === 0 && images.length === 0 && view.title !== "OpenJarvis UI" && view.url && <iframe className="viewer-frame" src={view.url} title={view.title || "OpenJarvis"} />}
-            {!articleText && news.length === 0 && videos.length === 0 && images.length === 0 && view.title !== "OpenJarvis UI" && !view.url && <div className="browser-empty">Ketik: gambar burung, lagu jazz, berita hari ini, atau cari sesuatu.</div>}
+            {!articleText && news.length === 0 && videos.length === 0 && images.length === 0 && view.url && <iframe className="viewer-frame" src={view.url} title={view.title || "Anta Viewer"} />}
+            {!articleText && news.length === 0 && videos.length === 0 && images.length === 0 && !view.url && <div className="browser-empty">Ketik: gambar burung, lagu jazz, berita hari ini, atau cari sesuatu.</div>}
 
             {imagePreview && (
               <div className="image-preview" onClick={() => setImagePreview(null)}>

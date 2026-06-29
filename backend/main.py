@@ -22,9 +22,6 @@ MODEL_PATH = os.getenv("MODEL_PATH", "models/Qwen3-0.6B-Q8_0.gguf")
 AI_PROVIDER = os.getenv("AI_PROVIDER", "auto")
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "openai/gpt-oss-20b:free")
-OPENJARVIS_URL = os.getenv("OPENJARVIS_URL", "").rstrip("/")
-OPENJARVIS_API_KEY = os.getenv("OPENJARVIS_API_KEY", "")
-OPENJARVIS_MODEL = os.getenv("OPENJARVIS_MODEL", "")
 MIMO_API = os.getenv("MIMO_API", "https://api.xiaomimimo.com")
 MIMO_JWT = ""
 MIMO_JWT_TIME = 0.0
@@ -136,7 +133,6 @@ CAPABILITY_DB = {
     "zenmux": {"best_for": ["chat", "reasoning", "code", "summarize"], "missing": ["tts", "stt", "image_generation", "video_generation"]},
     "zyloo": {"best_for": ["chat", "reasoning", "code", "summarize"], "missing": ["tts", "stt", "image_generation", "video_generation"]},
     "openagentic": {"best_for": ["chat", "agent", "reasoning", "summarize"], "missing": ["tts", "stt", "image_generation", "video_generation"]},
-    "openjarvis": {"best_for": ["chat", "agent", "reasoning", "code", "summarize", "local-first"], "missing": ["tts", "stt", "image_generation", "video_generation"]},
     "mimo": {"best_for": ["chat", "reasoning", "code", "summarize"], "missing": ["tts", "stt", "image_generation", "video_generation"]},
     "supertonic": {"best_for": ["tts-id"], "missing": ["chat", "stt", "image_generation", "video_generation"]},
     "builtin_search": {"best_for": ["web_search", "image_search", "video_search", "news", "article_extract"], "missing": ["image_generation", "video_generation"]},
@@ -145,7 +141,6 @@ CAPABILITY_DB = {
 
 def _all_chat_provider_specs() -> list[dict]:
     return [
-        *({"name": "openjarvis", "url": f"{OPENJARVIS_URL}/v1/chat/completions", "models_url": f"{OPENJARVIS_URL}/v1/models", "credits_url": None, "key": OPENJARVIS_API_KEY, "model": OPENJARVIS_MODEL, "capabilities": CAPABILITY_DB["openjarvis"]["best_for"]} for _ in [0] if OPENJARVIS_URL),
         *({"name": "openagentic", "url": "https://openagentic.id/api/v1/chat/completions", "models_url": "https://openagentic.id/api/v1/models", "credits_url": None, "key": key, "model": os.getenv("OPENAGENTIC_MODEL", "open-agentic"), "capabilities": CAPABILITY_DB["openagentic"]["best_for"]} for key in _env_keys("OPENAGENTIC_API_KEY")),
         *({"name": "openrouter", "url": "https://openrouter.ai/api/v1/chat/completions", "models_url": "https://openrouter.ai/api/v1/models", "credits_url": "https://openrouter.ai/api/v1/credits", "key": key, "model": os.getenv("OPENROUTER_MODEL", OPENROUTER_MODEL), "capabilities": CAPABILITY_DB["openrouter"]["best_for"]} for key in _env_keys("OPENROUTER_API_KEYS", "OPENROUTER_API_KEY", "OPENROUTER_API_KEY2", "OPENROUTER_API_KEY3")),
         *({"name": "zenmux", "url": "https://zenmux.ai/api/v1/chat/completions", "models_url": "https://zenmux.ai/api/v1/models", "credits_url": None, "key": key, "model": os.getenv("ZENMUX_MODEL", "stepfun/step-3.7-flash-free"), "capabilities": CAPABILITY_DB["zenmux"]["best_for"]} for key in _env_keys("ZENMUX_API_KEY")),
@@ -203,24 +198,12 @@ def _weak_answer(text: str) -> bool:
     return len(lower) < 20 or any(w in lower for w in weak)
 
 
-def _openjarvis_headers() -> dict:
-    return {"Authorization": f"Bearer {OPENJARVIS_API_KEY}"} if OPENJARVIS_API_KEY else {}
-
-async def _openjarvis_default_model(provider: dict) -> str:
-    async with httpx.AsyncClient(timeout=10) as client:
-        res = await client.get(provider["models_url"], headers=_openjarvis_headers())
-        res.raise_for_status()
-        models = [m.get("id") for m in res.json().get("data", []) if m.get("id")]
-    return models[0] if models else os.getenv("OPENJARVIS_FALLBACK_MODEL", "llama3.2:3b")
-
 async def _openai_chat(provider: dict, system: str, message: str, payload: dict) -> str:
     headers = {"Content-Type": "application/json"}
     if provider.get("key"):
         headers["Authorization"] = f"Bearer {provider['key']}"
     if provider["name"] == "openrouter":
         headers |= {"HTTP-Referer": os.getenv("APP_URL", "https://antasiar.web.id"), "X-Title": "Anta"}
-    if provider["name"] == "openjarvis" and not provider["model"]:
-        provider = provider | {"model": await _openjarvis_default_model(provider)}
     async with httpx.AsyncClient(timeout=60) as client:
         res = await client.post(provider["url"], headers=headers, json={
             "model": provider["model"],
@@ -413,9 +396,9 @@ async def _provider_monitor(provider: dict, idx: int) -> dict:
                     safe["credit"] = res.json().get("data", res.json())
             except Exception as e:
                 safe["credit_error"] = str(e)[:120]
-        start = time.time()
         try:
-            model = provider["model"] or (await _openjarvis_default_model(provider) if provider["name"] == "openjarvis" else "")
+            start = time.time()
+            model = provider["model"]
             safe["model"] = model or "auto"
             res = await client.post(provider["url"], headers=headers | {"Content-Type": "application/json"}, json={
                 "model": model,
@@ -442,81 +425,6 @@ def _check_monitoring_token(req: Request):
         raise HTTPException(status_code=401, detail="monitoring token required")
 
 
-@app.get("/openjarvis/status")
-async def openjarvis_status():
-    if not OPENJARVIS_URL:
-        return {"configured": False, "ok": False, "url": "", "models": [], "agents": [], "reason": "OPENJARVIS_URL kosong"}
-    out = {"configured": True, "ok": False, "url": OPENJARVIS_URL, "models": [], "agents": [], "reason": ""}
-    try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            models = await client.get(f"{OPENJARVIS_URL}/v1/models", headers=_openjarvis_headers())
-            out["ok"] = models.status_code < 400
-            out["reason"] = "ok" if out["ok"] else f"models HTTP {models.status_code}: {models.text[:160]}"
-            if out["ok"]:
-                out["models"] = [m.get("id") for m in models.json().get("data", []) if m.get("id")]
-            agents = await client.get(f"{OPENJARVIS_URL}/v1/agents", headers=_openjarvis_headers())
-            if agents.status_code < 400:
-                out["agents"] = agents.json().get("registered", [])
-    except Exception as e:
-        out["reason"] = f"{type(e).__name__}: {str(e)[:180]}"
-    return out
-
-@app.api_route("/jarvis", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"])
-@app.api_route("/jarvis/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"])
-async def openjarvis_proxy(req: Request, path: str = ""):
-    if not OPENJARVIS_URL:
-        raise HTTPException(status_code=503, detail="OPENJARVIS_URL belum aktif")
-    
-    # Fix React Router paths routing: /jarvis/api/digest -> /api/digest
-    clean_path = path
-    if path.startswith("api/"):
-        clean_path = path
-    elif path.startswith("v1/"):
-        clean_path = path
-    
-    target = f"{OPENJARVIS_URL}/{clean_path}" if clean_path else f"{OPENJARVIS_URL}/"
-    headers = {k: v for k, v in req.headers.items() if k.lower() not in {"host", "content-length"}}
-    headers |= _openjarvis_headers()
-    body = await req.body()
-    fake_stream = False
-    if req.method == "POST" and clean_path == "v1/chat/completions":
-        try:
-            import json
-            payload = json.loads(body or b"{}")
-            fake_stream = bool(payload.get("stream"))
-            if fake_stream:
-                payload["stream"] = False
-                body = json.dumps(payload).encode()
-        except Exception:
-            fake_stream = False
-    async with httpx.AsyncClient(timeout=120, follow_redirects=False) as client:
-        res = await client.request(req.method, target, params=req.query_params, content=body, headers=headers)
-    if fake_stream and res.status_code < 400:
-        import json, time, uuid
-        data = res.json()
-        content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
-        model = data.get("model", "")
-        cid = data.get("id") or f"chatcmpl-{uuid.uuid4().hex[:12]}"
-        created = int(time.time())
-        lines = [
-            {"id": cid, "object": "chat.completion.chunk", "created": created, "model": model, "choices": [{"index": 0, "delta": {"role": "assistant", "content": None, "tool_calls": None}, "finish_reason": None}]},
-            {"id": cid, "object": "chat.completion.chunk", "created": created, "model": model, "choices": [{"index": 0, "delta": {"role": None, "content": content, "tool_calls": None}, "finish_reason": None}]},
-            {"id": cid, "object": "chat.completion.chunk", "created": created, "model": model, "choices": [{"index": 0, "delta": {"role": None, "content": None, "tool_calls": None}, "finish_reason": "stop"}]},
-        ]
-        return Response("".join(f"data: {json.dumps(x)}\n\n" for x in lines) + "data: [DONE]\n\n", media_type="text/event-stream")
-    if req.method == "GET" and path == "v1/models" and res.status_code < 400:
-        try:
-            data = res.json()
-            if not data.get("data"):
-                model = OPENJARVIS_MODEL or os.getenv("OPENROUTER_MODEL", OPENROUTER_MODEL)
-                if "/" in model and not model.startswith("openrouter/"):
-                    model = f"openrouter/{model}"
-                data["data"] = [{"id": model, "object": "model"}]
-                import json
-                return Response(json.dumps(data), media_type="application/json")
-        except Exception:
-            pass
-    return Response(content=res.content, status_code=res.status_code, media_type=res.headers.get("content-type"))
 
 @app.get("/monitoring")
 async def monitoring(req: Request):

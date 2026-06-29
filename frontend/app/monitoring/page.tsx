@@ -23,7 +23,7 @@ type Monitoring = {
   providers: Provider[];
 };
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://jarpis-production-a270.up.railway.app";
+const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 function creditText(value: unknown) {
   if (!value) return "tidak tersedia";

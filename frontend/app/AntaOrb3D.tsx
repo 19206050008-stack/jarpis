@@ -22,10 +22,10 @@ export default function AntaOrb3D({ active, level = 0 }: { active: boolean; leve
     : "50%";
 
   return (
-    <div className={`jarvis-orb ${active ? "speaking" : ""}`} style={{ "--level": safeLevel } as CSSProperties}>
-      <div className="jarvis-glow" />
+    <div className={`anta-orb ${active ? "speaking" : ""}`} style={{ "--level": safeLevel } as CSSProperties}>
+      <div className="anta-glow" />
 
-      <svg className="jarvis-hud" viewBox="0 0 220 220" aria-hidden="true" style={{ pointerEvents: "none" }}>
+      <svg className="anta-hud" viewBox="0 0 220 220" aria-hidden="true" style={{ pointerEvents: "none" }}>
         <circle className="hud-circle faint" cx="110" cy="110" r="95" />
         <circle className="hud-circle thin" cx="110" cy="110" r="82" />
         <circle className="hud-circle broken" cx="110" cy="110" r="102" />
@@ -62,7 +62,7 @@ export default function AntaOrb3D({ active, level = 0 }: { active: boolean; leve
         <b>{active ? "LIVE" : "IDLE"}</b><span>{Math.round(safeLevel * 100)}%</span><span>EQ</span>
       </div>
 
-      <svg className="jarvis-eq" viewBox="0 0 220 220" aria-hidden="true" style={{ pointerEvents: "none" }}>
+      <svg className="anta-eq" viewBox="0 0 220 220" aria-hidden="true" style={{ pointerEvents: "none" }}>
         {BARS.map((i) => {
           const a = (i / BARS.length) * Math.PI * 2 - Math.PI / 2;
           const weight = i % 8 === 0 ? 1.35 : i % 3 === 0 ? 1.05 : 0.75;
@@ -74,12 +74,12 @@ export default function AntaOrb3D({ active, level = 0 }: { active: boolean; leve
           return <line key={i} x1={n(x1)} y1={n(y1)} x2={n(x2)} y2={n(y2)} />;
         })}
       </svg>
-      <div className="jarvis-ring outer" style={{ pointerEvents: "none" }} />
-      <div className="jarvis-ring main" style={{ pointerEvents: "none" }} />
+      <div className="anta-ring outer" style={{ pointerEvents: "none" }} />
+      <div className="anta-ring main" style={{ pointerEvents: "none" }} />
       
       {/* CSS Glossy 3D Sphere Core (Robust & compatible, no WebGL crash) */}
       <div
-        className="jarvis-core"
+          className="anta-core"
         style={{
           transform: `scale(${scale})`,
           borderRadius,
