@@ -254,7 +254,7 @@ export default function Home() {
 
   async function openOpenJarvis() {
     setArticleText(""); setNews([]); setVideos([]); setImages([]); setSelectedVideo(null);
-    setView({ title: "OpenJarvis", url: "", note: "Anta Jarvis aktif di background. Chat dan suara Anta otomatis memakai router ini." });
+    setView({ title: "OpenJarvis UI", url: `${apiUrl}/jarvis/`, note: "UI asli OpenJarvis dibuka di dalam Anta." });
     setViewerState("open");
     if (apiUrl) fetch(`${apiUrl}/openjarvis/status`, { cache: "no-store" }).then((r) => r.json()).then(setJarvisStatus).catch(() => setJarvisStatus({ ok: false }));
   }

@@ -194,6 +194,7 @@ packages = ["src/openjarvis"]
 "src/openjarvis/channels/whatsapp_baileys_bridge" = "_node_modules/whatsapp_baileys_bridge"
 "scripts/install" = "_install_scripts"
 "deploy/windows" = "_deploy/windows"
+"src/openjarvis/server/static" = "openjarvis/server/static"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

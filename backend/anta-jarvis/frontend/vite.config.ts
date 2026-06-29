@@ -8,6 +8,7 @@ import { VitePWA } from 'vite-plugin-pwa';
 // disables the savings leaderboard at runtime (see src/lib/supabase.ts) rather
 // than failing the build, so the package/app stays publishable without it.
 export default defineConfig({
+  base: process.env.VITE_BASE_URL || '/',
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
