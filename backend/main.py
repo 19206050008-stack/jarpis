@@ -10,6 +10,13 @@ import platform
 from pathlib import Path
 from threading import Lock
 
+# Load environment variables from .env file
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # python-dotenv not installed, rely on system env vars
+
 import httpx
 import numpy as np
 from fastapi import FastAPI, HTTPException, Request, Response

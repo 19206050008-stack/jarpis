@@ -269,15 +269,25 @@ export default function Home() {
       ]);
       setJarvisStatus(status);
       setJarvisCatalog(providers);
-      setView({
-        title: "OpenJarvis UI",
-        url: status?.ok ? `${apiUrl}/jarvis/` : "",
-        note: status?.ok ? "UI asli OpenJarvis dibuka di dalam Anta." : "OpenJarvis belum tersambung; capability aktif backend ditampilkan di bawah.",
-      });
+      
+      // If OpenJarvis backend is not available, use existing providers
+      if (!status?.ok && providers?.chat_router) {
+        setView({
+          title: "OpenJarvis UI",
+          url: "",
+          note: "Menggunakan provider yang sudah dikonfigurasi: OpenRouter, OpenAgentic, dll.",
+        });
+      } else {
+        setView({
+          title: "OpenJarvis UI",
+          url: status?.ok ? `${apiUrl}/jarvis/` : "",
+          note: status?.ok ? "UI asli OpenJarvis dibuka di dalam Anta." : "OpenJarvis belum tersambung; capability aktif backend ditampilkan di bawah.",
+        });
+      }
     } catch {
       setJarvisStatus({ ok: false });
       setJarvisCatalog(null);
-      setView({ title: "OpenJarvis UI", url: "", note: "OpenJarvis belum tersambung." });
+      setView({ title: "OpenJarvis UI", url: "", note: "Menggunakan provider yang sudah dikonfigurasi." });
     }
   }
 
@@ -1525,7 +1535,7 @@ export default function Home() {
             {!articleText && news.length === 0 && videos.length === 0 && images.length === 0 && view.title === "OpenJarvis UI" && view.url && <iframe className="viewer-frame" src={view.url} title={view.title} />}
             {!articleText && news.length === 0 && videos.length === 0 && images.length === 0 && view.title === "OpenJarvis UI" && !view.url && (
               <div style={{ flex: 1, overflow: "auto", padding: 16, display: "grid", gap: 12 }}>
-                <div style={{ color: "#67e8f9", fontWeight: 700 }}>Capability aktif</div>
+                <div style={{ color: "#67e8f9", fontWeight: 700 }}>Provider yang tersedia</div>
                 <div style={{ display: "grid", gap: 8, fontSize: 12 }}>
                   {(jarvisCatalog?.chat_router || []).map((p: any) => (
                     <div key={p.name} style={{ padding: 10, border: "1px solid #22d3ee22", borderRadius: 12, background: "#030712" }}>
@@ -1539,6 +1549,11 @@ export default function Home() {
                   <div>Search: {(jarvisCatalog?.search?.capabilities || []).join(", ") || "-"}</div>
                   <div>TTS lokal: {jarvisCatalog?.local_tts?.configured ? "aktif" : "off"}</div>
                 </div>
+                {(!jarvisCatalog || jarvisCatalog.chat_router?.length === 0) && (
+                  <div style={{ color: "#ef4444", fontStyle: "italic" }}>
+                    Belum ada provider AI yang dikonfigurasi. Cek file .env untuk API keys.
+                  </div>
+                )}
               </div>
             )}
             {!articleText && news.length === 0 && videos.length === 0 && images.length === 0 && view.title !== "OpenJarvis UI" && view.url && <iframe className="viewer-frame" src={view.url} title={view.title || "OpenJarvis"} />}
