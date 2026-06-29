@@ -780,7 +780,7 @@ export default function Home() {
       } catch { /* silent */ }
     }, 15000 + Math.floor(Math.random() * 10000));
     return () => window.clearTimeout(timer);
-  }, [loading, isAiSpeaking, listening, speaker, speakEnabled, apiUrl, chatState, viewerState, voiceTranscript]);
+  }, [authToken, loading, isAiSpeaking, listening, speaker, speakEnabled, apiUrl, chatState, viewerState, voiceTranscript]);
 
   async function scanDirectory(dir: DirectoryHandle, base = ""): Promise<LocalFile[]> {
     const out: LocalFile[] = [];
@@ -1473,15 +1473,15 @@ export default function Home() {
   if (!authToken) {
     return (
       <main className="jarvis-desktop" style={{ display: "grid", placeItems: "center", minHeight: "100vh" }}>
-        <section className="popup-window" style={{ position: "relative", width: 340, height: "auto", padding: 22 }}>
-          <h2 style={{ margin: "0 0 8px", color: "#67e8f9" }}>Login Anta</h2>
-          <p style={{ margin: "0 0 18px", fontSize: 12, opacity: 0.75 }}>Masuk dulu untuk membuka orb.</p>
-          <select value={loginUsername} onChange={(e) => setLoginUsername(e.target.value as "anta" | "admin")} style={{ width: "100%", marginBottom: 10, padding: 10, borderRadius: 8, background: "#020617", color: "#dffbff", border: "1px solid #22d3ee55" }}>
+        <section className="popup-window" style={{ position: "relative", width: 170, height: "auto", padding: 11 }}>
+          <h2 style={{ margin: "0 0 4px", color: "#67e8f9", fontSize: 16 }}>Login Anta</h2>
+          <p style={{ margin: "0 0 9px", fontSize: 10, opacity: 0.75 }}>Masuk dulu.</p>
+          <select value={loginUsername} onChange={(e) => setLoginUsername(e.target.value as "anta" | "admin")} style={{ width: "100%", marginBottom: 6, padding: 6, borderRadius: 6, background: "#020617", color: "#dffbff", border: "1px solid #22d3ee55", fontSize: 11 }}>
             <option value="anta">User</option>
             <option value="admin">Superadmin</option>
           </select>
-          <input value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void loginAs(loginUsername); }} placeholder="Password" type="password" style={{ width: "100%", marginBottom: 12, padding: 10, borderRadius: 8, background: "#020617", color: "#dffbff", border: "1px solid #22d3ee55" }} />
-          <button type="button" onClick={() => void loginAs(loginUsername)} style={{ width: "100%", padding: 10, borderRadius: 8 }}>Masuk</button>
+          <input value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void loginAs(loginUsername); }} placeholder="Password" type="password" style={{ width: "100%", marginBottom: 7, padding: 6, borderRadius: 6, background: "#020617", color: "#dffbff", border: "1px solid #22d3ee55", fontSize: 11 }} />
+          <button type="button" onClick={() => void loginAs(loginUsername)} style={{ width: "100%", padding: 6, borderRadius: 6, fontSize: 11 }}>Masuk</button>
         </section>
       </main>
     );
@@ -1496,16 +1496,6 @@ export default function Home() {
           <button onClick={acceptAgent}>Aktifkan Pemantauan</button>
         </div>
       )}
-
-      <div className={`settings-pop ${settingsOpen ? "open" : ""}`}>
-        <button className="settings-gear" type="button" onClick={() => setSettingsOpen((v) => !v)} title="Settings" aria-label="Settings">
-          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" strokeWidth="2" fill="none"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 .6 1.65 1.65 0 0 0-.33 1.82V22a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 8.6 20a1.65 1.65 0 0 0-1.82-.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-.6-1 1.65 1.65 0 0 0-1.82-.33H2a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4 8.6a1.65 1.65 0 0 0-.33-1.82l-.06-.06A2 2 0 1 1 6.44 3.9l.06.06A1.65 1.65 0 0 0 8.6 4.6a1.65 1.65 0 0 0 1-.6 1.65 1.65 0 0 0 .33-1.82V2a2 2 0 1 1 4 0v.09A1.65 1.65 0 0 0 15.4 4a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 8.6a1.65 1.65 0 0 0 .6 1 1.65 1.65 0 0 0 1.82.33H22a2 2 0 1 1 0 4h-.09A1.65 1.65 0 0 0 20 15z"/></svg>
-        </button>
-        <div className="settings-drawer">
-          <span>{authRole}</span>
-          <button type="button" onClick={logout}>Logout</button>
-        </div>
-      </div>
 
       {paletteOpen && (
         <div className="command-palette" onClick={() => setPaletteOpen(false)}>
@@ -1565,6 +1555,15 @@ export default function Home() {
             <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
           </button>
         </nav>
+        <div className={`settings-pop ${settingsOpen ? "open" : ""}`}>
+          <button className="settings-gear" type="button" onClick={() => setSettingsOpen((v) => !v)} title="Settings" aria-label="Settings">
+            <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" strokeWidth="2" fill="none"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 .6 1.65 1.65 0 0 0-.33 1.82V22a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 8.6 20a1.65 1.65 0 0 0-1.82-.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-.6-1 1.65 1.65 0 0 0-1.82-.33H2a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4 8.6a1.65 1.65 0 0 0-.33-1.82l-.06-.06A2 2 0 1 1 6.44 3.9l.06.06A1.65 1.65 0 0 0 8.6 4.6a1.65 1.65 0 0 0 1-.6 1.65 1.65 0 0 0 .33-1.82V2a2 2 0 1 1 4 0v.09A1.65 1.65 0 0 0 15.4 4a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 8.6a1.65 1.65 0 0 0 .6 1 1.65 1.65 0 0 0 1.82.33H22a2 2 0 1 1 0 4h-.09A1.65 1.65 0 0 0 20 15z"/></svg>
+          </button>
+          <div className="settings-drawer">
+            <span>{authRole}</span>
+            <button type="button" onClick={logout}>Logout</button>
+          </div>
+        </div>
       </div>
 
       {/* Popup 1: AI Chat */}
