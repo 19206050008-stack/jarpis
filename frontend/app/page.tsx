@@ -751,21 +751,20 @@ export default function Home() {
     if (voiceTranscript) return; // still in voice conversation
     const timer = window.setTimeout(async () => {
       try {
+        const bank = readNewsBank();
+        bank.items = bank.items.filter((x) => x.link !== "#" && x.source !== "Anta");
+        writeNewsBank(bank);
+
         let unspoken = await getUnspokenNews();
-        // If bank empty, seed with general knowledge tidbits (no backend needed)
         if (!unspoken) {
-          const tips = [
-            "Tahukah kamu? Indonesia memiliki lebih dari 17 ribu pulau dan merupakan negara kepulauan terbesar di dunia.",
-            "Fun fact: Bahasa Indonesia adalah salah satu bahasa yang paling mudah dipelajari karena tidak memiliki konjugasi kata kerja.",
-            "Tahukah kamu? Kopi Indonesia seperti Luwak dan Toraja termasuk yang paling mahal dan dicari di dunia.",
-            "Tips hari ini: Minum air putih minimal 8 gelas sehari bisa meningkatkan konsentrasi dan produktivitas kerja.",
-            "Tahukah kamu? Borobudur adalah candi Buddha terbesar di dunia dan sudah diakui sebagai warisan dunia UNESCO.",
-          ];
-          const bank = readNewsBank();
-          const randomTip = tips[Math.floor(Math.random() * tips.length)];
-          bank.items.push({ id: Date.now(), title: "Fakta", source: "Anta", link: "#", summary: randomTip, spoken: false });
-          writeNewsBank(bank);
-          unspoken = await getUnspokenNews();
+          const res = await fetch(`${apiUrl}/news?q=${encodeURIComponent("Indonesia berita terbaru")}`);
+          const items = res.ok ? await res.json() : [];
+          const item = items.find((x: { link?: string }) => x.link && !seenNewsRef.current.has(x.link));
+          if (item) {
+            const source = item.source || (() => { try { return new URL(item.link).hostname.replace("www.", ""); } catch { return "media Indonesia"; } })();
+            await saveNewsToBank(item.title || "Berita terbaru", source, item.link, `Berita terbaru: ${item.title}. (Sumber: ${source})`, item.pubDate);
+            unspoken = await getUnspokenNews();
+          }
         }
         if (unspoken && unspoken.summary.length > 20) {
           const spokenIds: number[] = JSON.parse(localStorage.getItem("anta_spoken_ids") || "[]");
@@ -1557,7 +1556,7 @@ export default function Home() {
         </nav>
         <div className={`settings-pop ${settingsOpen ? "open" : ""}`}>
           <button className="settings-gear" type="button" onClick={() => setSettingsOpen((v) => !v)} title="Settings" aria-label="Settings">
-            <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" strokeWidth="2" fill="none"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 .6 1.65 1.65 0 0 0-.33 1.82V22a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 8.6 20a1.65 1.65 0 0 0-1.82-.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-.6-1 1.65 1.65 0 0 0-1.82-.33H2a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4 8.6a1.65 1.65 0 0 0-.33-1.82l-.06-.06A2 2 0 1 1 6.44 3.9l.06.06A1.65 1.65 0 0 0 8.6 4.6a1.65 1.65 0 0 0 1-.6 1.65 1.65 0 0 0 .33-1.82V2a2 2 0 1 1 4 0v.09A1.65 1.65 0 0 0 15.4 4a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 8.6a1.65 1.65 0 0 0 .6 1 1.65 1.65 0 0 0 1.82.33H22a2 2 0 1 1 0 4h-.09A1.65 1.65 0 0 0 20 15z"/></svg>
+            <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" strokeWidth="2" fill="none"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 .6 1.65 1.65 0 0 0-.33 1.82V22a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 8.6 20a1.65 1.65 0 0 0-1.82-.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-.6-1 1.65 1.65 0 0 0-1.82-.33H2a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4 8.6a1.65 1.65 0 0 0-.33-1.82l-.06-.06A2 2 0 1 1 6.44 3.9l.06.06A1.65 1.65 0 0 0 8.6 4.6a1.65 1.65 0 0 0 1-.6 1.65 1.65 0 0 0 .33-1.82V2a2 2 0 1 1 4 0v.09A1.65 1.65 0 0 0 15.4 4a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 8.6a1.65 1.65 0 0 0 .6 1 1.65 1.65 0 0 0 1.82.33H22a2 2 0 1 1 0 4h-.09A1.65 1.65 0 0 0 20 15z"/></svg>
           </button>
           <div className="settings-drawer">
             <span>{authRole}</span>
