@@ -152,6 +152,7 @@ export default function Home() {
   const [articleText, setArticleText] = useState("");
   const [articleSource, setArticleSource] = useState("");
   const [jarvisStatus, setJarvisStatus] = useState<any>(null);
+  const [jarvisCatalog, setJarvisCatalog] = useState<any>(null);
   
   // Popup States: 'closed' | 'open' | 'minimized'
   const [chatState, setChatState] = useState<'closed' | 'open' | 'minimized'>('closed');
@@ -254,10 +255,30 @@ export default function Home() {
 
   async function openOpenJarvis() {
     setArticleText(""); setNews([]); setVideos([]); setImages([]); setSelectedVideo(null);
-    setView({ title: "OpenJarvis UI", url: `${apiUrl}/jarvis/`, note: "UI asli OpenJarvis dibuka di dalam Anta." });
+    setViewerLoading(false);
     setViewerFullscreen(true);
     setViewerState("open");
-    if (apiUrl) fetch(`${apiUrl}/openjarvis/status`, { cache: "no-store" }).then((r) => r.json()).then(setJarvisStatus).catch(() => setJarvisStatus({ ok: false }));
+    if (!apiUrl) {
+      setView({ title: "OpenJarvis UI", url: "", note: "Backend belum aktif." });
+      return;
+    }
+    try {
+      const [status, providers] = await Promise.all([
+        fetch(`${apiUrl}/openjarvis/status`, { cache: "no-store" }).then((r) => r.json()),
+        fetch(`${apiUrl}/providers`, { cache: "no-store" }).then((r) => r.json()),
+      ]);
+      setJarvisStatus(status);
+      setJarvisCatalog(providers);
+      setView({
+        title: "OpenJarvis UI",
+        url: status?.ok ? `${apiUrl}/jarvis/` : "",
+        note: status?.ok ? "UI asli OpenJarvis dibuka di dalam Anta." : "OpenJarvis belum tersambung; capability aktif backend ditampilkan di bawah.",
+      });
+    } catch {
+      setJarvisStatus({ ok: false });
+      setJarvisCatalog(null);
+      setView({ title: "OpenJarvis UI", url: "", note: "OpenJarvis belum tersambung." });
+    }
   }
 
   const commands = useMemo(() => [
@@ -671,8 +692,8 @@ export default function Home() {
   // Timer 2: News Speaker — every ~15-25 sec, speak one unspoken news from bank
   useEffect(() => {
     if (loading || isAiSpeaking || listening) return;
-    // Don't speak random news when chat or viewer is open, or when voice conversation active
-    if (chatState === 'open' || viewerState === 'open') return;
+    // Don't speak random news when any popup is open, or when voice conversation active
+    if (chatState !== 'closed' || viewerState !== 'closed') return;
     if (voiceTranscript) return; // still in voice conversation
     const timer = window.setTimeout(async () => {
       try {
@@ -1417,7 +1438,7 @@ export default function Home() {
       )}
 
       {/* Background Equalizer Visualizer */}
-      <div className={`center-container ${orbSide} ${viewerState === 'open' && viewerFullscreen ? 'orb-mini orb-hidden-hud' : ''} ${chatState === 'open' ? 'orb-chat-open' : ''}`} style={{ "--orb-x": `${orbOffset.x}px`, "--orb-y": `${orbOffset.y}px` } as CSSProperties}>
+      <div className={`center-container ${orbSide} ${viewerState === 'open' && viewerFullscreen ? 'orb-mini' : ''} ${chatState === 'open' ? 'orb-chat-open' : ''}`} style={{ "--orb-x": `${orbOffset.x}px`, "--orb-y": `${orbOffset.y}px` } as CSSProperties}>
 
         <div
           ref={orbRef}
@@ -1502,6 +1523,24 @@ export default function Home() {
             {view.note && <p className="viewer-note">{view.note}</p>}
             
             {!articleText && news.length === 0 && videos.length === 0 && images.length === 0 && view.title === "OpenJarvis UI" && view.url && <iframe className="viewer-frame" src={view.url} title={view.title} />}
+            {!articleText && news.length === 0 && videos.length === 0 && images.length === 0 && view.title === "OpenJarvis UI" && !view.url && (
+              <div style={{ flex: 1, overflow: "auto", padding: 16, display: "grid", gap: 12 }}>
+                <div style={{ color: "#67e8f9", fontWeight: 700 }}>Capability aktif</div>
+                <div style={{ display: "grid", gap: 8, fontSize: 12 }}>
+                  {(jarvisCatalog?.chat_router || []).map((p: any) => (
+                    <div key={p.name} style={{ padding: 10, border: "1px solid #22d3ee22", borderRadius: 12, background: "#030712" }}>
+                      <b style={{ color: "#dffbff" }}>{p.name}</b>
+                      <div style={{ color: "#67e8f9", marginTop: 4 }}>{(p.capabilities || []).join(", ") || "chat"}</div>
+                      <div style={{ opacity: 0.7, marginTop: 4 }}>{p.model}</div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ display: "grid", gap: 6, fontSize: 12, color: "#dffbff" }}>
+                  <div>Search: {(jarvisCatalog?.search?.capabilities || []).join(", ") || "-"}</div>
+                  <div>TTS lokal: {jarvisCatalog?.local_tts?.configured ? "aktif" : "off"}</div>
+                </div>
+              </div>
+            )}
             {!articleText && news.length === 0 && videos.length === 0 && images.length === 0 && view.title !== "OpenJarvis UI" && view.url && <iframe className="viewer-frame" src={view.url} title={view.title || "OpenJarvis"} />}
             {!articleText && news.length === 0 && videos.length === 0 && images.length === 0 && view.title !== "OpenJarvis UI" && !view.url && <div className="browser-empty">Ketik: gambar burung, lagu jazz, berita hari ini, atau cari sesuatu.</div>}
 
