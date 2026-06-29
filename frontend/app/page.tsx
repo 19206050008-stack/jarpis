@@ -156,7 +156,7 @@ export default function Home() {
   // Popup States: 'closed' | 'open' | 'minimized'
   const [chatState, setChatState] = useState<'closed' | 'open' | 'minimized'>('closed');
   const [viewerState, setViewerState] = useState<'closed' | 'open' | 'minimized'>('closed');
-  const [viewerFullscreen, setViewerFullscreen] = useState(false);
+  const [viewerFullscreen, setViewerFullscreen] = useState(true);
   const [viewerLoading, setViewerLoading] = useState(false);
   const [popupPos, setPopupPos] = useState({ chat: { x: 40, y: 40 }, viewer: { x: 0, y: 40 } });
   
@@ -255,15 +255,15 @@ export default function Home() {
   async function openOpenJarvis() {
     setArticleText(""); setNews([]); setVideos([]); setImages([]); setSelectedVideo(null);
     setView({ title: "OpenJarvis UI", url: `${apiUrl}/jarvis/`, note: "UI asli OpenJarvis dibuka di dalam Anta." });
+    setViewerFullscreen(true);
     setViewerState("open");
     if (apiUrl) fetch(`${apiUrl}/openjarvis/status`, { cache: "no-store" }).then((r) => r.json()).then(setJarvisStatus).catch(() => setJarvisStatus({ ok: false }));
   }
 
   const commands = useMemo(() => [
-    { label: "Chat", hint: "Buka panel chat", run: () => setChatState("open") },
     { label: "Voice", hint: "Mulai perintah suara", run: () => startVoiceInput() },
     { label: "Berita hari ini", hint: "Cari berita terbaru", run: () => send("berita hari ini") },
-    { label: "Cari gambar", hint: "Cari gambar dengan Anta", run: () => { setChatState("open"); setInput("gambar "); } },
+    { label: "Cari gambar", hint: "Cari gambar dengan Anta", run: () => { setViewerState("open"); setViewerFullscreen(true); setInput("gambar "); } },
     { label: "Task planner", hint: "Buat checklist kerja", run: () => {
       const q = prompt("Masukkan tugas/rencana kerja:");
       if (q) setTasks(q.split(",").map(t => t.trim()));
@@ -273,7 +273,7 @@ export default function Home() {
     { label: "OpenJarvis", hint: "Buka di Monitor Anta", run: openOpenJarvis },
     { label: "Kunci orb", hint: "Orb tidak bisa digeser", run: () => setOrbMoveEnabled(false) },
     { label: "Bebaskan orb", hint: "Orb bisa digeser", run: () => setOrbMoveEnabled(true) },
-  ], []);
+  ], [openOpenJarvis]);
 
   useEffect(() => {
     if (!apiUrl) return;
@@ -299,6 +299,7 @@ export default function Home() {
   function cleanText(text: string) {
     if (!text) return "";
     return String(text)
+      .replace(/<br\s*\/?>/gi, "\n")
       .replace(/\\+n/g, "\n") // replace \n, \\n, \\\n etc with real newline
       .replace(/\b(undefined|null|NaN)\b/gi, "")
       .replace(/\\+/g, "") // strip remaining backslashes
@@ -1416,7 +1417,8 @@ export default function Home() {
       )}
 
       {/* Background Equalizer Visualizer */}
-      <div className={`center-container ${orbSide} ${viewerState === 'open' && viewerFullscreen ? 'orb-mini' : ''} ${chatState === 'open' ? 'orb-chat-open' : ''}`} style={{ "--orb-x": `${orbOffset.x}px`, "--orb-y": `${orbOffset.y}px` } as CSSProperties}>
+      <div className={`center-container ${orbSide} ${viewerState === 'open' && viewerFullscreen ? 'orb-mini orb-hidden-hud' : ''} ${chatState === 'open' ? 'orb-chat-open' : ''}`} style={{ "--orb-x": `${orbOffset.x}px`, "--orb-y": `${orbOffset.y}px` } as CSSProperties}>
+
         <div
           ref={orbRef}
           className={`orb-equalizer ${orbMode} ${orbMoveEnabled ? 'movable' : 'locked'} ${orbDragging ? 'dragging' : ''} ${orbShake ? 'shake' : ''} ${isAiSpeaking ? 'active' : ''} ${listening ? 'listening' : ''}`}
@@ -1502,23 +1504,9 @@ export default function Home() {
             {viewerLoading && <div className="anta-loading"><span></span><b>Anta memuat data...</b></div>}
             {view.note && <p className="viewer-note">{view.note}</p>}
             
-            {!articleText && news.length === 0 && videos.length === 0 && images.length === 0 && view.title === "OpenJarvis" && (
-              <div className="article-view">
-                <h3>Anta Jarvis</h3>
-                <p>Status: {jarvisStatus ? (jarvisStatus.ok ? "aktif di background" : "belum tersambung") : "memeriksa..."}</p>
-                {jarvisStatus?.agents?.length > 0 && <p>Agents: {jarvisStatus.agents.slice(0, 8).map((a: any) => a.key).join(", ")}</p>}
-                <h4>Cara pakai</h4>
-                <ul>
-                  <li>Chat biasa: ketik perintah di panel chat Anta.</li>
-                  <li>Suara: tekan tombol mikrofon lalu bicara seperti biasa.</li>
-                  <li>Untuk memaksa pakai Jarvis, awali dengan: “pakai Jarvis ...”.</li>
-                  <li>Contoh: “pakai Jarvis riset singkat tentang energi surya”.</li>
-                  <li>Contoh suara: “Halo Anta, pakai Jarvis buat rencana kerja hari ini”.</li>
-                </ul>
-              </div>
-            )}
-            {!articleText && news.length === 0 && videos.length === 0 && images.length === 0 && view.title !== "OpenJarvis" && view.url && <iframe className="viewer-frame" src={view.url} title={view.title || "OpenJarvis"} />}
-            {!articleText && news.length === 0 && videos.length === 0 && images.length === 0 && view.title !== "OpenJarvis" && !view.url && <div className="browser-empty">Ketik: gambar burung, lagu jazz, berita hari ini, atau cari sesuatu.</div>}
+            {!articleText && news.length === 0 && videos.length === 0 && images.length === 0 && view.title === "OpenJarvis UI" && view.url && <iframe className="viewer-frame" src={view.url} title={view.title} />}
+            {!articleText && news.length === 0 && videos.length === 0 && images.length === 0 && view.title !== "OpenJarvis UI" && view.url && <iframe className="viewer-frame" src={view.url} title={view.title || "OpenJarvis"} />}
+            {!articleText && news.length === 0 && videos.length === 0 && images.length === 0 && view.title !== "OpenJarvis UI" && !view.url && <div className="browser-empty">Ketik: gambar burung, lagu jazz, berita hari ini, atau cari sesuatu.</div>}
 
             {imagePreview && (
               <div className="image-preview" onClick={() => setImagePreview(null)}>

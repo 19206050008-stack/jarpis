@@ -466,12 +466,20 @@ async def openjarvis_status():
 async def openjarvis_proxy(req: Request, path: str = ""):
     if not OPENJARVIS_URL:
         raise HTTPException(status_code=503, detail="OPENJARVIS_URL belum aktif")
-    target = f"{OPENJARVIS_URL}/{path}" if path else f"{OPENJARVIS_URL}/"
+    
+    # Fix React Router paths routing: /jarvis/api/digest -> /api/digest
+    clean_path = path
+    if path.startswith("api/"):
+        clean_path = path
+    elif path.startswith("v1/"):
+        clean_path = path
+    
+    target = f"{OPENJARVIS_URL}/{clean_path}" if clean_path else f"{OPENJARVIS_URL}/"
     headers = {k: v for k, v in req.headers.items() if k.lower() not in {"host", "content-length"}}
     headers |= _openjarvis_headers()
     body = await req.body()
     fake_stream = False
-    if req.method == "POST" and path == "v1/chat/completions":
+    if req.method == "POST" and clean_path == "v1/chat/completions":
         try:
             import json
             payload = json.loads(body or b"{}")
