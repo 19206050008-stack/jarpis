@@ -780,7 +780,8 @@ async def chat(payload: dict):
     if task in {"image_search", "video_search"}:
         q = re.sub(r"^(cari\s+)?(gambar|foto|video|youtube)\s+", "", message, flags=re.I).strip() or message
         if task == "image_search":
-            rows = await _safe_image_results(q) or [r for r in await search_images(q) if not re.search(r"reddit|hentai|toon|manga|eros|adult", str(r), re.I)]
+            image_q = f"{q} flower" if "bunga" in q.lower() and "flower" not in q.lower() else q
+            rows = await _safe_image_results(image_q) or [r for r in await search_images(image_q) if not re.search(r"reddit|hentai|toon|manga|eros|adult|plymouth|ford", str(r), re.I)]
             text = "\n".join(f"{i + 1}. {r.get('title') or q}\n{r.get('image') or r.get('thumbnail')}" for i, r in enumerate(rows[:6]))
         else:
             rows = await search_videos(q)
