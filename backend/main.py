@@ -939,28 +939,27 @@ def speak(req: SpeakRequest):
     speaker = (req.speaker or "andi").lower()
     speed = float(req.speed) if req.speed else 1.0
 
-    if speaker in SUPERTONIC_VOICES:
-        if not _supertonic_available():
-            raise HTTPException(status_code=404, detail=f"Suara '{speaker}' belum didownload. Pastikan ENABLE_TTS=1.")
-        
-        sid = SUPERTONIC_VOICES[speaker][0]
-        try:
-            import sherpa_onnx
-            tts = _get_supertonic()
-            gen = sherpa_onnx.GenerationConfig()
-            gen.sid = sid
-            gen.num_steps = int(os.getenv("TTS_STEPS", "4"))
-            gen.speed = speed
-            gen.extra["lang"] = "id"
-            out = tts.generate(text, gen)
-        except Exception as e:
-            raise HTTPException(status_code=503, detail=f"Gagal membuat audio: {e}")
-            
-        if out is None or len(out.samples) == 0:
-            raise HTTPException(status_code=503, detail="Audio kosong")
-            
-        wav = _samples_to_wav(out.samples, out.sample_rate)
-        return Response(content=wav, media_type="audio/wav")
+    if speaker not in SUPERTONIC_VOICES:
+        speaker = "andi"
+    if not _supertonic_available():
+        raise HTTPException(status_code=404, detail=f"Suara '{speaker}' belum didownload. Pastikan ENABLE_TTS=1.")
 
-    raise HTTPException(status_code=400, detail=f"Suara '{speaker}' tidak dikenal")
+    sid = SUPERTONIC_VOICES[speaker][0]
+    try:
+        import sherpa_onnx
+        tts = _get_supertonic()
+        gen = sherpa_onnx.GenerationConfig()
+        gen.sid = sid
+        gen.num_steps = int(os.getenv("TTS_STEPS", "4"))
+        gen.speed = speed
+        gen.extra["lang"] = "id"
+        out = tts.generate(text, gen)
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=f"Gagal membuat audio: {e}")
+
+    if out is None or len(out.samples) == 0:
+        raise HTTPException(status_code=503, detail="Audio kosong")
+
+    wav = _samples_to_wav(out.samples, out.sample_rate)
+    return Response(content=wav, media_type="audio/wav")
 

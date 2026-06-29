@@ -55,6 +55,8 @@ async function cleanOldNews() {
 
 async function saveNewsToBank(title: string, source: string, link: string, summary: string) {
   const bank = readNewsBank();
+  const key = `${title}|${link}`;
+  if (bank.items.some((x) => `${x.title}|${x.link}` === key)) return;
   bank.items.push({ id: Date.now(), title, source, link, summary, spoken: false });
   writeNewsBank(bank);
 }
@@ -298,7 +300,6 @@ export default function Home() {
 
   const voices = useMemo(() => [
     { id: "andi", label: "Railway — Andi (default)" },
-    { id: "elevenlabs", label: "ElevenLabs — Natural" },
     { id: "sari", label: "Sari — Wanita" },
     { id: "dewi", label: "Dewi — Wanita" },
     { id: "ayu", label: "Ayu — Wanita" },
@@ -939,7 +940,7 @@ export default function Home() {
 
     if ((lower.includes("ganti suara") || lower.includes("ubah suara") || lower.includes("daftar suara") || lower.includes("suara siapa") || lower.includes("list suara")) && !voice) {
       const list = voices.map((v) => `• ${v.label}`).join("\n");
-      return `Berikut daftar suara yang tersedia:\n${list}\n\nKetik "ganti suara [nama]" untuk mengganti.`;
+      return `Berikut suara Indonesia yang tersedia:\n${list}\n\nKetik "ganti suara [nama]" untuk mengganti.`;
     }
 
     if (lower.includes("minimize") || lower.includes("kecilkan")) {
@@ -1494,13 +1495,6 @@ export default function Home() {
             {messages.map((msg, i) => <div key={i} className={`msg ${msg.role} ${msg.text === "Anta sedang mengetik . . ." ? "typing" : ""} ${isOrderedText(msg.text) ? "ordered" : ""}`}>{msg.text}</div>)}
           </div>
 
-          <div style={{ padding: "0 12px 10px", display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {["fitur chat ideal", "memori percakapan", "upload file", "voice input", "summary percakapan", "multi provider"].map((p) => (
-              <button key={p} type="button" onClick={() => setInput(p)} style={{ padding: "6px 10px", borderRadius: 999, border: "1px solid #22d3ee33", background: "#031228", color: "#d8faff", fontSize: 11 }}>
-                {p}
-              </button>
-            ))}
-          </div>
 
           <form className="form" onSubmit={(e) => { e.preventDefault(); send(); }}>
             <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Tanya fitur chat Anta..." />
