@@ -28,8 +28,9 @@ if os.getenv("ENABLE_ANTA_JARVIS", "1") != "0":
         os.environ.setdefault("OPENJARVIS_MODEL", os.getenv("OPENROUTER_MODEL", "openai/gpt-oss-20b:free"))
         os.environ.setdefault("OPENJARVIS_URL", "http://127.0.0.1:8765")
         jarvis_port = os.getenv("ANTA_JARVIS_PORT", "8765")
+        print(f"Starting Anta Jarvis on 127.0.0.1:{jarvis_port} model={os.environ['OPENJARVIS_MODEL']}", flush=True)
         jarvis_proc = subprocess.Popen([
-            sys.executable, "-m", "openjarvis.cli", "serve",
+            sys.executable, "-m", "openjarvis.cli.__main__", "--quiet", "serve",
             "--host", "127.0.0.1",
             "--port", jarvis_port,
             "--engine", "cloud",
@@ -37,7 +38,9 @@ if os.getenv("ENABLE_ANTA_JARVIS", "1") != "0":
             "--agent", "simple",
         ])
         atexit.register(lambda: jarvis_proc and jarvis_proc.terminate())
-        time.sleep(3)
+        time.sleep(8)
+        if jarvis_proc.poll() is not None:
+            print(f"Anta Jarvis exited early with code {jarvis_proc.returncode}; backend will continue without it", flush=True)
 
 subprocess.check_call([
     "uvicorn",
