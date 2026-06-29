@@ -24,6 +24,12 @@ function applyTheme() {
 
 applyTheme();
 
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then((regs) => {
+    regs.filter((r) => r.scope.includes('/jarvis')).forEach((r) => r.unregister());
+  }).catch(() => {});
+}
+
 // Fetch the API base URL from the Tauri backend before rendering.
 // This ensures JARVIS_PORT is defined in one place (the Rust backend).
 // In non-Tauri environments this is a no-op.
