@@ -1453,9 +1453,6 @@ export default function Home() {
 
         {/* Orbit Menu — inside center-container so it follows orb animations */}
         <nav className="dock orbit-menu">
-          <button className={chatState === 'open' ? 'active' : ''} onClick={() => setChatState(chatState === 'open' ? 'closed' : 'open')} title="AI Chat">
-            <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-          </button>
           <button className={listening ? 'active' : ''} onClick={startVoiceInput} title="Perintah Suara">
             <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
           </button>
@@ -1494,7 +1491,10 @@ export default function Home() {
       {viewerState === 'open' && (
         <section className={`popup-window viewer-window custom-viewer ${viewerFullscreen ? 'viewer-fullscreen' : ''}`} style={viewerFullscreen ? undefined : { left: popupPos.viewer.x || undefined, right: popupPos.viewer.x ? undefined : 40, top: popupPos.viewer.y }}>
           <header className="window-header" onPointerDown={(e) => { if (window.innerWidth > 800 && !viewerFullscreen && !(e.target instanceof Element && e.target.closest('.controls'))) startPopupDrag("viewer", e); }} onPointerMove={movePopup} onPointerUp={stopPopupDrag}>
-            <span className="title">Anta Monitor</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div className="mini-orb" style={{ width: 14, height: 14, borderRadius: "50%", background: isAiSpeaking ? "radial-gradient(circle, #ff9800 0%, #ff5722 70%)" : "radial-gradient(circle, #00d3ee 0%, #0076a8 70%)", boxShadow: isAiSpeaking ? "0 0 8px #ff5722" : "0 0 8px #00d3ee" }} />
+              <span className="title">Anta Monitor</span>
+            </div>
             <div className="controls anta-toolbar">
               <IconButton icon="expand" label="Fullscreen" onClick={(e) => { e.stopPropagation(); setViewerFullscreen(!viewerFullscreen); }} type="button" />
               <IconButton icon="close" label="Tutup" onClick={(e) => { e.stopPropagation(); setViewerFullscreen(false); setViewerState('closed'); }} type="button" />
