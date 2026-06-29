@@ -324,6 +324,19 @@ export default function Home() {
       .trim();
   }
 
+  function speakBrowser(text: string) {
+    if (!speakEnabled || typeof window === "undefined" || !window.speechSynthesis) return false;
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = "id-ID";
+    utter.rate = 1;
+    utter.pitch = 1;
+    utter.onstart = () => { setIsAiSpeaking(true); setSubtitle(""); };
+    utter.onend = () => { setIsAiSpeaking(false); setSubtitle(""); setVoiceTranscript(""); };
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utter);
+    return true;
+  }
+
   async function speakLine(text: string) {
     const clean = cleanText(text);
     if (!clean) return;
@@ -364,7 +377,8 @@ export default function Home() {
       audioRef.current?.addEventListener("pause", cleanup);
     };
 
-    if (!speakEnabled || !apiUrl) {
+    if (speakBrowser(clean)) return;
+    if (!apiUrl) {
       // Offline fallback: delay typing slightly so it feels like "voice first"
       setIsAiSpeaking(true);
       setTimeout(() => playTypingEffect(), 400);
@@ -702,8 +716,10 @@ export default function Home() {
             "Tips hari ini: Minum air putih minimal 8 gelas sehari bisa meningkatkan konsentrasi dan produktivitas kerja.",
             "Tahukah kamu? Borobudur adalah candi Buddha terbesar di dunia dan sudah diakui sebagai warisan dunia UNESCO.",
           ];
+          const bank = readNewsBank();
           const randomTip = tips[Math.floor(Math.random() * tips.length)];
-          await saveNewsToBank("Fakta", "Anta", "#", randomTip);
+          bank.items.push({ id: Date.now(), title: "Fakta", source: "Anta", link: "#", summary: randomTip, spoken: false });
+          writeNewsBank(bank);
           unspoken = await getUnspokenNews();
         }
         if (unspoken && unspoken.summary.length > 20) {
