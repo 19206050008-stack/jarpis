@@ -1477,9 +1477,6 @@ export default function Home() {
 
         {/* Orbit Menu — inside center-container so it follows orb animations */}
         <nav className="dock orbit-menu">
-          <button onClick={() => window.location.href = '/chat'} title="Chat">💬</button>
-          <button onClick={() => window.location.href = '/dashboard'} title="Dashboard">📊</button>
-          <button onClick={() => window.location.href = '/settings'} title="Settings">⚙️</button>
           <button onClick={openOpenJarvis} title="OpenJarvis / Provider">
             <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none"><path d="M12 2l8 4v6c0 5-3.4 8.7-8 10-4.6-1.3-8-5-8-10V6l8-4z"></path><path d="M9 12h6"></path><path d="M12 9v6"></path></svg>
           </button>
