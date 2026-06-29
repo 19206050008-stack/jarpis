@@ -92,6 +92,10 @@ export default function Home() {
     rec.start();
   }
 
+  function openSpotify() {
+    window.open("https://open.spotify.com", "_blank", "noopener,noreferrer");
+  }
+
   function askWs(text: string) {
     return new Promise<string>((resolve, reject) => {
       const ws = new WebSocket(wsUrl);
@@ -116,6 +120,13 @@ export default function Home() {
     setInput("");
     setLoading(true);
     setMessages((m) => [...m, { role: "user", text }]);
+
+    if (/\b(buka|open)\b.*\bspotify\b|\bspotify\b.*\b(buka|open)\b/i.test(text)) {
+      openSpotify();
+      setMessages((m) => [...m, { role: "ai", text: "Spotify saya buka di tab baru." }]);
+      setLoading(false);
+      return;
+    }
 
     try {
       const answer = (await askWs(text)).trim() || "Tidak ada jawaban.";
