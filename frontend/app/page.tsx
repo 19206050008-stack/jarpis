@@ -153,10 +153,7 @@ export default function Home() {
   const [articleSource, setArticleSource] = useState("");
   const [jarvisStatus, setJarvisStatus] = useState<any>(null);
   const [jarvisCatalog, setJarvisCatalog] = useState<any>(null);
-  const [researchMessages, setResearchMessages] = useState<Array<{role: string, content: string}>>([]);
-  const [researchInput, setResearchInput] = useState("");
-  const [researchLoading, setResearchLoading] = useState(false);
-  const [researchChatOpen, setResearchChatOpen] = useState(false);
+
   
   // Popup States: 'closed' | 'open' | 'minimized'
   const [chatState, setChatState] = useState<'closed' | 'open' | 'minimized'>('closed');
@@ -259,8 +256,6 @@ export default function Home() {
 
   async function openOpenJarvis() {
     setArticleText(""); setNews([]); setVideos([]); setImages([]); setSelectedVideo(null);
-    setResearchMessages([]);
-    setResearchInput("");
     setViewerLoading(false);
     setViewerFullscreen(true);
     setViewerState("open");
@@ -275,45 +270,15 @@ export default function Home() {
       ]);
       setJarvisStatus(status);
       setJarvisCatalog(providers);
-      
-      if (!status?.ok && providers?.chat_router) {
-        setView({
-          title: "OpenJarvis UI",
-          url: "",
-          note: "Riset kemampuan API key — ketik pertanyaan di bawah",
-        });
-      } else {
-        setView({
-          title: "OpenJarvis UI",
-          url: status?.ok ? `${apiUrl}/jarvis/` : "",
-          note: status?.ok ? "UI asli OpenJarvis dibuka di dalam Anta." : "OpenJarvis belum tersambung.",
-        });
-      }
+      setView({
+        title: "OpenJarvis UI",
+        url: status?.ok ? `${apiUrl}/jarvis/` : "",
+        note: status?.ok ? "UI asli OpenJarvis dibuka di dalam Anta." : "OpenJarvis belum tersambung — pakai chat untuk nanya kemampuan yang aktif.",
+      });
     } catch {
       setJarvisStatus({ ok: false });
       setJarvisCatalog(null);
-      setView({ title: "OpenJarvis UI", url: "", note: "Riset kemampuan API key." });
-    }
-  }
-
-  async function sendResearch() {
-    if (!researchInput.trim() || !apiUrl) return;
-    const q = researchInput.trim();
-    setResearchMessages(m => [...m, { role: "user", content: q }]);
-    setResearchInput("");
-    setResearchLoading(true);
-    try {
-      const res = await fetch(`${apiUrl}/chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: `Riset API key: ${q}. Jawab singkat dan jelas berdasarkan provider yang terpasang (OpenRouter, OpenAgentic, dll).` }),
-      });
-      const data = await res.json();
-      setResearchMessages(m => [...m, { role: "ai", content: data.answer || "Tidak ada jawaban." }]);
-    } catch {
-      setResearchMessages(m => [...m, { role: "ai", content: "Gagal menghubungi backend." }]);
-    } finally {
-      setResearchLoading(false);
+      setView({ title: "OpenJarvis UI", url: "", note: "OpenJarvis belum tersambung — pakai chat untuk nanya kemampuan yang aktif." });
     }
   }
 
@@ -1503,13 +1468,13 @@ export default function Home() {
 
         {/* Orbit Menu — inside center-container so it follows orb animations */}
         <nav className="dock orbit-menu">
-          <button onClick={() => setResearchChatOpen(true)} title="Riset API Key">
+          <button onClick={() => setChatState('open')} title="Chat">
             <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
           </button>
-          <button onClick={openOpenJarvis} title="OpenJarvis / Provider">
+          <button onClick={openOpenJarvis} title="OpenJarvis">
             <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none"><path d="M12 2l8 4v6c0 5-3.4 8.7-8 10-4.6-1.3-8-5-8-10V6l8-4z"></path><path d="M9 12h6"></path><path d="M12 9v6"></path></svg>
           </button>
-          <button className={listening ? 'active' : ''} onClick={startVoiceInput} title="Perintah Suara">
+          <button className={listening ? 'active' : ''} onClick={startVoiceInput} title="Voice">
             <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
           </button>
         </nav>
@@ -1529,8 +1494,16 @@ export default function Home() {
             {messages.map((msg, i) => <div key={i} className={`msg ${msg.role} ${msg.text === "Anta sedang mengetik . . ." ? "typing" : ""} ${isOrderedText(msg.text) ? "ordered" : ""}`}>{msg.text}</div>)}
           </div>
 
+          <div style={{ padding: "0 12px 10px", display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {["fitur chat ideal", "memori percakapan", "upload file", "voice input", "summary percakapan", "multi provider"].map((p) => (
+              <button key={p} type="button" onClick={() => setInput(p)} style={{ padding: "6px 10px", borderRadius: 999, border: "1px solid #22d3ee33", background: "#031228", color: "#d8faff", fontSize: 11 }}>
+                {p}
+              </button>
+            ))}
+          </div>
+
           <form className="form" onSubmit={(e) => { e.preventDefault(); send(); }}>
-            <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ketik pesan, berita, lagu, cari..." />
+            <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Tanya fitur chat Anta..." />
             <button className={`voice-btn-mobile anta-icon-btn ${listening ? 'active' : ''}`} type="button" onClick={startVoiceInput} title="Suara">
               <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" strokeWidth="2" fill="none"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path></svg>
             </button>
@@ -1555,48 +1528,21 @@ export default function Home() {
             {view.note && <p className="viewer-note">{view.note}</p>}
             
             {!articleText && news.length === 0 && videos.length === 0 && images.length === 0 && view.title === "OpenJarvis UI" && view.url && <iframe className="viewer-frame" src={view.url} title={view.title} />}
+
             {!articleText && news.length === 0 && videos.length === 0 && images.length === 0 && view.title === "OpenJarvis UI" && !view.url && (
-              <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-                <div style={{ padding: 16, borderBottom: "1px solid #22d3ee22", background: "#020a1a" }}>
-                  <div style={{ color: "#67e8f9", fontWeight: 700, fontSize: 14 }}>Riset API Key — Apa yang bisa dilakukan?</div>
-                  <div style={{ fontSize: 11, opacity: 0.6, marginTop: 4 }}>Tanya apa saja tentang kemampuan provider yang terpasang</div>
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", gap: 10, padding: 12 }}>
+                <div style={{ border: "1px solid #22d3ee22", borderRadius: 14, padding: 12, background: "#020a1a", fontSize: 13, lineHeight: 1.6 }}>
+                  <b style={{ color: "#67e8f9" }}>Fitur chat Anta</b>
+                  <div>• riwayat pesan</div>
+                  <div>• quick prompts</div>
+                  <div>• input + send</div>
+                  <div>• voice shortcut</div>
+                  <div>• ringkasan / analisa / riset</div>
                 </div>
-
-                <div style={{ flex: 1, overflowY: "auto", padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
-                  {researchMessages.length === 0 && (
-                    <div style={{ fontSize: 12, opacity: 0.7 }}>
-                      Contoh pertanyaan:<br />
-                      • Model apa saja yang tersedia di OpenRouter?<br />
-                      • Bisa generate gambar?<br />
-                      • Support STT / voice input?<br />
-                      • TTS lokal bisa pakai suara Indonesia?<br />
-                      • Limit rate / quota tiap key?
-                    </div>
-                  )}
-                  {researchMessages.map((m, i) => (
-                    <div key={i} style={{ alignSelf: m.role === "user" ? "flex-end" : "flex-start", maxWidth: "85%" }}>
-                      <div style={{ padding: "8px 12px", borderRadius: 10, background: m.role === "user" ? "#22d3ee22" : "#031228", border: "1px solid #22d3ee33", fontSize: 13, whiteSpace: "pre-wrap" }}>
-                        {m.content}
-                      </div>
-                    </div>
-                  ))}
-                  {researchLoading && <div style={{ fontSize: 12, opacity: 0.6 }}>Riset...</div>}
-                </div>
-
-                <div style={{ padding: 12, borderTop: "1px solid #22d3ee22", background: "#020a1a" }}>
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <input
-                      value={researchInput}
-                      onChange={(e) => setResearchInput(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && sendResearch()}
-                      placeholder="Tanya kemampuan API key..."
-                      style={{ flex: 1, padding: "8px 12px", border: "1px solid #22d3ee44", borderRadius: 8, background: "#010409", color: "#d8faff", fontSize: 13 }}
-                    />
-                    <button onClick={sendResearch} disabled={researchLoading} style={{ padding: "8px 16px", borderRadius: 8, background: "#22d3ee22", border: "1px solid #22d3ee55", color: "#e0f4ff", fontSize: 13 }}>Riset</button>
-                  </div>
-                </div>
+                <div style={{ fontSize: 12, opacity: 0.7 }}>Buka Chat untuk ngobrol. Popup ini dipakai untuk ngobrol dan minta analisa fitur yang aktif.</div>
               </div>
             )}
+
             {!articleText && news.length === 0 && videos.length === 0 && images.length === 0 && view.title !== "OpenJarvis UI" && view.url && <iframe className="viewer-frame" src={view.url} title={view.title || "OpenJarvis"} />}
             {!articleText && news.length === 0 && videos.length === 0 && images.length === 0 && view.title !== "OpenJarvis UI" && !view.url && <div className="browser-empty">Ketik: gambar burung, lagu jazz, berita hari ini, atau cari sesuatu.</div>}
 
@@ -1688,51 +1634,7 @@ export default function Home() {
       {/* Hidden Audio Player for TTS */}
       {audioUrl && <audio key={audioUrl} ref={audioRef} src={audioUrl} autoPlay style={{ display: "none" }} />}
 
-      {/* Research Chat Popup */}
-      {researchChatOpen && (
-        <section className="popup-window chat-window" style={{ left: 60, top: 60, width: 420, height: 520, zIndex: 400 }}>
-          <header className="window-header">
-            <span className="title">Riset API Key — Analisa Mendalam</span>
-            <div className="controls">
-              <IconButton icon="close" label="Tutup" onClick={() => setResearchChatOpen(false)} type="button" />
-            </div>
-          </header>
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-            <div style={{ flex: 1, overflowY: "auto", padding: 14, display: "flex", flexDirection: "column", gap: 10, fontSize: 13 }}>
-              {researchMessages.length === 0 && (
-                <div style={{ opacity: 0.6 }}>
-                  Contoh:<br />
-                  • Model apa saja yang tersedia?<br />
-                  • Bisa generate gambar?<br />
-                  • Support STT / voice?<br />
-                  • TTS suara Indonesia?<br />
-                  • Rate limit tiap key?
-                </div>
-              )}
-              {researchMessages.map((m, i) => (
-                <div key={i} style={{ alignSelf: m.role === "user" ? "flex-end" : "flex-start", maxWidth: "85%" }}>
-                  <div style={{ padding: "8px 12px", borderRadius: 10, background: m.role === "user" ? "#22d3ee22" : "#031228", border: "1px solid #22d3ee33", whiteSpace: "pre-wrap" }}>
-                    {m.content}
-                  </div>
-                </div>
-              ))}
-              {researchLoading && <div style={{ opacity: 0.6, fontSize: 12 }}>Riset...</div>}
-            </div>
-            <div style={{ padding: 12, borderTop: "1px solid #22d3ee22", background: "#020a1a" }}>
-              <div style={{ display: "flex", gap: 8 }}>
-                <input
-                  value={researchInput}
-                  onChange={(e) => setResearchInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && sendResearch()}
-                  placeholder="Tanya kemampuan API key..."
-                  style={{ flex: 1, padding: "8px 12px", border: "1px solid #22d3ee44", borderRadius: 8, background: "#010409", color: "#d8faff", fontSize: 13 }}
-                />
-                <button onClick={sendResearch} disabled={researchLoading} style={{ padding: "8px 14px", borderRadius: 8, background: "#22d3ee22", border: "1px solid #22d3ee55", color: "#e0f4ff", fontSize: 13 }}>Riset</button>
-              </div>
-            </div>
-          </div>
-        </section>
-      )}
+
 
     </main>
   );
