@@ -21,6 +21,8 @@ create table if not exists memories (
   created_at timestamptz not null default now()
 );
 
+alter table memories add column if not exists embedding vector(768);
+
 create index if not exists messages_session_created_idx on messages(session_id, created_at);
 create index if not exists memories_embedding_idx on memories using ivfflat (embedding vector_cosine_ops) with (lists = 100);
 
