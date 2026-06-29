@@ -222,6 +222,7 @@ export default function Home() {
   const [backendAlive, setBackendAlive] = useState(true);
   const [agentAccepted, setAgentAccepted] = useState(true); // default to true (hidden) to prevent layout shift / background check first
   const [showAgentBanner, setShowAgentBanner] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   useEffect(() => {
     localStorage.removeItem("anta_role");
@@ -321,10 +322,6 @@ export default function Home() {
     return [];
   })()));
   const lastActiveAppRef = useRef("");
-
-  async function openOpenJarvis() {
-    setChatState('open');
-  }
 
   const commands = useMemo(() => [
     { label: "Voice", hint: "Mulai perintah suara", run: () => startVoiceInput() },
@@ -1500,9 +1497,14 @@ export default function Home() {
         </div>
       )}
 
-      <div style={{ position: "fixed", top: 10, right: 10, zIndex: 500, display: "flex", gap: 6, alignItems: "center", fontSize: 11 }}>
-        <span style={{ color: "#67e8f9" }}>{authRole}</span>
-        <button type="button" onClick={logout}>Logout</button>
+      <div className={`settings-pop ${settingsOpen ? "open" : ""}`}>
+        <button className="settings-gear" type="button" onClick={() => setSettingsOpen((v) => !v)} title="Settings" aria-label="Settings">
+          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" strokeWidth="2" fill="none"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 .6 1.65 1.65 0 0 0-.33 1.82V22a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 8.6 20a1.65 1.65 0 0 0-1.82-.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-.6-1 1.65 1.65 0 0 0-1.82-.33H2a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4 8.6a1.65 1.65 0 0 0-.33-1.82l-.06-.06A2 2 0 1 1 6.44 3.9l.06.06A1.65 1.65 0 0 0 8.6 4.6a1.65 1.65 0 0 0 1-.6 1.65 1.65 0 0 0 .33-1.82V2a2 2 0 1 1 4 0v.09A1.65 1.65 0 0 0 15.4 4a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 8.6a1.65 1.65 0 0 0 .6 1 1.65 1.65 0 0 0 1.82.33H22a2 2 0 1 1 0 4h-.09A1.65 1.65 0 0 0 20 15z"/></svg>
+        </button>
+        <div className="settings-drawer">
+          <span>{authRole}</span>
+          <button type="button" onClick={logout}>Logout</button>
+        </div>
       </div>
 
       {paletteOpen && (
@@ -1559,9 +1561,6 @@ export default function Home() {
           <button onClick={() => setChatState('open')} title="Chat">
             <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
           </button>
-          <button onClick={openOpenJarvis} title="OpenJarvis">
-            <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none"><path d="M12 2l8 4v6c0 5-3.4 8.7-8 10-4.6-1.3-8-5-8-10V6l8-4z"></path><path d="M9 12h6"></path><path d="M12 9v6"></path></svg>
-          </button>
           <button className={listening ? 'active' : ''} onClick={startVoiceInput} title="Voice">
             <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
           </button>
@@ -1608,24 +1607,8 @@ export default function Home() {
             {viewerLoading && <div className="anta-loading"><span></span><b>Anta memuat data...</b></div>}
             {view.note && <p className="viewer-note">{view.note}</p>}
             
-            {!articleText && news.length === 0 && videos.length === 0 && images.length === 0 && view.title === "OpenJarvis UI" && view.url && <iframe className="viewer-frame" src={view.url} title={view.title} />}
-
-            {!articleText && news.length === 0 && videos.length === 0 && images.length === 0 && view.title === "OpenJarvis UI" && !view.url && (
-              <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", gap: 10, padding: 12 }}>
-                <div style={{ border: "1px solid #22d3ee22", borderRadius: 14, padding: 12, background: "#020a1a", fontSize: 13, lineHeight: 1.6 }}>
-                  <b style={{ color: "#67e8f9" }}>Fitur chat Anta</b>
-                  <div>• riwayat pesan</div>
-                  <div>• quick prompts</div>
-                  <div>• input + send</div>
-                  <div>• voice shortcut</div>
-                  <div>• ringkasan / analisa / riset</div>
-                </div>
-                <div style={{ fontSize: 12, opacity: 0.7 }}>Buka Chat untuk ngobrol. Popup ini dipakai untuk ngobrol dan minta analisa fitur yang aktif.</div>
-              </div>
-            )}
-
-            {!articleText && news.length === 0 && videos.length === 0 && images.length === 0 && view.title !== "OpenJarvis UI" && view.url && <iframe className="viewer-frame" src={view.url} title={view.title || "OpenJarvis"} />}
-            {!articleText && news.length === 0 && videos.length === 0 && images.length === 0 && view.title !== "OpenJarvis UI" && !view.url && <div className="browser-empty">Ketik: gambar burung, lagu jazz, berita hari ini, atau cari sesuatu.</div>}
+            {!articleText && news.length === 0 && videos.length === 0 && images.length === 0 && view.url && <iframe className="viewer-frame" src={view.url} title={view.title || "Anta"} />}
+            {!articleText && news.length === 0 && videos.length === 0 && images.length === 0 && !view.url && <div className="browser-empty">Ketik: gambar burung, lagu jazz, berita hari ini, atau cari sesuatu.</div>}
 
             {imagePreview && (() => {
               const img = imagePreview!;

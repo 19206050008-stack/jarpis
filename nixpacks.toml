@@ -4,8 +4,7 @@ aptPkgs = ["libgomp1"]
 
 [phases.install]
 cmds = [
-  "pip install --no-cache-dir -r requirements.txt",
-  "pip install --no-cache-dir ./anta-jarvis[server,inference-cloud]"
+  "pip install --no-cache-dir -r requirements.txt"
 ]
 
 [start]
