@@ -202,8 +202,8 @@ export default function Home() {
   // Audio States
   const [audioUrl, setAudioUrl] = useState<string>("");
   const [speaker, setSpeaker] = useState("andi");
-  const [authRole, setAuthRole] = useState("user");
-  const [authToken, setAuthToken] = useState("");
+  const [authRole, setAuthRole] = useState(() => typeof window === "undefined" ? "user" : localStorage.getItem("anta_role") || "user");
+  const [authToken, setAuthToken] = useState(() => typeof window === "undefined" ? "" : localStorage.getItem("anta_token") || "");
   const [loginUsername, setLoginUsername] = useState<"anta" | "admin">("anta");
   const [loginPassword, setLoginPassword] = useState("");
   const [speakEnabled, setSpeakEnabled] = useState(true);
@@ -224,11 +224,6 @@ export default function Home() {
   const [showAgentBanner, setShowAgentBanner] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
-  useEffect(() => {
-    localStorage.removeItem("anta_role");
-    localStorage.removeItem("anta_token");
-  }, []);
-
   async function loginAs(username: "anta" | "admin") {
     const res = await fetch(`${apiUrl}/auth/login`, {
       method: "POST",
@@ -237,6 +232,8 @@ export default function Home() {
     }).catch(() => null);
     if (!res?.ok) return alert("Login gagal");
     const data = await res.json();
+    localStorage.setItem("anta_role", data.role);
+    localStorage.setItem("anta_token", data.token);
     setAuthRole(data.role);
     setAuthToken(data.token);
     setLoginPassword("");
