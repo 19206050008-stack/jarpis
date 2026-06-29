@@ -468,15 +468,16 @@ export default function Home() {
     }
   }
 
-  // Startup greeting — orb says hello after mount (time-based)
+  // Startup greeting — only after login.
   useEffect(() => {
+    if (!authToken) return;
     const timer = setTimeout(() => {
       const hour = new Date().getHours();
       const greeting = hour < 11 ? "Selamat pagi" : hour < 15 ? "Selamat siang" : hour < 18 ? "Selamat sore" : "Selamat malam";
       void speakLine(`${greeting}. Anta siap membantu.`);
     }, 2500);
     return () => clearTimeout(timer);
-  }, []);
+  }, [authToken]);
 
   // Keep-alive ping — check backend health every 60s
   useEffect(() => {
@@ -498,6 +499,7 @@ export default function Home() {
 
   // Wake Word "Halo Anta" — continuous listening for activation
   useEffect(() => {
+    if (!authToken) return;
     const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!Recognition) return;
     let wakeRec: SpeechRecognitionLike | null = null;
@@ -621,7 +623,7 @@ export default function Home() {
   }, [audioUrl]);
 
   useEffect(() => {
-    if (!apiUrl || !agentAccepted) return;
+    if (!authToken || !apiUrl || !agentAccepted) return;
     const interval = setInterval(async () => {
       try {
         if (!pageVisible()) return;
@@ -646,7 +648,7 @@ export default function Home() {
 
   // Timer 1: News Fetcher — every ~5 min, fetch new news if bank is low
   useEffect(() => {
-    if (!apiUrl) return;
+    if (!authToken || !apiUrl) return;
     const fetchNews = async () => {
       if (!pageVisible()) return;
       try {
@@ -705,11 +707,11 @@ export default function Home() {
     const firstTimer = window.setTimeout(fetchNews, 10000);
     const interval = window.setInterval(fetchNews, 300000 + Math.floor(Math.random() * 60000));
     return () => { window.clearTimeout(firstTimer); window.clearInterval(interval); };
-  }, [apiUrl]);
+  }, [apiUrl, authToken]);
 
   // Timer 2: News Speaker — every ~15-25 sec, speak one unspoken news from bank
   useEffect(() => {
-    if (loading || isAiSpeaking || listening) return;
+    if (!authToken || loading || isAiSpeaking || listening) return;
     // Don't speak random news when any popup is open, or when voice conversation active
     if (chatState !== 'closed' || viewerState !== 'closed') return;
     if (voiceTranscript) return; // still in voice conversation
