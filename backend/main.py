@@ -494,6 +494,12 @@ async def _spotify(action: str, q: str = "") -> str:
         return "Spotify belum aktif. Buka /oauth/spotify/url lalu simpan SPOTIFY_REFRESH_TOKEN."
     headers = {"Authorization": f"Bearer {token}"}
     async with httpx.AsyncClient(timeout=20) as client:
+        if action == "devices":
+            res = await client.get("https://api.spotify.com/v1/me/player/devices", headers=headers)
+            if res.status_code >= 400:
+                return f"Spotify gagal cek device: {res.status_code} {res.text[:120]}"
+            devices = res.json().get("devices", [])
+            return "\n".join(f"{d.get('name')} ({d.get('type')}) active={d.get('is_active')}" for d in devices) or "Tidak ada device Spotify."
         if action == "pause":
             res = await client.put("https://api.spotify.com/v1/me/player/pause", headers=headers)
             return "Spotify dipause." if res.status_code in {200, 202, 204} else f"Spotify gagal pause: {res.status_code} {res.text[:120]}"
@@ -505,6 +511,12 @@ async def _spotify(action: str, q: str = "") -> str:
                 return f"Spotify gagal cek lagu: {res.status_code} {res.text[:120]}"
             item = res.json().get("item") or {}
             return f"Sedang diputar: {item.get('name', '(tidak diketahui)')}"
+        devices_res = await client.get("https://api.spotify.com/v1/me/player/devices", headers=headers)
+        devices = devices_res.json().get("devices", []) if devices_res.status_code < 400 else []
+        device_id = next((d.get("id") for d in devices if d.get("is_active") and d.get("id")), None) or next((d.get("id") for d in devices if d.get("id")), None)
+        if not device_id:
+            return "Spotify gagal play: tidak ada device. Buka Spotify lalu play manual 1 detik."
+        await client.put("https://api.spotify.com/v1/me/player", headers=headers | {"Content-Type": "application/json"}, json={"device_ids": [device_id], "play": False})
         res = await client.get("https://api.spotify.com/v1/search", headers=headers, params={"q": q, "type": "track", "limit": "1"})
         if res.status_code >= 400:
             return f"Spotify gagal cari lagu: {res.status_code} {res.text[:120]}"
@@ -512,8 +524,8 @@ async def _spotify(action: str, q: str = "") -> str:
         if not tracks:
             return "Lagu tidak ditemukan."
         track = tracks[0]
-        res = await client.put("https://api.spotify.com/v1/me/player/play", headers=headers | {"Content-Type": "application/json"}, json={"uris": [track["uri"]]})
-        return f"Memutar Spotify: {track['name']}" if res.status_code in {200, 202, 204} else f"Spotify gagal play: {res.status_code} {res.text[:120]}"
+        res = await client.put("https://api.spotify.com/v1/me/player/play", headers=headers | {"Content-Type": "application/json"}, params={"device_id": device_id}, json={"uris": [track["uri"]]})
+        return f"Memutar Spotify: {track['name']}" if res.status_code in {200, 202, 204} else f"Spotify gagal play: {res.status_code} {res.text[:160]}"
 
 
 def _weak_answer(text: str) -> bool:
@@ -1196,6 +1208,11 @@ async def calendar_create(payload: dict):
 @app.get("/spotify/current")
 async def spotify_current():
     return {"text": await _spotify("current")}
+
+
+@app.get("/spotify/devices")
+async def spotify_devices():
+    return {"text": await _spotify("devices")}
 
 
 @app.post("/spotify/{action}")
