@@ -19,6 +19,7 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://jarpis-production-a270.up.railway.app";
+const openJarvisUiUrl = process.env.NEXT_PUBLIC_OPENJARVIS_UI_URL || "";
 const pageVisible = () => typeof document === "undefined" || document.visibilityState === "visible";
 const getAgentId = () => localStorage.getItem("anta_agent_id") || "default";
 
@@ -262,7 +263,11 @@ export default function Home() {
     } },
     { label: "Memory", hint: "Buka dashboard memori", run: () => window.open("/memory", "_blank") },
     { label: "Monitoring", hint: "Buka halaman monitoring", run: () => window.open("/monitoring", "_blank") },
-    { label: "OpenJarvis", hint: "Cek sinkron OpenJarvis lokal", run: () => window.open("/openjarvis", "_blank") },
+    { label: "OpenJarvis", hint: "Buka di Monitor Anta", run: () => {
+      setArticleText(""); setNews([]); setVideos([]); setImages([]); setSelectedVideo(null);
+      setView({ title: "OpenJarvis", url: openJarvisUiUrl, note: openJarvisUiUrl ? "OpenJarvis dibuka di dalam Anta." : "NEXT_PUBLIC_OPENJARVIS_UI_URL belum diset." });
+      setViewerState("open");
+    } },
     { label: "Kunci orb", hint: "Orb tidak bisa digeser", run: () => setOrbMoveEnabled(false) },
     { label: "Bebaskan orb", hint: "Orb bisa digeser", run: () => setOrbMoveEnabled(true) },
   ], []);
@@ -1483,7 +1488,8 @@ export default function Home() {
             {viewerLoading && <div className="anta-loading"><span></span><b>Anta memuat data...</b></div>}
             {view.note && <p className="viewer-note">{view.note}</p>}
             
-            {!articleText && news.length === 0 && videos.length === 0 && images.length === 0 && <div className="browser-empty">Ketik: gambar burung, lagu jazz, berita hari ini, atau cari sesuatu.</div>}
+            {!articleText && news.length === 0 && videos.length === 0 && images.length === 0 && view.url && <iframe className="viewer-frame" src={view.url} title={view.title || "OpenJarvis"} />}
+            {!articleText && news.length === 0 && videos.length === 0 && images.length === 0 && !view.url && <div className="browser-empty">Ketik: gambar burung, lagu jazz, berita hari ini, atau cari sesuatu.</div>}
 
             {imagePreview && (
               <div className="image-preview" onClick={() => setImagePreview(null)}>

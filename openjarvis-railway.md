@@ -43,8 +43,4 @@ Set env:
 NEXT_PUBLIC_OPENJARVIS_UI_URL=https://openjarvis-service.up.railway.app
 ```
 
-Lalu buka:
-
-```text
-https://antasiar.my.id/openjarvis
-```
+Lalu buka Anta, tekan Ctrl/⌘+K, pilih `OpenJarvis`. UI OpenJarvis muncul di panel Monitor Anta.
