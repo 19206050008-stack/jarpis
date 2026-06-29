@@ -14,6 +14,33 @@ def _first_env_key(*names: str) -> str:
     return ""
 
 
+def _ensure_anta_jarvis() -> bool:
+    try:
+        import openjarvis  # noqa: F401
+        return True
+    except ModuleNotFoundError:
+        pass
+
+    for base in ("anta-jarvis", "backend/anta-jarvis"):
+        src = os.path.abspath(os.path.join(base, "src"))
+        if os.path.isdir(src):
+            os.environ["PYTHONPATH"] = src + os.pathsep + os.getenv("PYTHONPATH", "")
+            sys.path.insert(0, src)
+            try:
+                import openjarvis  # noqa: F401
+                return True
+            except ModuleNotFoundError:
+                pass
+
+        if os.path.isdir(base):
+            print("Installing Anta Jarvis package...", flush=True)
+            subprocess.check_call([sys.executable, "-m", "pip", "install", "--no-cache-dir", f"./{base}[server,inference-cloud]"])
+            return True
+
+    print("Anta Jarvis folder not found; backend will continue without it", flush=True)
+    return False
+
+
 # download supertonic tts automatically if models not present
 subprocess.check_call([sys.executable, "download_models.py"])
 
@@ -23,7 +50,7 @@ if os.getenv("AI_PROVIDER") == "local" and not os.getenv("OPENROUTER_API_KEY"):
 jarvis_proc = None
 if os.getenv("ENABLE_ANTA_JARVIS", "1") != "0":
     openrouter_key = _first_env_key("OPENROUTER_API_KEY", "OPENROUTER_API_KEYS")
-    if openrouter_key:
+    if openrouter_key and _ensure_anta_jarvis():
         os.environ.setdefault("OPENROUTER_API_KEY", openrouter_key)
         os.environ.setdefault("OPENJARVIS_MODEL", os.getenv("OPENROUTER_MODEL", "openai/gpt-oss-20b:free"))
         os.environ.setdefault("OPENJARVIS_URL", "http://127.0.0.1:8765")
