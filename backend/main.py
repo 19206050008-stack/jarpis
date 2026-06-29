@@ -1193,6 +1193,11 @@ async def calendar_create(payload: dict):
     return {"text": await _calendar_create(payload.get("summary", "Jadwal baru"), start)}
 
 
+@app.get("/spotify/current")
+async def spotify_current():
+    return {"text": await _spotify("current")}
+
+
 @app.post("/spotify/{action}")
 async def spotify_action(action: str, payload: dict | None = None):
     return {"text": await _spotify(action, (payload or {}).get("q", ""))}
