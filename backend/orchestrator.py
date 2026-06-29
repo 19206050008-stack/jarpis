@@ -44,6 +44,10 @@ def plan_task(message: str) -> str:
         return "memory"
     if any(x in lower for x in ["kalender", "jadwal", "calendar"]):
         return "calendar"
+    if any(x in lower for x in ["cari video", "video ", "youtube"]):
+        return "video_search"
+    if any(x in lower for x in ["cari gambar", "gambar ", "foto "]):
+        return "image_search"
     if "spotify" in lower or any(x in lower for x in ["putar lagu", "pause lagu", "lagu "]):
         return "spotify"
     if any(x in lower for x in ["harga", "marketplace", "shopee", "tokopedia", "tcg"]):

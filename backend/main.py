@@ -353,6 +353,8 @@ def _intent_task(message: str) -> str:
         return "stt"
     if any(x in lower for x in ["bacakan", "text to speech", "tts", "suara"]):
         return "tts-id"
+    if any(x in lower for x in ["cari video", "video ", "youtube"]):
+        return "video_search"
     if any(x in lower for x in ["cari gambar", "gambar ", "foto "]):
         return "image_search"
     if any(x in lower for x in ["berita", "artikel"]):
@@ -754,16 +756,29 @@ async def chat(payload: dict):
     if task in {"image_generation", "video_generation", "stt"}:
         return await reply(f"Fitur {task} belum punya provider aktif. Yang tersedia sekarang: chat/reasoning/code via AI keys, TTS Indonesia lokal, dan pencarian gambar/video/berita lewat backend.", {"X-Anta-Task": task})
 
+    if task in {"image_search", "video_search"}:
+        q = re.sub(r"^(cari\s+)?(gambar|foto|video|youtube)\s+", "", message, flags=re.I).strip() or message
+        if task == "image_search":
+            rows = await search_images(q)
+            text = "\n".join(f"{i + 1}. {r.get('title') or q}\n{r.get('image') or r.get('thumbnail')}" for i, r in enumerate(rows[:6]))
+        else:
+            rows = await search_videos(q)
+            text = "\n".join(f"{i + 1}. {r.get('title') or q}\nhttps://www.youtube.com/watch?v={r.get('id')}" for i, r in enumerate(rows[:6]))
+        return await reply(text or "Tidak ada hasil.", {"X-Anta-Task": task})
+
     if task in {"web_search", "news", "marketplace"}:
         q = re.sub(r"^(cari|search|googling|berita|artikel|harga)\s+", "", message, flags=re.I).strip() or message
         if task == "marketplace":
             q = f"{q} harga marketplace shopee tokopedia"
         rows = await (_news_results(q) if task == "news" else _search_web_results(q))
         text = "\n".join(f"{i + 1}. {r.get('title')}\n{r.get('link')}" for i, r in enumerate(rows))
-        if not text and task == "marketplace":
+        if not text:
             import urllib.parse
             clean = urllib.parse.quote(q.replace(" harga marketplace shopee tokopedia", ""))
-            text = f"1. Shopee\nhttps://shopee.co.id/search?keyword={clean}\n2. Tokopedia\nhttps://www.tokopedia.com/search?st=product&q={clean}"
+            if task == "marketplace":
+                text = f"1. Shopee\nhttps://shopee.co.id/search?keyword={clean}\n2. Tokopedia\nhttps://www.tokopedia.com/search?st=product&q={clean}"
+            elif task == "web_search":
+                text = f"1. Google Search\nhttps://www.google.com/search?q={clean}\n2. DuckDuckGo\nhttps://duckduckgo.com/?q={clean}"
         return await reply(text or "Tidak ada hasil.", {"X-Anta-Task": task})
 
     if task == "calendar":
