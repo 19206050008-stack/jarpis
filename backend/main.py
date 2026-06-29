@@ -410,6 +410,27 @@ async def _search_web_results(q: str) -> list[dict]:
     return results
 
 
+async def _safe_image_results(q: str) -> list[dict]:
+    async with httpx.AsyncClient(timeout=15, follow_redirects=True, verify=os.getenv("SEARCH_VERIFY_SSL", "0") == "1") as client:
+        res = await client.get("https://commons.wikimedia.org/w/api.php", params={
+            "action": "query",
+            "prop": "imageinfo",
+            "iiprop": "url",
+            "generator": "search",
+            "gsrsearch": q,
+            "gsrnamespace": "6",
+            "gsrlimit": "8",
+            "format": "json",
+        }, headers={"User-Agent": "jarpis/1.0"})
+    pages = res.json().get("query", {}).get("pages", {}) if res.status_code == 200 else {}
+    return [{
+        "title": p.get("title", "").replace("File:", ""),
+        "image": p.get("imageinfo", [{}])[0].get("url", ""),
+        "thumbnail": p.get("imageinfo", [{}])[0].get("url", ""),
+        "source": "Wikimedia Commons",
+    } for p in pages.values() if p.get("imageinfo", [{}])[0].get("url")]
+
+
 async def _news_results(q: str) -> list[dict]:
     import urllib.parse
     import xml.etree.ElementTree as ET
@@ -759,7 +780,7 @@ async def chat(payload: dict):
     if task in {"image_search", "video_search"}:
         q = re.sub(r"^(cari\s+)?(gambar|foto|video|youtube)\s+", "", message, flags=re.I).strip() or message
         if task == "image_search":
-            rows = await search_images(q)
+            rows = await _safe_image_results(q) or [r for r in await search_images(q) if not re.search(r"reddit|hentai|toon|manga|eros|adult", str(r), re.I)]
             text = "\n".join(f"{i + 1}. {r.get('title') or q}\n{r.get('image') or r.get('thumbnail')}" for i, r in enumerate(rows[:6]))
         else:
             rows = await search_videos(q)
