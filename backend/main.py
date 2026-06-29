@@ -440,16 +440,20 @@ def _check_monitoring_token(req: Request):
 @app.get("/openjarvis/status")
 async def openjarvis_status():
     if not OPENJARVIS_URL:
-        return {"configured": False, "ok": False, "url": "", "models": [], "agents": []}
-    out = {"configured": True, "ok": False, "url": OPENJARVIS_URL, "models": [], "agents": []}
-    async with httpx.AsyncClient(timeout=10) as client:
-        models = await client.get(f"{OPENJARVIS_URL}/v1/models", headers=_openjarvis_headers())
-        out["ok"] = models.status_code < 400
-        if out["ok"]:
-            out["models"] = [m.get("id") for m in models.json().get("data", []) if m.get("id")]
-        agents = await client.get(f"{OPENJARVIS_URL}/v1/agents", headers=_openjarvis_headers())
-        if agents.status_code < 400:
-            out["agents"] = agents.json().get("registered", [])
+        return {"configured": False, "ok": False, "url": "", "models": [], "agents": [], "reason": "OPENJARVIS_URL kosong"}
+    out = {"configured": True, "ok": False, "url": OPENJARVIS_URL, "models": [], "agents": [], "reason": ""}
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            models = await client.get(f"{OPENJARVIS_URL}/v1/models", headers=_openjarvis_headers())
+            out["ok"] = models.status_code < 400
+            out["reason"] = "ok" if out["ok"] else f"models HTTP {models.status_code}: {models.text[:160]}"
+            if out["ok"]:
+                out["models"] = [m.get("id") for m in models.json().get("data", []) if m.get("id")]
+            agents = await client.get(f"{OPENJARVIS_URL}/v1/agents", headers=_openjarvis_headers())
+            if agents.status_code < 400:
+                out["agents"] = agents.json().get("registered", [])
+    except Exception as e:
+        out["reason"] = f"{type(e).__name__}: {str(e)[:180]}"
     return out
 
 @app.api_route("/jarvis", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"])
