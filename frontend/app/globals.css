@@ -62,26 +62,58 @@ a:hover { text-decoration: underline; }
   border-bottom: 1px solid #26324f;
   text-align: center;
 }
-.orb-gif {
-  width: min(78vw, 360px);
-  height: min(78vw, 360px);
+.orb-css {
+  --glow: #4edcff;
+  position: relative;
+  width: min(78vw, 320px);
+  aspect-ratio: 1;
   border: 0;
-  border-radius: 999px;
+  border-radius: 50%;
   padding: 0;
   background: transparent;
-  display: grid;
-  place-items: center;
   cursor: pointer;
-  filter: drop-shadow(0 0 34px #38bdf8aa);
+  filter: drop-shadow(0 0 28px #38bdf8aa);
+  overflow: visible;
 }
-.orb-gif img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  pointer-events: none;
+.orb-css::before {
+  content: "";
+  position: absolute;
+  inset: -34px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #0ea5e933 0 18%, #0284c722 35%, transparent 66%);
+  filter: blur(8px);
 }
-.orb-gif.listening { filter: drop-shadow(0 0 50px #67e8f9); animation: pulse 1s infinite; }
-.orb-gif.thinking { filter: drop-shadow(0 0 50px #f59e0b); animation: pulse 1.2s infinite; }
+.orb-core {
+  position: absolute;
+  inset: 18%;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 58% 45%, transparent 0 25%, #020617 31% 47%, transparent 54%),
+    radial-gradient(circle at 34% 24%, #164e63 0 9%, transparent 20%),
+    radial-gradient(circle at 60% 62%, #071827 0 42%, #020617 68%, #000 100%);
+  box-shadow: inset 22px 10px 42px #38bdf81c, inset -20px -18px 48px #000, 0 0 55px #0ea5e955;
+  filter: blur(.2px);
+}
+.orb-ring {
+  position: absolute;
+  inset: 11%;
+  border-radius: 48% 52% 47% 53% / 56% 44% 55% 45%;
+  border: 4px solid transparent;
+  border-top-color: #8be9ff;
+  border-left-color: #23c8ffcc;
+  border-bottom-color: #55dfffaa;
+  box-shadow: 0 0 16px var(--glow), inset 0 0 18px #38bdf855;
+  mix-blend-mode: screen;
+  animation: orb-spin 7s linear infinite, orb-warp 4.8s ease-in-out infinite;
+}
+.orb-ring.r2 { inset: 14%; transform: rotate(58deg); opacity: .9; animation-duration: 9s, 5.3s; animation-direction: reverse, alternate; }
+.orb-ring.r3 { inset: 17%; transform: rotate(126deg); opacity: .72; border-width: 3px; animation-duration: 12s, 6s; }
+.orb-ring.r4 { inset: 9%; transform: rotate(210deg); opacity: .55; border-width: 2px; animation-duration: 15s, 7s; animation-direction: reverse, alternate; }
+.orb-css.listening { --glow: #fbbf24; filter: drop-shadow(0 0 48px #f59e0bcc); animation: pulse 1s infinite; }
+.orb-css.listening .orb-ring { border-top-color: #fde68a; border-left-color: #f59e0b; border-bottom-color: #fb923c; }
+.orb-css.thinking { animation: pulse 1.2s infinite; }
+@keyframes orb-spin { to { rotate: 360deg; } }
+@keyframes orb-warp { 50% { border-radius: 56% 44% 58% 42% / 46% 58% 42% 54%; scale: 1.035 .965; } }
 @keyframes pulse { 50% { transform: scale(1.04); } }
 .subtitle-live {
   min-height: 54px;
