@@ -32,6 +32,11 @@ _start_time = time.time()
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+try:
+    from orchestrator import plan_task
+except Exception:
+    plan_task = None
+
 AUTH_SECRET = os.getenv("ANTA_AUTH_SECRET", "change-me-local")
 USER_PASSWORD = os.getenv("ANTA_USER_PASSWORD", "")
 SUPERADMIN_PASSWORD = os.getenv("ANTA_SUPERADMIN_PASSWORD", "")
@@ -152,6 +157,19 @@ def _get_supertonic():
         )
         _supertonic = sherpa_onnx.OfflineTts(cfg)
         return _supertonic
+
+def _hash_embedding(text: str, dims: int = 768) -> list[float]:
+    vec = [0.0] * dims
+    for word in re.findall(r"[\w-]+", text.lower(), flags=re.UNICODE):
+        h = int(hashlib.sha1(word.encode("utf-8")).hexdigest(), 16)
+        vec[h % dims] += 1.0 if h & 1 else -1.0
+    norm = sum(x * x for x in vec) ** 0.5 or 1.0
+    return [round(x / norm, 6) for x in vec]
+
+
+def _vector_literal(vec: list[float]) -> str:
+    return "[" + ",".join(str(x) for x in vec) + "]"
+
 
 def _samples_to_wav(samples, sample_rate: int) -> bytes:
     arr = np.asarray(samples, dtype=np.float32)
@@ -324,6 +342,8 @@ def _chat_providers() -> list[dict]:
 
 
 def _intent_task(message: str) -> str:
+    if plan_task:
+        return plan_task(message)
     lower = message.lower()
     if any(x in lower for x in ["generate video", "buat video", "bikin video"]):
         return "video_generation"
@@ -1079,6 +1099,18 @@ async def _supabase_delete(table: str, params: dict):
         )
 
 
+async def _supabase_rpc(name: str, payload: dict):
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        return None
+    async with httpx.AsyncClient(timeout=10) as client:
+        res = await client.post(
+            f"{SUPABASE_URL.rstrip('/')}/rest/v1/rpc/{name}",
+            headers={"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}", "Content-Type": "application/json"},
+            json=payload,
+        )
+    return res.json() if res.status_code < 400 else None
+
+
 async def _save_message(session_id: str | None, role: str, content: str):
     if session_id:
         await _supabase_insert("sessions", {"id": session_id})
@@ -1086,14 +1118,18 @@ async def _save_message(session_id: str | None, role: str, content: str):
 
 
 async def _save_memory(content: str):
-    _local_memories.append(content[:4000])
-    await _supabase_insert("memories", {"content": content[:4000]})
+    content = content[:4000]
+    _local_memories.append(content)
+    await _supabase_insert("memories", {"content": content, "embedding": _vector_literal(_hash_embedding(content))})
 
 
 async def _search_memories(message: str) -> list[str]:
     words = [w for w in re.findall(r"[\w-]{4,}", message.lower(), flags=re.UNICODE) if w not in {"yang", "dengan", "tentang", "siapa", "apakah", "bagaimana"}]
     if not words:
         return []
+    matched = await _supabase_rpc("match_memories", {"query_embedding": _vector_literal(_hash_embedding(message)), "match_count": 5})
+    if isinstance(matched, list) and matched:
+        return [x.get("content", "") for x in matched if x.get("content")][:5]
     rows = []
     for word in words[:4]:
         rows += [{"content": m} for m in _local_memories if word in m.lower()]

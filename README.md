@@ -7,6 +7,7 @@ Asisten AI personal minimal: Next.js frontend + FastAPI backend + Supabase histo
 - Chat web sederhana
 - Riwayat chat per sesi di Supabase
 - Konteks 12 pesan terakhir saat menjawab
+- LangChain-style orchestrator untuk route tool
 - Web/news search lewat chat: `cari ...`, `berita ...`
 - Ringkas artikel dari URL: `ringkas https://...`
 - TTS opsional lewat `/speak`

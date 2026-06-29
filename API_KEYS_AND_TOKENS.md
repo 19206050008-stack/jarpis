@@ -349,5 +349,5 @@ NEXT_PUBLIC_API_URL=https://backend-railway-kamu.up.railway.app
 1. Refresh token Google Calendar.
 2. Refresh token Spotify.
 3. Create event Google Calendar.
-4. LangChain orchestrator asli.
-5. pgvector embedding memory asli.
+4. LangChain orchestrator sudah ditambahkan sebagai tool router ringan.
+5. pgvector embedding memory: jalankan ulang `supabase/schema.sql` agar function `match_memories` aktif.
