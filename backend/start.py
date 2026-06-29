@@ -42,7 +42,10 @@ if os.getenv("ENABLE_ANTA_JARVIS", "1") != "0":
     openrouter_key = _first_env_key("OPENROUTER_API_KEY", "OPENROUTER_API_KEYS")
     if openrouter_key and _ensure_anta_jarvis():
         os.environ.setdefault("OPENROUTER_API_KEY", openrouter_key)
-        os.environ.setdefault("OPENJARVIS_MODEL", os.getenv("OPENROUTER_MODEL", "openai/gpt-oss-20b:free"))
+        model = os.getenv("OPENJARVIS_MODEL") or os.getenv("OPENROUTER_MODEL", "openai/gpt-oss-20b:free")
+        if os.getenv("OPENROUTER_API_KEY") and "/" in model and not model.startswith("openrouter/"):
+            model = f"openrouter/{model}"
+        os.environ["OPENJARVIS_MODEL"] = model
         os.environ.setdefault("OPENJARVIS_URL", "http://127.0.0.1:8765")
         jarvis_port = os.getenv("ANTA_JARVIS_PORT", "8765")
         print(f"Starting Anta Jarvis on 127.0.0.1:{jarvis_port} model={os.environ['OPENJARVIS_MODEL']}", flush=True)
