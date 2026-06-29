@@ -187,8 +187,8 @@ export default function Home() {
   const [showAgentBanner, setShowAgentBanner] = useState(false);
 
   useEffect(() => {
-    setAuthRole(localStorage.getItem("anta_role") || "user");
-    setAuthToken(localStorage.getItem("anta_token") || "");
+    localStorage.removeItem("anta_role");
+    localStorage.removeItem("anta_token");
   }, []);
 
   async function loginAs(username: "anta" | "admin") {
@@ -199,8 +199,6 @@ export default function Home() {
     }).catch(() => null);
     if (!res?.ok) return alert("Login gagal");
     const data = await res.json();
-    localStorage.setItem("anta_role", data.role);
-    localStorage.setItem("anta_token", data.token);
     setAuthRole(data.role);
     setAuthToken(data.token);
     setLoginPassword("");
