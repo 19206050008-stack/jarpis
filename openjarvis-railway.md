@@ -4,16 +4,12 @@ Paling aman: OpenJarvis jadi service Railway terpisah, Jarpis/Anta tetap service
 
 ## Service OpenJarvis
 
-Buat service baru di Railway dari repo:
-
-```text
-https://github.com/open-jarvis/OpenJarvis
-```
+Buat service baru di Railway dari repo Jarpis ini, pakai folder `backend/anta-jarvis`.
 
 Start command:
 
 ```bash
-python -m pip install uv && python -m uv sync --extra server --extra inference-cloud && python -m uv run jarvis serve --host 0.0.0.0 --port $PORT --engine cloud --model $OPENJARVIS_MODEL --agent simple
+cd backend/anta-jarvis && python -m pip install uv && python -m uv sync --extra server --extra inference-cloud && python -m uv run jarvis serve --host 0.0.0.0 --port $PORT --engine cloud --model $OPENJARVIS_MODEL --agent simple
 ```
 
 Env service OpenJarvis:
