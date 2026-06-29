@@ -471,6 +471,18 @@ async def openjarvis_proxy(req: Request, path: str = ""):
     headers |= _openjarvis_headers()
     async with httpx.AsyncClient(timeout=120, follow_redirects=False) as client:
         res = await client.request(req.method, target, params=req.query_params, content=await req.body(), headers=headers)
+    if req.method == "GET" and path == "v1/models" and res.status_code < 400:
+        try:
+            data = res.json()
+            if not data.get("data"):
+                model = OPENJARVIS_MODEL or os.getenv("OPENROUTER_MODEL", OPENROUTER_MODEL)
+                if "/" in model and not model.startswith("openrouter/"):
+                    model = f"openrouter/{model}"
+                data["data"] = [{"id": model, "object": "model"}]
+                import json
+                return Response(json.dumps(data), media_type="application/json")
+        except Exception:
+            pass
     return Response(content=res.content, status_code=res.status_code, media_type=res.headers.get("content-type"))
 
 @app.get("/monitoring")
