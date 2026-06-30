@@ -43,6 +43,7 @@ export default function Home() {
   const [orbSrc, setOrbSrc] = useState("/orb/index.html");
   const bottomRef = useRef<HTMLDivElement>(null);
   const orbFrameRef = useRef<HTMLIFrameElement>(null);
+  const shaderFrameRef = useRef<HTMLDivElement>(null);
   const introTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const introAudioRef = useRef<HTMLAudioElement | null>(null);
   const userActionRef = useRef(false);
@@ -51,6 +52,27 @@ export default function Home() {
     if (orbFrameRef.current) {
       orbFrameRef.current.setAttribute("allowtransparency", "true");
     }
+  }, [orbSrc]);
+
+  useEffect(() => {
+    const el = shaderFrameRef.current;
+    if (!el) return;
+    const handleTouch = (e: TouchEvent) => {
+      e.preventDefault();
+      const touch = e.touches[0];
+      if (touch) {
+        const rect = el.getBoundingClientRect();
+        const x = (touch.clientX - rect.left) / rect.width;
+        const y = (touch.clientY - rect.top) / rect.height;
+        rippleOrb(x, y);
+      }
+    };
+    el.addEventListener("touchstart", handleTouch, { passive: false });
+    el.addEventListener("touchmove", handleTouch, { passive: false });
+    return () => {
+      el.removeEventListener("touchstart", handleTouch);
+      el.removeEventListener("touchmove", handleTouch);
+    };
   }, [orbSrc]);
 
   useEffect(() => {
@@ -286,14 +308,10 @@ export default function Home() {
 
   return (
     <main className="voice-only">
-      <div className={listening ? "shader-frame listening" : loading ? "shader-frame thinking" : "shader-frame"} 
+      <div 
+        ref={shaderFrameRef}
+        className={listening ? "shader-frame listening" : loading ? "shader-frame thinking" : "shader-frame"} 
         onPointerMove={(e) => handlePointer(e.clientX, e.clientY, e.currentTarget)}
-        onTouchMove={(e) => {
-          if (e.touches[0]) handlePointer(e.touches[0].clientX, e.touches[0].clientY, e.currentTarget);
-        }}
-        onTouchStart={(e) => {
-          if (e.touches[0]) handlePointer(e.touches[0].clientX, e.touches[0].clientY, e.currentTarget);
-        }}
       >
         <iframe ref={orbFrameRef} src={orbSrc} onLoad={fixOrbFrame} title="" aria-hidden="true" allowTransparency={true} style={{ background: "transparent" }} />
         <button onClick={listen} type="button" disabled={loading} aria-label="Bicara dengan Anta" />
