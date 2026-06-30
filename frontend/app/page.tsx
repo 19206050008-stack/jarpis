@@ -42,6 +42,8 @@ export default function Home() {
   const [listening, setListening] = useState(false);
   const [subtitle, setSubtitle] = useState("Ketuk orb lalu bicara");
   const [orbSrc, setOrbSrc] = useState("/orb/index.html");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuSrc, setMenuSrc] = useState("/menu/index.html");
   const [audioLevel, setAudioLevel] = useState(0);
   const bottomRef = useRef<HTMLDivElement>(null);
   const orbFrameRef = useRef<HTMLIFrameElement>(null);
@@ -111,6 +113,16 @@ export default function Home() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
+
+  useEffect(() => {
+    const onMessage = (event: MessageEvent) => {
+      if (event.data?.type !== "anta-close-menu") return;
+      setMenuOpen(false);
+      (event.source as Window | null)?.postMessage({ type: "anta-menu-closed" }, "*");
+    };
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, []);
 
   function newSession() {
     localStorage.removeItem("anta_session_id");
@@ -210,8 +222,7 @@ export default function Home() {
   }
 
   async function speak(text: string) {
-    setSubtitle(text);
-    if (!tts) return;
+    if (!tts) { setSubtitle(text); setTimeout(() => setSubtitle(""), 3500); return; }
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 12000);
     try {
@@ -221,15 +232,16 @@ export default function Home() {
         body: JSON.stringify({ text: text.slice(0, 500), speaker: voice }),
         signal: ctrl.signal,
       });
-      if (!res.ok) return;
+      if (!res.ok) throw new Error("TTS gagal");
       const url = URL.createObjectURL(await res.blob());
       const audio = new Audio(url);
       audio.onplay = () => { audioOrb(audio); syncSubtitle(text, audio); };
-      audio.onended = () => { setSubtitle(text); URL.revokeObjectURL(url); };
-      await audio.play().catch(() => URL.revokeObjectURL(url));
+      audio.onended = () => { setSubtitle(""); URL.revokeObjectURL(url); };
+      await audio.play().catch(() => { setSubtitle(text); setTimeout(() => setSubtitle(""), 3500); URL.revokeObjectURL(url); });
     } catch {
       // ponytail: TTS provider can stall; text answer must not stall with it.
       setSubtitle(text);
+      setTimeout(() => setSubtitle(""), 3500);
     } finally {
       clearTimeout(timer);
     }
@@ -309,7 +321,8 @@ export default function Home() {
   }
 
   function openMenu() {
-    window.location.href = "/menu";
+    setMenuSrc(`/menu/index.html?v=${Date.now()}`);
+    setMenuOpen(true);
   }
 
   function askWs(text: string) {
@@ -339,7 +352,6 @@ export default function Home() {
 
     if (/\b(buka|open)\b.*\b(menu|hud)\b|\b(menu|hud)\b.*\b(buka|open)\b/i.test(text)) {
       const answer = "Menu saya buka.";
-      setSubtitle(answer);
       setMessages((m) => [...m, { role: "ai", text: answer }]);
       await speak(answer);
       setTimeout(openMenu, 600);
@@ -357,7 +369,6 @@ export default function Home() {
 
     try {
       const answer = (await askWs(text)).trim() || "Tidak ada jawaban.";
-      setSubtitle(answer);
       setMessages((m) => [...m, { role: "ai", text: answer }]);
       speak(answer);
     } catch (err) {
@@ -383,6 +394,12 @@ export default function Home() {
         <button onClick={listen} type="button" disabled={loading} aria-label="Bicara dengan Anta" />
       </div>
       <div className="subtitle-live">{subtitle}</div>
+
+      {menuOpen && (
+        <div className="menu-overlay">
+          <iframe src={menuSrc} title="Menu Anta" />
+        </div>
+      )}
 
       <div 
         className="aurora-wrap"

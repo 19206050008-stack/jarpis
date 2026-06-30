@@ -75,6 +75,19 @@ Kalau user menggoda, balas ringan dan lucu tanpa menjadi seksual eksplisit.
 Kalau user mengajak bercanda, ikuti singkat. Kalau user bertanya serius, jawab jelas.
 Kalau tidak yakin, bilang singkat dan tawarkan langkah berikutnya."""
 
+
+def _quick_chat_reply(message: str) -> str | None:
+    lower = message.lower().strip()
+    if re.fullmatch(r"(halo|hai|hello|helo|hi)(\s+anta)?[.!?\s]*", lower):
+        return "Halo! Anta di sini 😄 Ada yang mau dibahas hari ini?"
+    if re.search(r"\b(siapa kamu|kamu siapa|kenalan)\b", lower):
+        return "Aku Anta, asisten AI kamu. Bisa bantu kerjaan, jawab pertanyaan, atau ngobrol santai juga boleh."
+    if re.search(r"\b(goda|genit|rayu)\b", lower):
+        return "Boleh, tapi jangan kaget kalau aku balas dengan candaan yang lebih rapi ya 😄"
+    if re.search(r"\b(bercanda|joke|lelucon)\b", lower):
+        return "Boleh. Kenapa programmer suka kopi? Karena tanpa Java, hidupnya banyak error 😄"
+    return None
+
 MODELS_DIR = os.getenv("MODELS_DIR", "models")
 SUPERTONIC_DIR = "sherpa-onnx-supertonic-3-tts-int8-2026-05-11"
 ELEVENLABS_API_KEYS = [
@@ -786,6 +799,12 @@ async def chat(payload: dict):
     task = payload.get("task") or _intent_task(message)
     session_id = (payload.get("session_id") or "").strip() or None
     errors: list[str] = []
+
+    quick = _quick_chat_reply(message) if task == "chat" else None
+    if quick:
+        await _save_message(session_id, "user", message)
+        await _save_message(session_id, "ai", quick)
+        return Response(quick, media_type="text/plain; charset=utf-8", headers={"X-Anta-Task": "quick_chat"})
 
     url_match = re.search(r"https?://\S+", message)
     if url_match and any(x in message.lower() for x in ["ringkas", "summarize", "resume", "jelaskan"]):
