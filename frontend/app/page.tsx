@@ -132,7 +132,7 @@ export default function Home() {
     const res = await fetch(`${apiUrl}/speak-template`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ category }),
+      body: JSON.stringify({ category, timestamp: Date.now() }),
     }).catch(() => null);
     if (!res?.ok || !active()) return null;
     const encoded = res.headers.get("x-anta-text");
