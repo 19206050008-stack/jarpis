@@ -17,7 +17,12 @@ const renderer = new THREE.WebGLRenderer({
 });
 renderer.setSize(getW(), getH());
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-if (container) container.appendChild(renderer.domElement);
+if (container) {
+  container.appendChild(renderer.domElement);
+  setTimeout(() => {
+    renderer.domElement.style.opacity = "1";
+  }, 200);
+}
 let isPlaying = false;
 let audioContext = null;
 let analyser = null;
@@ -911,11 +916,14 @@ audioBtn.addEventListener("click", () => {
 });
 
 function onWindowResize() {
-  const width = window.innerWidth;
-  const height = window.innerHeight;
+  const width = getW();
+  const height = getH();
   renderer.setSize(width, height);
   material.uniforms.u_resolution.value.set(width, height);
   setupTextTexture();
+  if (renderer.domElement) {
+    renderer.domElement.style.opacity = "1";
+  }
 }
 window.addEventListener("resize", onWindowResize);
 setupTextTexture();
