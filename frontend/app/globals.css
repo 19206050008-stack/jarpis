@@ -62,8 +62,9 @@ a:hover { text-decoration: underline; }
   border-bottom: 1px solid #26324f;
   text-align: center;
 }
-.orb-image {
-  width: min(58vw, 190px);
+.shader-orb {
+  position: relative;
+  width: min(72vw, 360px);
   aspect-ratio: 1;
   border: 0;
   padding: 0;
@@ -71,20 +72,61 @@ a:hover { text-decoration: underline; }
   display: grid;
   place-items: center;
   cursor: pointer;
-  overflow: hidden;
+}
+.shader-glow {
+  position: absolute;
+  inset: -42%;
   border-radius: 50%;
-  filter: drop-shadow(0 0 28px #38bdf8a8);
+  background:
+    radial-gradient(circle at 68% 35%, #f9731640 0 26%, transparent 52%),
+    radial-gradient(circle at 32% 72%, #4338ca66 0 34%, transparent 62%),
+    radial-gradient(circle, #fb71852b 0 28%, transparent 66%);
+  filter: blur(18px);
+  animation: shader-drift 9s ease-in-out infinite alternate;
 }
-.orb-image img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transform: scale(1.18);
-  pointer-events: none;
+.shader-sphere {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 42% 34%, #fde68a 0 20%, transparent 43%),
+    radial-gradient(circle at 70% 56%, #6d28d9 0 28%, transparent 58%),
+    radial-gradient(circle at 35% 72%, #f97316 0 34%, transparent 68%),
+    radial-gradient(circle at 50% 50%, #f8fafc 0 2%, #f9a8d4 4%, #7c3aed 48%, #0f172a 100%);
+  box-shadow:
+    0 0 0 10px #fff7ff,
+    0 0 28px 12px #fbcfe8,
+    0 0 90px 42px #f9731640,
+    inset 38px 20px 70px #fff7ad66,
+    inset -58px -22px 90px #4c1d9588;
+  overflow: hidden;
+  animation: shader-breathe 4.8s ease-in-out infinite;
 }
-.orb-image.listening { filter: drop-shadow(0 0 44px #67e8f9); animation: pulse 1s infinite; }
-.orb-image.thinking { filter: drop-shadow(0 0 44px #f59e0b); animation: pulse 1.2s infinite; }
-
+.shader-sphere::before {
+  content: "";
+  position: absolute;
+  inset: -18%;
+  border-radius: 42% 58% 48% 52% / 55% 45% 55% 45%;
+  background:
+    radial-gradient(circle at 35% 30%, #fff7ad88 0 10%, transparent 28%),
+    radial-gradient(circle at 72% 52%, #7c3aed77 0 22%, transparent 48%),
+    conic-gradient(from 120deg, #fde68a88, #f9731655, #7c3aed77, #f9a8d488, #fde68a88);
+  mix-blend-mode: screen;
+  filter: blur(18px);
+  animation: shader-ripple 7s linear infinite;
+}
+.shader-sphere::after {
+  content: "";
+  position: absolute;
+  inset: -3%;
+  border-radius: 50%;
+  box-shadow: inset 0 0 30px 10px #ffffffcc, inset 0 0 70px 22px #fce7f3aa;
+}
+.shader-orb.listening .shader-sphere { animation: shader-breathe 1.6s ease-in-out infinite; }
+.shader-orb.thinking .shader-sphere { animation: shader-breathe 1.1s ease-in-out infinite; }
+@keyframes shader-ripple { to { rotate: 360deg; } }
+@keyframes shader-drift { 50% { transform: translate(4%, -3%) scale(1.05); } }
+@keyframes shader-breathe { 50% { transform: scale(1.025); } }
 @keyframes pulse { 50% { transform: scale(1.04); } }
 .subtitle-live {
   min-height: 54px;

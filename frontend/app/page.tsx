@@ -196,8 +196,9 @@ export default function Home() {
 
   return (
     <main className="voice-only">
-      <button className={listening ? "orb-image listening" : loading ? "orb-image thinking" : "orb-image"} onClick={listen} type="button" disabled={loading} aria-label="Bicara dengan Anta">
-        <img src="https://iili.io/FapFCu9.gif" alt="" />
+      <button className={listening ? "shader-orb listening" : loading ? "shader-orb thinking" : "shader-orb"} onClick={listen} type="button" disabled={loading} aria-label="Bicara dengan Anta">
+        <span className="shader-sphere" />
+        <span className="shader-glow" />
       </button>
       <div className="subtitle-live">{subtitle}</div>
     </main>
