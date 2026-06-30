@@ -2,12 +2,16 @@ import * as THREE from "https://esm.sh/three@0.177.0";
 import { Pane } from "https://esm.sh/tweakpane@4.0.4";
 const scene = new THREE.Scene();
 const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
+const container = document.getElementById("container");
+const getW = () => (container && container.getBoundingClientRect().width) || window.innerWidth;
+const getH = () => (container && container.getBoundingClientRect().height) || window.innerHeight;
+
 const renderer = new THREE.WebGLRenderer({
   antialias: true
 });
-renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setSize(getW(), getH());
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-document.getElementById("container").appendChild(renderer.domElement);
+if (container) container.appendChild(renderer.domElement);
 let isPlaying = false;
 let audioContext = null;
 let analyser = null;
@@ -304,7 +308,7 @@ const material = new THREE.ShaderMaterial({
       value: 0.0
     },
     u_resolution: {
-      value: new THREE.Vector2(window.innerWidth, window.innerHeight)
+      value: new THREE.Vector2(getW(), getH())
     },
     u_speed: {
       value: 1.3
@@ -564,8 +568,8 @@ function updateWaterSimulation() {
 
 function addRipple(x, y, strength = 1.0) {
   const { resolution, rippleRadius } = waterSettings;
-  const normalizedX = x / window.innerWidth;
-  const normalizedY = 1.0 - y / window.innerHeight;
+  const normalizedX = x / getW();
+  const normalizedY = 1.0 - y / getH();
   const texX = Math.floor(normalizedX * resolution);
   const texY = Math.floor(normalizedY * resolution);
   const radius = Math.max(
@@ -796,8 +800,8 @@ function onMouseClick(event) {
   const x = event.clientX - rect.left;
   const y = event.clientY - rect.top;
   addRipple(x, y, waterSettings.clickIntensity);
-  const clickX = x / window.innerWidth;
-  const clickY = 1.0 - y / window.innerHeight;
+  const clickX = x / getW();
+  const clickY = 1.0 - y / getH();
   material.uniforms.u_ripple_position.value.set(clickX, clickY);
   material.uniforms.u_ripple_time.value = clock.getElapsedTime();
 }
@@ -837,18 +841,18 @@ function onTouchStart(event) {
   const x = touch.clientX - rect.left;
   const y = touch.clientY - rect.top;
   addRipple(x, y, waterSettings.clickIntensity);
-  const clickX = x / window.innerWidth;
-  const clickY = 1.0 - y / window.innerHeight;
+  const clickX = x / getW();
+  const clickY = 1.0 - y / getH();
   material.uniforms.u_ripple_position.value.set(clickX, clickY);
   material.uniforms.u_ripple_time.value = clock.getElapsedTime();
 }
 window.addEventListener("message", (event) => {
   const data = event.data || {};
   if (data.type === "anta-ripple") {
-    const x = Number.isFinite(data.nx) ? data.nx * window.innerWidth : window.innerWidth / 2;
-    const y = Number.isFinite(data.ny) ? data.ny * window.innerHeight : window.innerHeight / 2;
+    const x = Number.isFinite(data.nx) ? data.nx * getW() : getW() / 2;
+    const y = Number.isFinite(data.ny) ? data.ny * getH() : getH() / 2;
     addRipple(x, y, waterSettings.clickIntensity);
-    material.uniforms.u_ripple_position.value.set(x / window.innerWidth, 1.0 - y / window.innerHeight);
+    material.uniforms.u_ripple_position.value.set(x / getW(), 1.0 - y / getH());
     material.uniforms.u_ripple_time.value = performance.now() * 0.001;
   }
   if (data.type === "anta-audio") {
