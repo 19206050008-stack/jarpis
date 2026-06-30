@@ -102,6 +102,11 @@ a:hover { text-decoration: underline; }
   border-radius: 50%;
   background: transparent;
   cursor: pointer;
+  appearance: none;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
 }
 @media (max-width: 640px) {
   .shader-frame {
