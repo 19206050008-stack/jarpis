@@ -90,6 +90,7 @@ a:hover { text-decoration: underline; }
   height: 240px !important;
   transform: translate(-50%, -50%);
   border: 0;
+  background: transparent !important;
   pointer-events: none;
 }
 .shader-frame button {
