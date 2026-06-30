@@ -9,6 +9,7 @@ type SpeechRecognitionLike = {
   continuous: boolean;
   onresult: ((event: any) => void) | null;
   onend: (() => void) | null;
+  onerror?: ((event: any) => void) | null;
   start(): void;
 };
 
@@ -282,6 +283,10 @@ export default function Home() {
         sendText(text);
       }
     };
+    rec.onerror = () => {
+      setSubtitle("Mic gagal. Izinkan mikrofon lalu coba lagi.");
+      setListening(false);
+    };
     rec.onend = () => {
       setListening(false);
       if (micTimer) clearInterval(micTimer);
@@ -292,7 +297,12 @@ export default function Home() {
     setSubtitle("Mendengar...");
     rippleOrb();
     setListening(true);
-    rec.start();
+    try {
+      rec.start();
+    } catch {
+      setListening(false);
+      setSubtitle("Voice input belum siap. Coba ketuk orb lagi.");
+    }
   }
 
   function openSpotify() {
@@ -331,10 +341,10 @@ export default function Home() {
 
     if (/\b(buka|open)\b.*\b(menu|hud)\b|\b(menu|hud)\b.*\b(buka|open)\b/i.test(text)) {
       const answer = "Menu saya buka.";
-      openMenu();
       setSubtitle(answer);
       setMessages((m) => [...m, { role: "ai", text: answer }]);
       await speak(answer);
+      setTimeout(openMenu, 600);
       setLoading(false);
       return;
     }
