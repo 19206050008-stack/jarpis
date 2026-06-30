@@ -196,12 +196,8 @@ export default function Home() {
 
   return (
     <main className="voice-only">
-      <button className={listening ? "orb-css listening" : loading ? "orb-css thinking" : "orb-css"} onClick={listen} type="button" disabled={loading} aria-label="Bicara dengan Anta">
-        <span className="orb-core" />
-        <span className="orb-ring r1" />
-        <span className="orb-ring r2" />
-        <span className="orb-ring r3" />
-        <span className="orb-ring r4" />
+      <button className={listening ? "orb-image listening" : loading ? "orb-image thinking" : "orb-image"} onClick={listen} type="button" disabled={loading} aria-label="Bicara dengan Anta">
+        <img src="https://iili.io/FapFCu9.gif" alt="" />
       </button>
       <div className="subtitle-live">{subtitle}</div>
     </main>
