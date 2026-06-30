@@ -10,7 +10,7 @@ const renderer = new THREE.WebGLRenderer({
   antialias: true
 });
 renderer.setSize(getW(), getH());
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setPixelRatio(1);
 if (container) {
   container.appendChild(renderer.domElement);
   setTimeout(() => {
