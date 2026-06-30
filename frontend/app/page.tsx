@@ -41,6 +41,7 @@ export default function Home() {
   const [listening, setListening] = useState(false);
   const [subtitle, setSubtitle] = useState("Ketuk orb lalu bicara");
   const bottomRef = useRef<HTMLDivElement>(null);
+  const orbFrameRef = useRef<HTMLIFrameElement>(null);
 
   useEffect(() => {
     fetch(`${apiUrl}/chat/history?session_id=${sessionId()}`)
@@ -91,6 +92,30 @@ export default function Home() {
     await audio.play().catch(() => URL.revokeObjectURL(url));
   }
 
+  function rippleOrb(x = 0.5, y = 0.5) {
+    orbFrameRef.current?.contentWindow?.postMessage({ type: "anta-ripple", x: x * innerWidth, y: y * innerHeight }, "*");
+  }
+
+  function audioOrb(audio: HTMLAudioElement) {
+    const AC = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AC) return;
+    const ctx = new AC();
+    const src = ctx.createMediaElementSource(audio);
+    const analyser = ctx.createAnalyser();
+    analyser.fftSize = 128;
+    src.connect(analyser);
+    analyser.connect(ctx.destination);
+    const data = new Uint8Array(analyser.frequencyBinCount);
+    const tick = () => {
+      if (audio.paused || audio.ended) { ctx.close().catch(() => {}); return; }
+      analyser.getByteFrequencyData(data);
+      const avg = (from: number, to: number) => data.slice(from, to).reduce((a, b) => a + b, 0) / Math.max(1, to - from) / 255;
+      orbFrameRef.current?.contentWindow?.postMessage({ type: "anta-audio", bass: avg(0, 10), mid: avg(10, 32), treble: avg(32, data.length), overall: avg(0, data.length) }, "*");
+      requestAnimationFrame(tick);
+    };
+    tick();
+  }
+
   async function speak(text: string) {
     const words = text.split(/\s+/).filter(Boolean);
     let i = 0;
@@ -109,6 +134,7 @@ export default function Home() {
     if (!res.ok) return;
     const url = URL.createObjectURL(await res.blob());
     const audio = new Audio(url);
+    audio.onplay = () => audioOrb(audio);
     audio.onended = () => { clearInterval(karaoke); setSubtitle(text); URL.revokeObjectURL(url); };
     await audio.play().catch(() => URL.revokeObjectURL(url));
   }
@@ -135,6 +161,7 @@ export default function Home() {
     };
     rec.onend = () => setListening(false);
     setSubtitle("Mendengar...");
+    rippleOrb();
     setListening(true);
     rec.start();
   }
@@ -196,10 +223,10 @@ export default function Home() {
 
   return (
     <main className="voice-only">
-      <button className={listening ? "shader-orb listening" : loading ? "shader-orb thinking" : "shader-orb"} onClick={listen} type="button" disabled={loading} aria-label="Bicara dengan Anta">
-        <span className="shader-sphere" />
-        <span className="shader-glow" />
-      </button>
+      <div className={listening ? "shader-frame listening" : loading ? "shader-frame thinking" : "shader-frame"} onPointerMove={(e) => rippleOrb(e.nativeEvent.offsetX / e.currentTarget.clientWidth, e.nativeEvent.offsetY / e.currentTarget.clientHeight)}>
+        <iframe ref={orbFrameRef} src="/orb/index.html" title="" aria-hidden="true" />
+        <button onClick={listen} type="button" disabled={loading} aria-label="Bicara dengan Anta" />
+      </div>
       <div className="subtitle-live">{subtitle}</div>
     </main>
   );
