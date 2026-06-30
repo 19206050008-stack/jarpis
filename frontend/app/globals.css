@@ -84,9 +84,11 @@ a:hover { text-decoration: underline; }
 
 .shader-frame iframe {
   position: absolute;
-  inset: -20%;
-  width: 140%;
-  height: 140%;
+  top: 50%;
+  left: 50%;
+  width: 240px;
+  height: 240px;
+  transform: translate(-50%, -50%);
   border: 0;
   pointer-events: none;
 }
@@ -106,10 +108,11 @@ a:hover { text-decoration: underline; }
     margin-inline: auto;
   }
   .shader-frame iframe {
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    transform: none;
+    width: 240px;
+    height: 240px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
   }
 }
 .shader-frame.listening { animation: shader-breathe 1.4s ease-in-out infinite; }
