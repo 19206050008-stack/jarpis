@@ -64,7 +64,7 @@ a:hover { text-decoration: underline; }
 }
 .shader-frame {
   position: relative;
-  width: min(86vw, 720px);
+  width: min(28.7vw, 240px);
   aspect-ratio: 1;
   overflow: visible;
   border-radius: 0;
