@@ -166,12 +166,11 @@ export default function Home() {
     const templateText = encoded
       ? decodeURIComponent(escape(atob(encoded.replace(/-/g, "+").replace(/_/g, "/"))))
       : category.toLowerCase() === "pembuka" ? "Halo, Bos. Anta sudah aktif dan siap membantu pekerjaanmu." : "";
-    if (templateText) setSubtitle(templateText);
     const url = URL.createObjectURL(await res.blob());
     if (!active()) { URL.revokeObjectURL(url); return null; }
     const audio = new Audio(url);
     audio.onplay = () => { audioOrb(audio); if (templateText) syncSubtitle(templateText, audio); };
-    audio.onended = () => { if (templateText) setSubtitle(templateText); URL.revokeObjectURL(url); onEnd?.(); };
+    audio.onended = () => { setSubtitle(""); URL.revokeObjectURL(url); onEnd?.(); };
     await audio.play().catch(() => URL.revokeObjectURL(url));
     return audio;
   }
@@ -191,6 +190,7 @@ export default function Home() {
     setSubtitle("");
     const tick = () => {
       if (audio.paused || audio.ended) return;
+      if (audio.currentTime < 0.08) { setSubtitle(""); requestAnimationFrame(tick); return; }
       const fallback = Math.max(2, text.length * 0.055);
       const total = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : fallback;
       setSubtitle(text.slice(0, Math.max(1, Math.ceil((audio.currentTime / total) * text.length))));
@@ -237,11 +237,9 @@ export default function Home() {
       const audio = new Audio(url);
       audio.onplay = () => { audioOrb(audio); syncSubtitle(text, audio); };
       audio.onended = () => { setSubtitle(""); URL.revokeObjectURL(url); };
-      await audio.play().catch(() => { setSubtitle(text); setTimeout(() => setSubtitle(""), 3500); URL.revokeObjectURL(url); });
+      await audio.play().catch(() => { URL.revokeObjectURL(url); });
     } catch {
-      // ponytail: TTS provider can stall; text answer must not stall with it.
-      setSubtitle(text);
-      setTimeout(() => setSubtitle(""), 3500);
+      // ponytail: if TTS stalls, keep the UI quiet instead of showing a pre-voice duplicate subtitle.
     } finally {
       clearTimeout(timer);
     }
