@@ -157,4 +157,5 @@ canvas {
   }
 }
 #controls,.help-hint,.info,.tp-dfwv{display:none!important}
-canvas{width:100vw!important;height:100vh!important}
+html,body,#container{width:100%!important;height:100%!important;overflow:hidden!important}
+canvas{width:100%!important;height:100%!important}

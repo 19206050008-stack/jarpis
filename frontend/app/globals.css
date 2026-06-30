@@ -15,6 +15,7 @@ button, input { font: inherit; }
   gap: 72px;
   padding: 24px;
   background: #000;
+  overflow: hidden;
 }
 .app {
   min-height: 100dvh;
