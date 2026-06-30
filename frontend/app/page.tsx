@@ -11,6 +11,7 @@ type SpeechRecognitionLike = {
   onend: (() => void) | null;
   onerror?: ((event: any) => void) | null;
   start(): void;
+  stop(): void;
 };
 
 declare global {
@@ -22,6 +23,7 @@ declare global {
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 const wsUrl = apiUrl.replace(/^http/, "ws") + "/ws/chat";
+const idleText = "Ketuk orb lalu bicara";
 const sessionId = () => {
   const key = "anta_session_id";
   const existing = localStorage.getItem(key);
@@ -40,7 +42,7 @@ export default function Home() {
   const [voice, setVoice] = useState("kira");
   const [tts, setTts] = useState(true);
   const [listening, setListening] = useState(false);
-  const [subtitle, setSubtitle] = useState("Ketuk orb lalu bicara");
+  const [subtitle, setSubtitle] = useState(idleText);
   const [orbSrc, setOrbSrc] = useState("/orb/index.html");
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuSrc, setMenuSrc] = useState("/menu/index.html");
@@ -103,7 +105,7 @@ export default function Home() {
     introTimerRef.current = setTimeout(() => {
       if (userActionRef.current) return;
       playTemplate("Pembuka", () => {
-        if (!userActionRef.current) setSubtitle("Ketuk orb lalu bicara");
+        if (!userActionRef.current) setSubtitle(idleText);
       }, () => !userActionRef.current).then((audio) => { introAudioRef.current = audio; });
     }, 3000);
 
@@ -170,7 +172,7 @@ export default function Home() {
     if (!active()) { URL.revokeObjectURL(url); return null; }
     const audio = new Audio(url);
     audio.onplay = () => { audioOrb(audio); if (templateText) syncSubtitle(templateText, audio); };
-    audio.onended = () => { setSubtitle(""); URL.revokeObjectURL(url); onEnd?.(); };
+    audio.onended = () => { setSubtitle(idleText); URL.revokeObjectURL(url); onEnd?.(); };
     await audio.play().catch(() => URL.revokeObjectURL(url));
     return audio;
   }
@@ -222,7 +224,7 @@ export default function Home() {
   }
 
   async function speak(text: string) {
-    if (!tts) { setSubtitle(text); setTimeout(() => setSubtitle(""), 3500); return; }
+    if (!tts) { setSubtitle(text); setTimeout(() => setSubtitle(idleText), 3500); return; }
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 12000);
     try {
@@ -236,10 +238,11 @@ export default function Home() {
       const url = URL.createObjectURL(await res.blob());
       const audio = new Audio(url);
       audio.onplay = () => { audioOrb(audio); syncSubtitle(text, audio); };
-      audio.onended = () => { setSubtitle(""); URL.revokeObjectURL(url); };
+      audio.onended = () => { setSubtitle(idleText); URL.revokeObjectURL(url); };
       await audio.play().catch(() => { URL.revokeObjectURL(url); });
     } catch {
-      // ponytail: if TTS stalls, keep the UI quiet instead of showing a pre-voice duplicate subtitle.
+      // ponytail: if TTS stalls, don't show a pre-voice duplicate forever.
+      setTimeout(() => setSubtitle(idleText), 500);
     } finally {
       clearTimeout(timer);
     }
@@ -269,6 +272,15 @@ export default function Home() {
     recognitionRef.current = rec;
     let sent = false;
     let lastText = "";
+    let heardAny = false;
+    let timedOut = false;
+    const silenceTimer = setTimeout(() => {
+      if (heardAny || sent) return;
+      timedOut = true;
+      setSubtitle("Tidak terdengar. Ketuk orb lalu bicara.");
+      try { rec.stop(); } catch {}
+      setTimeout(() => setSubtitle(idleText), 1800);
+    }, 8000);
     rec.lang = "id-ID";
     rec.interimResults = true;
     rec.continuous = false;
@@ -278,6 +290,8 @@ export default function Home() {
       for (let i = 0; i < event.results.length; i++) text += event.results[i][0].transcript;
       text = text.trim();
       if (!text) return;
+      heardAny = true;
+      clearTimeout(silenceTimer);
       lastText = text;
       setInput(text);
       setSubtitle(text);
@@ -288,29 +302,35 @@ export default function Home() {
       }
     };
     rec.onerror = (event) => {
+      clearTimeout(silenceTimer);
       const err = event?.error === "not-allowed" ? "Izin mikrofon ditolak." : "Suara belum tertangkap. Coba ketuk orb lagi.";
       setSubtitle(err);
       setListening(false);
       recognitionRef.current = null;
+      setTimeout(() => setSubtitle(idleText), 1800);
     };
     rec.onend = () => {
+      clearTimeout(silenceTimer);
       setListening(false);
       setAudioLevel(0);
       recognitionRef.current = null;
+      if (!lastText && !sent && !timedOut) setSubtitle(idleText);
       if (lastText && !sent) {
         sent = true;
         sendText(lastText);
       }
     };
-    setSubtitle("Mendengar... bicara sekarang");
+    setSubtitle("Mendengar...");
     rippleOrb();
     setListening(true);
     try {
       rec.start();
     } catch {
+      clearTimeout(silenceTimer);
       setListening(false);
       recognitionRef.current = null;
       setSubtitle("Voice input belum siap. Coba ketuk orb lagi.");
+      setTimeout(() => setSubtitle(idleText), 1800);
     }
   }
 
