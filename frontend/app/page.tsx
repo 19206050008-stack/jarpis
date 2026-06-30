@@ -112,14 +112,26 @@ export default function Home() {
     const url = URL.createObjectURL(await res.blob());
     if (!active()) { URL.revokeObjectURL(url); return null; }
     const audio = new Audio(url);
-    audio.onplay = () => audioOrb(audio);
-    audio.onended = () => { URL.revokeObjectURL(url); onEnd?.(); };
+    audio.onplay = () => { audioOrb(audio); if (templateText) syncSubtitle(templateText, audio); };
+    audio.onended = () => { if (templateText) setSubtitle(templateText); URL.revokeObjectURL(url); onEnd?.(); };
     await audio.play().catch(() => URL.revokeObjectURL(url));
     return audio;
   }
 
   function rippleOrb(x = 0.5, y = 0.5) {
     orbFrameRef.current?.contentWindow?.postMessage({ type: "anta-ripple", nx: x, ny: y }, "*");
+  }
+
+  function syncSubtitle(text: string, audio: HTMLAudioElement) {
+    setSubtitle("");
+    const tick = () => {
+      if (audio.paused || audio.ended) return;
+      const fallback = Math.max(2, text.length * 0.055);
+      const total = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : fallback;
+      setSubtitle(text.slice(0, Math.max(1, Math.ceil((audio.currentTime / total) * text.length))));
+      requestAnimationFrame(tick);
+    };
+    tick();
   }
 
   function audioOrb(audio: HTMLAudioElement) {
@@ -143,15 +155,7 @@ export default function Home() {
   }
 
   async function speak(text: string) {
-    const words = text.split(/\s+/).filter(Boolean);
-    let i = 0;
-    const karaoke = setInterval(() => {
-      i = Math.min(words.length, i + 2);
-      setSubtitle(words.slice(0, i).join(" "));
-      if (i >= words.length) clearInterval(karaoke);
-    }, 180);
-
-    if (!tts) return;
+    if (!tts) { setSubtitle(text); return; }
     const res = await fetch(`${apiUrl}/speak-kira`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -160,8 +164,8 @@ export default function Home() {
     if (!res.ok) return;
     const url = URL.createObjectURL(await res.blob());
     const audio = new Audio(url);
-    audio.onplay = () => audioOrb(audio);
-    audio.onended = () => { clearInterval(karaoke); setSubtitle(text); URL.revokeObjectURL(url); };
+    audio.onplay = () => { audioOrb(audio); syncSubtitle(text, audio); };
+    audio.onended = () => { setSubtitle(text); URL.revokeObjectURL(url); };
     await audio.play().catch(() => URL.revokeObjectURL(url));
   }
 
