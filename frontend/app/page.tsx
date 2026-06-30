@@ -58,7 +58,18 @@ export default function Home() {
   useEffect(() => {
     const el = shaderFrameRef.current;
     if (!el) return;
-    const handleTouch = (e: TouchEvent) => {
+    
+    const handleTouchStart = (e: TouchEvent) => {
+      const touch = e.touches[0];
+      if (touch) {
+        const rect = el.getBoundingClientRect();
+        const x = (touch.clientX - rect.left) / rect.width;
+        const y = (touch.clientY - rect.top) / rect.height;
+        rippleOrb(x, y);
+      }
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
       e.preventDefault();
       const touch = e.touches[0];
       if (touch) {
@@ -68,11 +79,12 @@ export default function Home() {
         rippleOrb(x, y);
       }
     };
-    el.addEventListener("touchstart", handleTouch, { passive: false });
-    el.addEventListener("touchmove", handleTouch, { passive: false });
+
+    el.addEventListener("touchstart", handleTouchStart, { passive: true });
+    el.addEventListener("touchmove", handleTouchMove, { passive: false });
     return () => {
-      el.removeEventListener("touchstart", handleTouch);
-      el.removeEventListener("touchmove", handleTouch);
+      el.removeEventListener("touchstart", handleTouchStart);
+      el.removeEventListener("touchmove", handleTouchMove);
     };
   }, [orbSrc]);
 
@@ -287,6 +299,10 @@ export default function Home() {
     window.open("https://open.spotify.com", "_blank", "noopener,noreferrer");
   }
 
+  function openMenu() {
+    window.location.href = "/menu";
+  }
+
   function askWs(text: string) {
     return new Promise<string>((resolve, reject) => {
       const ws = new WebSocket(wsUrl);
@@ -312,6 +328,16 @@ export default function Home() {
     setSubtitle(text);
     setMessages((m) => [...m, { role: "user", text }]);
     playTemplate(categoryFor(text));
+
+    if (/\b(buka|open)\b.*\b(menu|hud)\b|\b(menu|hud)\b.*\b(buka|open)\b/i.test(text)) {
+      const answer = "Menu saya buka.";
+      openMenu();
+      setSubtitle(answer);
+      setMessages((m) => [...m, { role: "ai", text: answer }]);
+      await speak(answer);
+      setLoading(false);
+      return;
+    }
 
     if (/\b(buka|open)\b.*\bspotify\b|\bspotify\b.*\b(buka|open)\b/i.test(text)) {
       openSpotify();
@@ -345,7 +371,7 @@ export default function Home() {
         className={listening ? "shader-frame listening" : loading ? "shader-frame thinking" : "shader-frame"} 
         onPointerMove={(e) => handlePointer(e.clientX, e.clientY, e.currentTarget)}
       >
-        <iframe ref={orbFrameRef} src={orbSrc} onLoad={fixOrbFrame} title="" aria-hidden="true" allowTransparency={true} style={{ background: "transparent" }} />
+        <iframe ref={orbFrameRef} src={orbSrc} onLoad={fixOrbFrame} title="" aria-hidden="true" style={{ background: "transparent" }} />
         <button onClick={listen} type="button" disabled={loading} aria-label="Bicara dengan Anta" />
       </div>
       <div className="subtitle-live">{subtitle}</div>

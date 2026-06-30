@@ -66,6 +66,7 @@ MIMO_JWT_TIME = 0.0
 MIMO_JWT_TTL = 50 * 60
 _monitoring_cache = {"time": 0.0, "data": None}
 _local_memories: list[str] = []
+MENU_STORE_PATH = Path(os.getenv("MENU_STORE_PATH", "menu_store.json"))
 
 MODELS_DIR = os.getenv("MODELS_DIR", "models")
 SUPERTONIC_DIR = "sherpa-onnx-supertonic-3-tts-int8-2026-05-11"
@@ -1446,4 +1447,115 @@ def speak(req: SpeakRequest):
 
     wav = _samples_to_wav(out.samples, out.sample_rate)
     return Response(content=wav, media_type="audio/wav")
+
+
+class NoteModel(BaseModel):
+    id: int | None = None
+    title: str
+    content: str
+
+class FileModel(BaseModel):
+    id: int | None = None
+    name: str
+    content: str
+    parent_path: str
+    is_folder: bool = False
+
+
+def _menu_defaults() -> list[dict]:
+    return [
+        {"id": 1, "parent_path": "/Document", "name": "welcome.md", "content": "# Welcome to Anta HUD\nThis is your home folder.", "is_folder": False},
+        {"id": 2, "parent_path": "/Document", "name": "story.txt", "content": "Anta v2 - Novel draft details go here.", "is_folder": False},
+        {"id": 3, "parent_path": "/Music", "name": "playlist.m3u", "content": "#EXTM3U\n#EXTINF:0,Bohemian Rhapsody\nhttps://open.spotify.com/track/4zCc0n9Xk0T2xmd125", "is_folder": False},
+        {"id": 4, "parent_path": "/Pictures", "name": "sample-image.jpg", "content": "https://placehold.co/900x500/png", "is_folder": False},
+        {"id": 5, "parent_path": "/Video", "name": "sample-video.mp4", "content": "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4", "is_folder": False},
+        {"id": 6, "parent_path": "/Music", "name": "sample-audio.mp3", "content": "https://interactive-examples.mdn.mozilla.net/media/cc0-audio/t-rex-roar.mp3", "is_folder": False},
+    ]
+
+
+def _menu_store() -> list[dict]:
+    try:
+        items = json.loads(MENU_STORE_PATH.read_text(encoding="utf-8")) if MENU_STORE_PATH.exists() else []
+    except Exception:
+        items = []
+    names = {x.get("name") for x in items}
+    next_id = max([int(x.get("id", 0)) for x in items] or [0]) + 1
+    for row in _menu_defaults():
+        if row["name"] not in names:
+            row = {**row, "id": next_id if items else row["id"]}
+            next_id += 1
+            items.append(row)
+    return items
+
+
+def _save_menu_store(items: list[dict]):
+    MENU_STORE_PATH.write_text(json.dumps(items, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def _upsert_menu_file(file: FileModel) -> dict:
+    items = _menu_store()
+    file_id = file.id or (max([int(x.get("id", 0)) for x in items] or [0]) + 1)
+    row = {"id": file_id, "name": file.name, "content": file.content, "parent_path": file.parent_path, "is_folder": file.is_folder}
+    items = [row if int(x.get("id", 0)) == file_id else x for x in items]
+    if not any(int(x.get("id", 0)) == file_id for x in items):
+        items.append(row)
+    _save_menu_store(items)
+    return row
+
+@app.get("/api/notes")
+async def get_notes():
+    rows = await _supabase_get("memories", {"parent_path": "eq./Document", "select": "id,content", "order": "id.desc"})
+    notes = []
+    for r in rows:
+        parts = r.get("content", "").split(":", 2)
+        if len(parts) >= 3 and parts[0] == "FILE":
+            notes.append({"id": r["id"], "title": parts[1].replace(".txt", ""), "content": parts[2]})
+    if notes:
+        return notes
+    return [{"id": x["id"], "title": x["name"].replace(".txt", ""), "content": x["content"]} for x in _menu_store() if x.get("parent_path") == "/Document" and x.get("name", "").endswith(".txt")]
+
+@app.post("/api/notes")
+async def save_note(note: NoteModel):
+    val = f"FILE:{note.title}.txt:{note.content}"
+    row = _upsert_menu_file(FileModel(id=note.id, name=f"{note.title}.txt", content=note.content, parent_path="/Document"))
+    if note.id:
+        await _supabase_patch("memories", {"id": f"eq.{note.id}"}, {"content": val})
+    else:
+        await _supabase_insert("memories", {"content": val, "parent_path": "/Document", "is_folder": False})
+    return {"id": row["id"], "title": note.title, "content": note.content}
+
+@app.delete("/api/notes/{note_id}")
+async def delete_note(note_id: int):
+    _save_menu_store([x for x in _menu_store() if int(x.get("id", 0)) != note_id])
+    await _supabase_delete("memories", {"id": f"eq.{note_id}"})
+    return {"status": "success"}
+
+@app.get("/api/files")
+async def get_files():
+    rows = await _supabase_get("memories", {"content": "ilike.FILE:*", "select": "id,content,parent_path,is_folder", "order": "id.desc"})
+    files = []
+    for r in rows:
+        parts = r.get("content", "").split(":", 2)
+        if len(parts) >= 3:
+            files.append({"id": r["id"], "name": parts[1], "content": parts[2], "parent_path": r.get("parent_path") or "/Home", "is_folder": bool(r.get("is_folder"))})
+    names = {x.get("name") for x in files}
+    files += [x for x in _menu_store() if x.get("name") not in names]
+    return files
+
+@app.post("/api/files")
+async def save_file(file: FileModel):
+    row = _upsert_menu_file(file)
+    val = f"FILE:{file.name}:{file.content}"
+    if file.id:
+        await _supabase_patch("memories", {"id": f"eq.{file.id}"}, {"content": val, "parent_path": file.parent_path, "is_folder": file.is_folder})
+        return row
+    await _supabase_insert("memories", {"content": val, "parent_path": file.parent_path, "is_folder": file.is_folder})
+    return row
+
+@app.delete("/api/files/{file_id}")
+async def delete_file(file_id: int):
+    _save_menu_store([x for x in _menu_store() if int(x.get("id", 0)) != file_id])
+    await _supabase_delete("memories", {"id": f"eq.{file_id}"})
+    return {"status": "success"}
+
 
