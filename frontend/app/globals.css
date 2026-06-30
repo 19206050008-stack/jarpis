@@ -105,7 +105,10 @@ a:hover { text-decoration: underline; }
     margin-inline: auto;
   }
   .shader-frame iframe {
-    transform: translateX(4%);
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    transform: none;
   }
 }
 .shader-frame.listening { animation: shader-breathe 1.4s ease-in-out infinite; }
