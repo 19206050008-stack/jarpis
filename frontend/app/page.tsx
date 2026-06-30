@@ -48,6 +48,12 @@ export default function Home() {
   const userActionRef = useRef(false);
 
   useEffect(() => {
+    if (orbFrameRef.current) {
+      orbFrameRef.current.setAttribute("allowtransparency", "true");
+    }
+  }, [orbSrc]);
+
+  useEffect(() => {
     fetch(`${apiUrl}/chat/history?session_id=${sessionId()}`)
       .then((r) => r.ok ? r.json() : [])
       .then((rows) => Array.isArray(rows) && rows.length && setMessages(rows))
