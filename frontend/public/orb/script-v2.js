@@ -304,7 +304,7 @@ const fragmentShader = `
           finalColor = mix(finalColor, textColor.rgb, textColor.a);
         }
         
-        gl_FragColor = vec4(finalColor, o.a);
+        gl_FragColor = vec4(finalColor, 1.0);
       }
     `;
 const material = new THREE.ShaderMaterial({
