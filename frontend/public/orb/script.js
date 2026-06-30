@@ -3,8 +3,14 @@ import { Pane } from "https://esm.sh/tweakpane@4.0.4";
 const scene = new THREE.Scene();
 const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
 const container = document.getElementById("container");
-const getW = () => (container && container.getBoundingClientRect().width) || window.innerWidth;
-const getH = () => (container && container.getBoundingClientRect().height) || window.innerHeight;
+const getW = () => {
+  const w = container ? container.getBoundingClientRect().width : 0;
+  return w > 50 ? w : 240;
+};
+const getH = () => {
+  const h = container ? container.getBoundingClientRect().height : 0;
+  return h > 50 ? h : 240;
+};
 
 const renderer = new THREE.WebGLRenderer({
   antialias: true
