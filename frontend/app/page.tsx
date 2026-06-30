@@ -105,7 +105,10 @@ export default function Home() {
     }).catch(() => null);
     if (!res?.ok || !active()) return null;
     const encoded = res.headers.get("x-anta-text");
-    if (encoded) setSubtitle(decodeURIComponent(escape(atob(encoded.replace(/-/g, "+").replace(/_/g, "/")))));
+    const templateText = encoded
+      ? decodeURIComponent(escape(atob(encoded.replace(/-/g, "+").replace(/_/g, "/"))))
+      : category.toLowerCase() === "pembuka" ? "Halo, Bos. Anta sudah aktif dan siap membantu pekerjaanmu." : "";
+    if (templateText) setSubtitle(templateText);
     const url = URL.createObjectURL(await res.blob());
     if (!active()) { URL.revokeObjectURL(url); return null; }
     const audio = new Audio(url);
