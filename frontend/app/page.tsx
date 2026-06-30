@@ -48,6 +48,7 @@ export default function Home() {
   const shaderFrameRef = useRef<HTMLDivElement>(null);
   const introTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const introAudioRef = useRef<HTMLAudioElement | null>(null);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const userActionRef = useRef(false);
 
   useEffect(() => {
@@ -253,65 +254,52 @@ export default function Home() {
     cancelIntro();
     playClickSound();
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) return alert("Browser belum mendukung voice input.");
+    if (!SR) { setSubtitle("Browser belum mendukung voice input."); return; }
     const rec = new SR();
+    recognitionRef.current = rec;
     let sent = false;
+    let lastText = "";
     rec.lang = "id-ID";
     rec.interimResults = true;
     rec.continuous = false;
-    
-    // Create local AudioContext for microphone reactivity
-    const AC = window.AudioContext || (window as any).webkitAudioContext;
-    let micCtx: AudioContext | null = null;
-    let micStream: MediaStream | null = null;
-    let micTimer: ReturnType<typeof setInterval> | null = null;
-
-    navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
-      micStream = stream;
-      if (!AC) return;
-      micCtx = new AC();
-      const src = micCtx.createMediaStreamSource(stream);
-      const analyser = micCtx.createAnalyser();
-      analyser.fftSize = 64;
-      src.connect(analyser);
-      const data = new Uint8Array(analyser.frequencyBinCount);
-      micTimer = setInterval(() => {
-        analyser.getByteFrequencyData(data);
-        const avg = data.reduce((a, b) => a + b, 0) / data.length / 255;
-        setAudioLevel(avg);
-      }, 50);
-    }).catch(() => {});
 
     rec.onresult = (event) => {
       let text = "";
       for (let i = 0; i < event.results.length; i++) text += event.results[i][0].transcript;
       text = text.trim();
+      if (!text) return;
+      lastText = text;
       setInput(text);
-      setSubtitle(text || "Mendengar...");
+      setSubtitle(text);
       const last = event.results[event.results.length - 1];
-      if (last?.isFinal && text && !sent) {
+      if (last?.isFinal && !sent) {
         sent = true;
         sendText(text);
       }
     };
-    rec.onerror = () => {
-      setSubtitle("Mic gagal. Izinkan mikrofon lalu coba lagi.");
+    rec.onerror = (event) => {
+      const err = event?.error === "not-allowed" ? "Izin mikrofon ditolak." : "Suara belum tertangkap. Coba ketuk orb lagi.";
+      setSubtitle(err);
       setListening(false);
+      recognitionRef.current = null;
     };
     rec.onend = () => {
       setListening(false);
-      if (micTimer) clearInterval(micTimer);
-      if (micCtx) micCtx.close().catch(() => {});
-      if (micStream) micStream.getTracks().forEach((t) => t.stop());
       setAudioLevel(0);
+      recognitionRef.current = null;
+      if (lastText && !sent) {
+        sent = true;
+        sendText(lastText);
+      }
     };
-    setSubtitle("Mendengar...");
+    setSubtitle("Mendengar... bicara sekarang");
     rippleOrb();
     setListening(true);
     try {
       rec.start();
     } catch {
       setListening(false);
+      recognitionRef.current = null;
       setSubtitle("Voice input belum siap. Coba ketuk orb lagi.");
     }
   }
@@ -348,7 +336,6 @@ export default function Home() {
     setLoading(true);
     setSubtitle(text);
     setMessages((m) => [...m, { role: "user", text }]);
-    playTemplate(categoryFor(text));
 
     if (/\b(buka|open)\b.*\b(menu|hud)\b|\b(menu|hud)\b.*\b(buka|open)\b/i.test(text)) {
       const answer = "Menu saya buka.";
