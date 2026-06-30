@@ -42,12 +42,24 @@ export default function Home() {
   const [subtitle, setSubtitle] = useState("Ketuk orb lalu bicara");
   const bottomRef = useRef<HTMLDivElement>(null);
   const orbFrameRef = useRef<HTMLIFrameElement>(null);
+  const introTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const introAudioRef = useRef<HTMLAudioElement | null>(null);
+  const userActionRef = useRef(false);
 
   useEffect(() => {
     fetch(`${apiUrl}/chat/history?session_id=${sessionId()}`)
       .then((r) => r.ok ? r.json() : [])
       .then((rows) => Array.isArray(rows) && rows.length && setMessages(rows))
       .catch(() => {});
+
+    introTimerRef.current = setTimeout(() => {
+      if (userActionRef.current) return;
+      playTemplate("Pembuka", () => {
+        if (!userActionRef.current) setSubtitle("Ketuk orb lalu bicara");
+      }, () => !userActionRef.current).then((audio) => { introAudioRef.current = audio; });
+    }, 3000);
+
+    return () => cancelIntro(false);
   }, []);
 
   useEffect(() => {
@@ -77,19 +89,30 @@ export default function Home() {
     return "Menerima perintah";
   }
 
-  async function playTemplate(category: string) {
+  function cancelIntro(markAction = true) {
+    if (markAction) userActionRef.current = true;
+    if (introTimerRef.current) clearTimeout(introTimerRef.current);
+    introTimerRef.current = null;
+    introAudioRef.current?.pause();
+    introAudioRef.current = null;
+  }
+
+  async function playTemplate(category: string, onEnd?: () => void, active = () => true) {
     const res = await fetch(`${apiUrl}/speak-template`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ category }),
     }).catch(() => null);
-    if (!res?.ok) return;
+    if (!res?.ok || !active()) return null;
     const encoded = res.headers.get("x-anta-text");
     if (encoded) setSubtitle(decodeURIComponent(escape(atob(encoded.replace(/-/g, "+").replace(/_/g, "/")))));
     const url = URL.createObjectURL(await res.blob());
+    if (!active()) { URL.revokeObjectURL(url); return null; }
     const audio = new Audio(url);
-    audio.onended = () => URL.revokeObjectURL(url);
+    audio.onplay = () => audioOrb(audio);
+    audio.onended = () => { URL.revokeObjectURL(url); onEnd?.(); };
     await audio.play().catch(() => URL.revokeObjectURL(url));
+    return audio;
   }
 
   function rippleOrb(x = 0.5, y = 0.5) {
@@ -140,6 +163,7 @@ export default function Home() {
   }
 
   function listen() {
+    cancelIntro();
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) return alert("Browser belum mendukung voice input.");
     const rec = new SR();
