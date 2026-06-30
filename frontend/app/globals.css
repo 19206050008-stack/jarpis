@@ -12,7 +12,7 @@ button, input { font: inherit; }
   display: grid;
   place-items: center;
   align-content: center;
-  gap: 24px;
+  gap: 72px;
   padding: 24px;
   background: #000;
 }
@@ -57,7 +57,7 @@ a:hover { text-decoration: underline; }
 .voice-stage {
   display: grid;
   place-items: center;
-  gap: 10px;
+  gap: 30px;
   padding: 28px 20px 18px;
   border-bottom: 1px solid #26324f;
   text-align: center;
@@ -104,13 +104,13 @@ a:hover { text-decoration: underline; }
 @keyframes shader-breathe { 50% { transform: scale(1.025); } }
 @keyframes pulse { 50% { transform: scale(1.04); } }
 .subtitle-live {
-  min-height: 54px;
+  min-height: 27px;
   max-width: min(760px, 92vw);
-  padding: 10px 14px;
+  padding: 5px 7px;
   color: #e0f2fe;
   text-align: center;
   line-height: 1.45;
-  font-size: clamp(16px, 2.4vw, 24px);
+  font-size: clamp(8px, 1.2vw, 12px);
   text-shadow: 0 0 18px #38bdf8;
 }
 .voice-stage small { color: #64748b; }
