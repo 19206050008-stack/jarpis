@@ -41,6 +41,7 @@ export default function Home() {
   const [listening, setListening] = useState(false);
   const [subtitle, setSubtitle] = useState("Ketuk orb lalu bicara");
   const [orbSrc, setOrbSrc] = useState("/orb/index.html");
+  const [audioLevel, setAudioLevel] = useState(0);
   const bottomRef = useRef<HTMLDivElement>(null);
   const orbFrameRef = useRef<HTMLIFrameElement>(null);
   const shaderFrameRef = useRef<HTMLDivElement>(null);
@@ -183,10 +184,12 @@ export default function Home() {
     analyser.connect(ctx.destination);
     const data = new Uint8Array(analyser.frequencyBinCount);
     const tick = () => {
-      if (audio.paused || audio.ended) { ctx.close().catch(() => {}); return; }
+      if (audio.paused || audio.ended) { ctx.close().catch(() => {}); setAudioLevel(0); return; }
       analyser.getByteFrequencyData(data);
       const avg = (from: number, to: number) => data.slice(from, to).reduce((a, b) => a + b, 0) / Math.max(1, to - from) / 255;
-      orbFrameRef.current?.contentWindow?.postMessage({ type: "anta-audio", bass: avg(0, 10), mid: avg(10, 32), treble: avg(32, data.length), overall: avg(0, data.length) }, "*");
+      const overall = avg(0, data.length);
+      setAudioLevel(overall);
+      orbFrameRef.current?.contentWindow?.postMessage({ type: "anta-audio", bass: avg(0, 10), mid: avg(10, 32), treble: avg(32, data.length), overall }, "*");
       requestAnimationFrame(tick);
     };
     tick();
@@ -232,6 +235,29 @@ export default function Home() {
     rec.lang = "id-ID";
     rec.interimResults = true;
     rec.continuous = false;
+    
+    // Create local AudioContext for microphone reactivity
+    const AC = window.AudioContext || (window as any).webkitAudioContext;
+    let micCtx: AudioContext | null = null;
+    let micStream: MediaStream | null = null;
+    let micTimer: ReturnType<typeof setInterval> | null = null;
+
+    navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
+      micStream = stream;
+      if (!AC) return;
+      micCtx = new AC();
+      const src = micCtx.createMediaStreamSource(stream);
+      const analyser = micCtx.createAnalyser();
+      analyser.fftSize = 64;
+      src.connect(analyser);
+      const data = new Uint8Array(analyser.frequencyBinCount);
+      micTimer = setInterval(() => {
+        analyser.getByteFrequencyData(data);
+        const avg = data.reduce((a, b) => a + b, 0) / data.length / 255;
+        setAudioLevel(avg);
+      }, 50);
+    }).catch(() => {});
+
     rec.onresult = (event) => {
       let text = "";
       for (let i = 0; i < event.results.length; i++) text += event.results[i][0].transcript;
@@ -244,7 +270,13 @@ export default function Home() {
         sendText(text);
       }
     };
-    rec.onend = () => setListening(false);
+    rec.onend = () => {
+      setListening(false);
+      if (micTimer) clearInterval(micTimer);
+      if (micCtx) micCtx.close().catch(() => {});
+      if (micStream) micStream.getTracks().forEach((t) => t.stop());
+      setAudioLevel(0);
+    };
     setSubtitle("Mendengar...");
     rippleOrb();
     setListening(true);
@@ -317,6 +349,24 @@ export default function Home() {
         <button onClick={listen} type="button" disabled={loading} aria-label="Bicara dengan Anta" />
       </div>
       <div className="subtitle-live">{subtitle}</div>
+
+      <div 
+        className="aurora-wrap"
+        style={{
+          "--aurora-scale": (1.0 + audioLevel * 2.8).toFixed(3),
+          "--aurora-opacity": (listening ? 0.9 : loading ? 0.75 : 0.45).toFixed(2)
+        } as any}
+      >
+        <section id="one">
+          <section id="two">
+            <section id="three">
+              <section id="four">
+                <section id="five" />
+              </section>
+            </section>
+          </section>
+        </section>
+      </div>
     </main>
   );
 }
