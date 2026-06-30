@@ -208,7 +208,7 @@ const fragmentShader = `
         vec2 r = u_resolution;
         vec2 FC = gl_FragCoord.xy;
         vec2 uv = vec2(FC.x / r.x, 1.0 - FC.y / r.y);
-        vec2 screenP = (FC.xy * 2.0 - r) / r.y;
+        vec2 screenP = (FC.xy * 2.0 - r) / min(r.x, r.y);
         
         vec2 wCoord = vec2(FC.x / r.x, FC.y / r.y);
         float waterHeight = texture2D(u_waterTexture, wCoord).r;
