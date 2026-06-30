@@ -40,6 +40,7 @@ export default function Home() {
   const [tts, setTts] = useState(true);
   const [listening, setListening] = useState(false);
   const [subtitle, setSubtitle] = useState("Ketuk orb lalu bicara");
+  const [orbSrc, setOrbSrc] = useState("/orb/index.html");
   const bottomRef = useRef<HTMLDivElement>(null);
   const orbFrameRef = useRef<HTMLIFrameElement>(null);
   const introTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -51,6 +52,8 @@ export default function Home() {
       .then((r) => r.ok ? r.json() : [])
       .then((rows) => Array.isArray(rows) && rows.length && setMessages(rows))
       .catch(() => {});
+
+    setOrbSrc(`/orb/index.html?v=${Date.now()}`);
 
     introTimerRef.current = setTimeout(() => {
       if (userActionRef.current) return;
@@ -116,6 +119,13 @@ export default function Home() {
     audio.onended = () => { if (templateText) setSubtitle(templateText); URL.revokeObjectURL(url); onEnd?.(); };
     await audio.play().catch(() => URL.revokeObjectURL(url));
     return audio;
+  }
+
+  function fixOrbFrame() {
+    const win = orbFrameRef.current?.contentWindow;
+    if (!win) return;
+    setTimeout(() => win.dispatchEvent(new Event("resize")), 100);
+    setTimeout(() => win.dispatchEvent(new Event("resize")), 500);
   }
 
   function rippleOrb(x = 0.5, y = 0.5) {
@@ -264,7 +274,7 @@ export default function Home() {
   return (
     <main className="voice-only">
       <div className={listening ? "shader-frame listening" : loading ? "shader-frame thinking" : "shader-frame"} onPointerMove={(e) => rippleOrb(e.nativeEvent.offsetX / e.currentTarget.clientWidth, e.nativeEvent.offsetY / e.currentTarget.clientHeight)}>
-        <iframe ref={orbFrameRef} src="/orb/index.html?v=2" title="" aria-hidden="true" />
+        <iframe ref={orbFrameRef} src={orbSrc} onLoad={fixOrbFrame} title="" aria-hidden="true" />
         <button onClick={listen} type="button" disabled={loading} aria-label="Bicara dengan Anta" />
       </div>
       <div className="subtitle-live">{subtitle}</div>
