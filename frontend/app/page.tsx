@@ -274,7 +274,7 @@ export default function Home() {
   return (
     <main className="voice-only">
       <div className={listening ? "shader-frame listening" : loading ? "shader-frame thinking" : "shader-frame"} onPointerMove={(e) => rippleOrb(e.nativeEvent.offsetX / e.currentTarget.clientWidth, e.nativeEvent.offsetY / e.currentTarget.clientHeight)}>
-        <iframe ref={orbFrameRef} src={orbSrc} onLoad={fixOrbFrame} title="" aria-hidden="true" />
+        <iframe ref={orbFrameRef} src={orbSrc} onLoad={fixOrbFrame} title="" aria-hidden="true" allowTransparency={true} style={{ background: "transparent" }} />
         <button onClick={listen} type="button" disabled={loading} aria-label="Bicara dengan Anta" />
       </div>
       <div className="subtitle-live">{subtitle}</div>

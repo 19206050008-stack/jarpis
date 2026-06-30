@@ -12,6 +12,7 @@ const renderer = new THREE.WebGLRenderer({
 });
 renderer.setSize(getW(), getH());
 renderer.setPixelRatio(1);
+renderer.setClearColor(0x000000, 0);
 if (container) {
   container.appendChild(renderer.domElement);
   setTimeout(() => {
@@ -309,6 +310,7 @@ const fragmentShader = `
 const material = new THREE.ShaderMaterial({
   vertexShader,
   fragmentShader,
+  transparent: true,
   uniforms: {
     u_time: {
       value: 0.0
