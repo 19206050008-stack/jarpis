@@ -209,18 +209,29 @@ export default function Home() {
   }
 
   async function speak(text: string) {
-    if (!tts) { setSubtitle(text); return; }
-    const res = await fetch(`${apiUrl}/speak-kira`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: text.slice(0, 500), speaker: voice }),
-    });
-    if (!res.ok) return;
-    const url = URL.createObjectURL(await res.blob());
-    const audio = new Audio(url);
-    audio.onplay = () => { audioOrb(audio); syncSubtitle(text, audio); };
-    audio.onended = () => { setSubtitle(text); URL.revokeObjectURL(url); };
-    await audio.play().catch(() => URL.revokeObjectURL(url));
+    setSubtitle(text);
+    if (!tts) return;
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 12000);
+    try {
+      const res = await fetch(`${apiUrl}/speak-kira`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: text.slice(0, 500), speaker: voice }),
+        signal: ctrl.signal,
+      });
+      if (!res.ok) return;
+      const url = URL.createObjectURL(await res.blob());
+      const audio = new Audio(url);
+      audio.onplay = () => { audioOrb(audio); syncSubtitle(text, audio); };
+      audio.onended = () => { setSubtitle(text); URL.revokeObjectURL(url); };
+      await audio.play().catch(() => URL.revokeObjectURL(url));
+    } catch {
+      // ponytail: TTS provider can stall; text answer must not stall with it.
+      setSubtitle(text);
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   function playClickSound() {
@@ -361,7 +372,7 @@ export default function Home() {
       const answer = (await askWs(text)).trim() || "Tidak ada jawaban.";
       setSubtitle(answer);
       setMessages((m) => [...m, { role: "ai", text: answer }]);
-      await speak(answer);
+      speak(answer);
     } catch (err) {
       setMessages((m) => [...m, { role: "ai", text: `Chat gagal: ${err instanceof Error ? err.message : "backend tidak merespons"}` }]);
     } finally {

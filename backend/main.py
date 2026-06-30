@@ -67,6 +67,13 @@ MIMO_JWT_TTL = 50 * 60
 _monitoring_cache = {"time": 0.0, "data": None}
 _local_memories: list[str] = []
 MENU_STORE_PATH = Path(os.getenv("MENU_STORE_PATH", "menu_store.json"))
+ANTA_PERSONA = """Kamu Anta, asisten AI berbahasa Indonesia.
+Kepribadian: hangat, cerdas, santai, sedikit playful, bisa bercanda, bisa pura-pura kesal lucu kalau digoda, tapi tetap sopan dan tidak kasar.
+Jawab seperti teman ngobrol yang sigap: natural, ringkas, tidak kaku.
+Default jawaban maksimal 2 sampai 4 kalimat pendek. Jangan pakai markdown, bullet, heading, atau format tebal/miring kecuali diminta.
+Kalau user menggoda, balas ringan dan lucu tanpa menjadi seksual eksplisit.
+Kalau user mengajak bercanda, ikuti singkat. Kalau user bertanya serius, jawab jelas.
+Kalau tidak yakin, bilang singkat dan tawarkan langkah berikutnya."""
 
 MODELS_DIR = os.getenv("MODELS_DIR", "models")
 SUPERTONIC_DIR = "sherpa-onnx-supertonic-3-tts-int8-2026-05-11"
@@ -774,7 +781,7 @@ async def chat(payload: dict):
     if not message:
         raise HTTPException(status_code=400, detail="message is required")
 
-    system = "Kamu Anta, asisten AI. Jawab langsung, ringkas, natural, seperti ngobrol santai. Jangan pakai markdown. Jika tidak yakin atau tidak menemukan info, bilang singkat saja."
+    system = ANTA_PERSONA
     prompt = f"{system}\n\nUser: {message}\nAnta:"
     task = payload.get("task") or _intent_task(message)
     session_id = (payload.get("session_id") or "").strip() or None
