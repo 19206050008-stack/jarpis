@@ -1,3 +1,8 @@
+:root {
+  color-scheme: dark;
+  background: transparent !important;
+}
+
 @font-face {
   font-family: "GT Standard";
   src: url("https://assets.codepen.io/7558/GT-Standard-VF-Trial.woff2")
@@ -157,5 +162,5 @@ canvas {
   }
 }
 #controls,.help-hint,.info,.tp-dfwv{display:none!important}
-html,body,#container{width:100%!important;height:100%!important;overflow:hidden!important;background:#000!important}
+html,body,#container{width:100%!important;height:100%!important;overflow:hidden!important;background:transparent!important}
 canvas{width:100%!important;height:100%!important;opacity:0;transition:opacity 0.2s ease;background:transparent!important}
