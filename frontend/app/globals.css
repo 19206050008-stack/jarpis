@@ -104,6 +104,9 @@ a:hover { text-decoration: underline; }
     width: min(57.4vw, 240px);
     margin-inline: auto;
   }
+  .shader-frame iframe {
+    transform: translateX(35%);
+  }
 }
 .shader-frame.listening { animation: shader-breathe 1.4s ease-in-out infinite; }
 .shader-frame.thinking { animation: shader-breathe 1s ease-in-out infinite; }

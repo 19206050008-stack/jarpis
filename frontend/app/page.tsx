@@ -169,8 +169,17 @@ export default function Home() {
     await audio.play().catch(() => URL.revokeObjectURL(url));
   }
 
+  function playClickSound() {
+    if (listening) return;
+    const audio = new Audio("/audio/orb-water-click.mp3");
+    audio.volume = 0.35;
+    audio.play().catch(() => {});
+  }
+
   function listen() {
+    if (listening) return;
     cancelIntro();
+    playClickSound();
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) return alert("Browser belum mendukung voice input.");
     const rec = new SR();
