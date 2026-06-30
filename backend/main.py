@@ -12,6 +12,7 @@ import hashlib
 import re
 import getpass
 import platform
+import random
 from pathlib import Path
 from threading import Lock
 
@@ -307,6 +308,7 @@ def _anta_v2_cached_reply(text: str, category: str | None = None) -> bytes | Non
 def _anta_v2_template(category: str) -> tuple[str, bytes] | None:
     wanted = category.lower().replace("-", " ")
     items = [x for x in _anta_v2_manifest() if wanted in x.get("category", "").lower()]
+    random.shuffle(items)
     for item in items:
         path = _manifest_path(item)
         if path.exists():
