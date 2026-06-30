@@ -7,7 +7,8 @@ const getW = () => 240;
 const getH = () => 240;
 
 const renderer = new THREE.WebGLRenderer({
-  antialias: true
+  antialias: true,
+  alpha: true
 });
 renderer.setSize(getW(), getH());
 renderer.setPixelRatio(1);
