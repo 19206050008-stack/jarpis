@@ -99,6 +99,12 @@ a:hover { text-decoration: underline; }
   background: transparent;
   cursor: pointer;
 }
+@media (max-width: 640px) {
+  .shader-frame {
+    width: min(57.4vw, 240px);
+    margin-inline: auto;
+  }
+}
 .shader-frame.listening { animation: shader-breathe 1.4s ease-in-out infinite; }
 .shader-frame.thinking { animation: shader-breathe 1s ease-in-out infinite; }
 @keyframes shader-breathe { 50% { transform: scale(1.025); } }
