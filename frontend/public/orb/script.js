@@ -845,8 +845,8 @@ function onTouchStart(event) {
 window.addEventListener("message", (event) => {
   const data = event.data || {};
   if (data.type === "anta-ripple") {
-    const x = Number(data.x) || window.innerWidth / 2;
-    const y = Number(data.y) || window.innerHeight / 2;
+    const x = Number.isFinite(data.nx) ? data.nx * window.innerWidth : window.innerWidth / 2;
+    const y = Number.isFinite(data.ny) ? data.ny * window.innerHeight : window.innerHeight / 2;
     addRipple(x, y, waterSettings.clickIntensity);
     material.uniforms.u_ripple_position.value.set(x / window.innerWidth, 1.0 - y / window.innerHeight);
     material.uniforms.u_ripple_time.value = performance.now() * 0.001;

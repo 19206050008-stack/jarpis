@@ -93,7 +93,7 @@ export default function Home() {
   }
 
   function rippleOrb(x = 0.5, y = 0.5) {
-    orbFrameRef.current?.contentWindow?.postMessage({ type: "anta-ripple", x: x * innerWidth, y: y * innerHeight }, "*");
+    orbFrameRef.current?.contentWindow?.postMessage({ type: "anta-ripple", nx: x, ny: y }, "*");
   }
 
   function audioOrb(audio: HTMLAudioElement) {
