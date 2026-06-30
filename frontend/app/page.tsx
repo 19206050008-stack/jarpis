@@ -192,6 +192,13 @@ export default function Home() {
     audio.play().catch(() => {});
   }
 
+  function handlePointer(clientX: number, clientY: number, target: HTMLDivElement) {
+    const rect = target.getBoundingClientRect();
+    const x = (clientX - rect.left) / rect.width;
+    const y = (clientY - rect.top) / rect.height;
+    rippleOrb(x, y);
+  }
+
   function listen() {
     if (listening) return;
     cancelIntro();
@@ -279,7 +286,15 @@ export default function Home() {
 
   return (
     <main className="voice-only">
-      <div className={listening ? "shader-frame listening" : loading ? "shader-frame thinking" : "shader-frame"} onPointerMove={(e) => rippleOrb(e.nativeEvent.offsetX / e.currentTarget.clientWidth, e.nativeEvent.offsetY / e.currentTarget.clientHeight)}>
+      <div className={listening ? "shader-frame listening" : loading ? "shader-frame thinking" : "shader-frame"} 
+        onPointerMove={(e) => handlePointer(e.clientX, e.clientY, e.currentTarget)}
+        onTouchMove={(e) => {
+          if (e.touches[0]) handlePointer(e.touches[0].clientX, e.touches[0].clientY, e.currentTarget);
+        }}
+        onTouchStart={(e) => {
+          if (e.touches[0]) handlePointer(e.touches[0].clientX, e.touches[0].clientY, e.currentTarget);
+        }}
+      >
         <iframe ref={orbFrameRef} src={orbSrc} onLoad={fixOrbFrame} title="" aria-hidden="true" allowTransparency={true} style={{ background: "transparent" }} />
         <button onClick={listen} type="button" disabled={loading} aria-label="Bicara dengan Anta" />
       </div>
