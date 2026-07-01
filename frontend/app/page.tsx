@@ -162,6 +162,10 @@ export default function Home() {
     return "Menerima perintah";
   }
 
+  function isGreetingOnly(text: string) {
+    return /^(halo|hai|hello|helo|hi|pagi|siang|sore|malam)(\s+(anta|bos))?[.!?\s]*$/i.test(text.trim());
+  }
+
   function cancelIntro(markAction = true) {
     if (markAction) userActionRef.current = true;
     if (introTimerRef.current) clearTimeout(introTimerRef.current);
@@ -513,6 +517,15 @@ export default function Home() {
     setVoiceState("speaking");
     setSubtitle(text);
     setMessages((m) => [...m, { role: "user", text }]);
+
+    if (isGreetingOnly(text)) {
+      await playQuickResponse("Pembuka");
+      setMessages((m) => [...m, { role: "ai", text: "Halo, Bos. Anta siap." }]);
+      setLoading(false);
+      setVoiceState("idle");
+      setSubtitle(idleText);
+      return;
+    }
 
     if (/\b(buka|open)\b.*\b(menu|hud)\b|\b(menu|hud)\b.*\b(buka|open)\b/i.test(text)) {
       await playQuickResponse("Membuka aplikasi");
