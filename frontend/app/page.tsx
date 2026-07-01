@@ -64,6 +64,7 @@ export default function Home() {
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const userActionRef = useRef(false);
   const speakingAudioRef = useRef<HTMLAudioElement | null>(null);
+  const lastUrlsRef = useRef<string[]>([]);
 
   useEffect(() => {
     const el = shaderFrameRef.current;
@@ -236,6 +237,17 @@ export default function Home() {
       requestAnimationFrame(tick);
     };
     tick();
+  }
+
+  function speechTextFor(text: string) {
+    if (!/https?:\/\//i.test(text)) return text;
+    const titles = text
+      .replace(/https?:\/\/\S+/gi, "")
+      .split(/\n+/)
+      .map((line) => line.replace(/^\s*\d+[.)-]?\s*/, "").trim())
+      .filter(Boolean);
+    if (!titles.length) return "Saya menemukan beberapa tautan, tapi tidak perlu saya bacakan alamat webnya.";
+    return `Saya menemukan ${Math.min(titles.length, 3)} hasil. ${titles.slice(0, 3).join(". ")}. Mau saya buka salah satunya?`;
   }
 
   async function speak(text: string) {
@@ -462,6 +474,23 @@ export default function Home() {
     setMenuOpen(true);
   }
 
+  function openTempWebCard(url: string, name = "Web") {
+    const key = "anta_custom_cards";
+    const id = `web-${Date.now()}`;
+    const card = {
+      id,
+      name,
+      category: "Web",
+      description: url,
+      logoUrl: "https://img.icons8.com/ios-filled/100/89f5ff/domain.png",
+      type: "custom",
+      url,
+    };
+    const cards = JSON.parse(localStorage.getItem(key) || "[]");
+    localStorage.setItem(key, JSON.stringify([...cards.filter((c: any) => !String(c.id).startsWith("web-")), card]));
+    openMenu(id);
+  }
+
   function askWs(text: string) {
     return new Promise<string>((resolve, reject) => {
       const ws = new WebSocket(wsUrl);
@@ -521,6 +550,31 @@ export default function Home() {
     if (isGreetingOnly(text)) {
       await playQuickResponse("Pembuka");
       setMessages((m) => [...m, { role: "ai", text: "Halo, Bos. Anta siap." }]);
+      setLoading(false);
+      setVoiceState("idle");
+      setSubtitle(idleText);
+      return;
+    }
+
+    const openResult = text.match(/\b(buka|open)\b.*\b(hasil|nomor|no\.?|yang)?\s*(pertama|kedua|ketiga|1|2|3)\b/i);
+    if (openResult && lastUrlsRef.current.length) {
+      const idx = /kedua|2/i.test(openResult[0]) ? 1 : /ketiga|3/i.test(openResult[0]) ? 2 : 0;
+      const url = lastUrlsRef.current[idx] || lastUrlsRef.current[0];
+      await playQuickResponse("Membuka aplikasi");
+      setMessages((m) => [...m, { role: "ai", text: "Saya buka hasilnya." }]);
+      setTimeout(() => openTempWebCard(url, `Hasil ${idx + 1}`), 300);
+      setLoading(false);
+      setVoiceState("idle");
+      setSubtitle(idleText);
+      return;
+    }
+
+    const googleSearch = text.match(/^\s*(buka|open)\s+google\s+(?:cari|search)?\s*(.+)$/i);
+    if (googleSearch?.[2]) {
+      const q = googleSearch[2].trim();
+      await playQuickResponse("Membuka aplikasi");
+      setMessages((m) => [...m, { role: "ai", text: `Saya buka Google untuk ${q}.` }]);
+      setTimeout(() => openTempWebCard(`https://www.google.com/search?igu=1&q=${encodeURIComponent(q)}`, "Google"), 300);
       setLoading(false);
       setVoiceState("idle");
       setSubtitle(idleText);
@@ -613,11 +667,13 @@ export default function Home() {
       return;
     }
 
+    lastUrlsRef.current = Array.from(answer.matchAll(/https?:\/\/\S+/gi), (m) => m[0].replace(/[),.]+$/, ""));
+
     // Step 3: Play "Hasil ditemukan" lalu bacakan jawaban
     setMessages((m) => [...m, { role: "ai", text: answer }]);
     await playQuickResponse("Hasil ditemukan");
     setVoiceState("speaking");
-    await speak(answer);
+    await speak(speechTextFor(answer));
     setLoading(false);
   }
 

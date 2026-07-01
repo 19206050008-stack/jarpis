@@ -491,6 +491,36 @@ async def _news_results(q: str) -> list[dict]:
     } for item in root.findall(".//item")[:5]]
 
 
+def _search_knowledge_fallback(q: str, rows: list[dict]) -> str:
+    facts = [r.get("snippet") or r.get("title") or "" for r in rows]
+    facts = [re.sub(r"https?://\S+", "", x).strip() for x in facts if x.strip()]
+    if not facts:
+        return f"Saya belum menemukan informasi yang cukup jelas tentang {q}. Coba pakai kata kunci yang lebih spesifik."
+    joined = " ".join(facts[:3])
+    return f"Tentang {q}: {joined}"
+
+
+async def _search_knowledge_answer(q: str, rows: list[dict], payload: dict) -> str:
+    context = "\n".join(
+        f"- Judul: {r.get('title', '')}\n  Cuplikan: {r.get('snippet') or r.get('source') or ''}"
+        for r in rows[:5]
+    )
+    if not context.strip():
+        return _search_knowledge_fallback(q, rows)
+    prompt = (
+        "Jawab sebagai pengetahuan langsung dalam bahasa Indonesia. "
+        "Jangan tampilkan URL, jangan beri daftar link, jangan bilang 'berikut hasil pencarian'. "
+        "Ringkas 2-4 kalimat, gunakan hanya konteks pencarian ini.\n\n"
+        f"Pertanyaan: {q}\n\nKonteks:\n{context}"
+    )
+    for provider in _providers_for_task("chat"):
+        try:
+            return await _openai_chat(provider, ANTA_PERSONA, prompt, payload)
+        except Exception:
+            continue
+    return _search_knowledge_fallback(q, rows)
+
+
 async def _article_text(url: str) -> str:
     from bs4 import BeautifulSoup
     headers = {"User-Agent": "Mozilla/5.0", "Accept-Language": "id-ID,id;q=0.9,en;q=0.8"}
@@ -844,15 +874,8 @@ async def chat(payload: dict):
         if task == "marketplace":
             q = f"{q} harga marketplace shopee tokopedia"
         rows = await (_news_results(q) if task == "news" else _search_web_results(q))
-        text = "\n".join(f"{i + 1}. {r.get('title')}\n{r.get('link')}" for i, r in enumerate(rows))
-        if not text:
-            import urllib.parse
-            clean = urllib.parse.quote(q.replace(" harga marketplace shopee tokopedia", ""))
-            if task == "marketplace":
-                text = f"1. Shopee\nhttps://shopee.co.id/search?keyword={clean}\n2. Tokopedia\nhttps://www.tokopedia.com/search?st=product&q={clean}"
-            elif task == "web_search":
-                text = f"1. Google Search\nhttps://www.google.com/search?q={clean}\n2. DuckDuckGo\nhttps://duckduckgo.com/?q={clean}"
-        return await reply(text or "Tidak ada hasil.", {"X-Anta-Task": task})
+        text = await _search_knowledge_answer(q.replace(" harga marketplace shopee tokopedia", ""), rows, payload)
+        return await reply(text, {"X-Anta-Task": task})
 
     if task == "calendar":
         lower = message.lower()
