@@ -5,13 +5,17 @@
     "start": "next start"
   },
   "dependencies": {
+    "@types/three": "^0.185.0",
+    "gsap": "^3.15.0",
     "next": "latest",
     "react": "latest",
-    "react-dom": "latest"
+    "react-dom": "latest",
+    "three": "^0.185.0"
   },
   "devDependencies": {
     "@types/node": "latest",
     "@types/react": "latest",
+    "playwright": "^1.61.1",
     "typescript": "latest"
   }
 }

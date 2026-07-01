@@ -869,6 +869,11 @@ window.addEventListener("message", (event) => {
     material.uniforms.u_audioHigh.value = Number(data.treble) || 0;
     material.uniforms.u_audioOverall.value = Number(data.overall) || 0;
   }
+  if (data.type === "anta-color") {
+    if (data.color1) material.uniforms.u_color1.value.fromArray(data.color1);
+    if (data.color2) material.uniforms.u_color2.value.fromArray(data.color2);
+    if (data.color3) material.uniforms.u_color3.value.fromArray(data.color3);
+  }
 });
 window.addEventListener("mousemove", onMouseMove);
 window.addEventListener("click", onMouseClick);

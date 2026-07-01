@@ -1,4 +1,5 @@
 import "./globals.css";
+import "./components/menu/menu.css";
 
 export const metadata = {
   title: "Anta",
