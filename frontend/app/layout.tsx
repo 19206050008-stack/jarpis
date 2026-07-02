@@ -6,6 +6,7 @@ export const metadata = {
   description: "Asisten AI penulisan novel",
   icons: {
     icon: "/favicon.png",
+    apple: "/apple-touch-icon.png",
   },
 };
 
