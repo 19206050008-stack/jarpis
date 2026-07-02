@@ -850,11 +850,13 @@ export default function Home() {
     await sendText(input);
   }
 
+  const orbDisabled = listening || (loading && voiceState !== "speaking");
+
   return (
     <main className={`voice-only ${menuOpen ? "menu-active" : ""}`}>
       <div 
         ref={shaderFrameRef}
-        className={`shader-frame ${menuOpen ? "shader-frame-mini" : ""} ${listening ? "listening" : loading ? "thinking" : ""}`}
+        className={`shader-frame ${menuOpen ? "shader-frame-mini" : ""} ${listening ? "listening" : loading ? "thinking" : ""} ${orbDisabled ? "is-orb-disabled" : ""}`}
         onPointerMove={(e) => handlePointer(e.clientX, e.clientY, e.currentTarget)}
       >
         <OrbShader
@@ -864,7 +866,7 @@ export default function Home() {
           onRipple={orbRipple}
           ripplePosition={orbRipplePos}
         />
-        <button onClick={listen} type="button" aria-label="Bicara dengan Anta" />
+        <button onClick={listen} type="button" disabled={orbDisabled} aria-disabled={orbDisabled} aria-label="Bicara dengan Anta" />
       </div>
       {!menuOpen && (
         <div className={`subtitle-live state-${voiceState}`}>{displaySubtitle(subtitle)}</div>

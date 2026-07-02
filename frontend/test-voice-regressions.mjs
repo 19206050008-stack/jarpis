@@ -106,6 +106,7 @@ async function newPage(browser, calls, viewport = { width: 1280, height: 820 }) 
     window.__mockTranscript = "";
     window.__mockWsAnswer = "Jawaban mock dari backend.";
     window.__wsSends = [];
+    window.__wsDelay = 20;
     window.__audioDelay = 25;
     window.__recognitionStarts = 0;
     window.__ttsStreams = 0;
@@ -139,7 +140,14 @@ async function newPage(browser, calls, viewport = { width: 1280, height: 820 }) 
         this.paused = false;
         this.onplay?.();
         if (this._src && String(this._src).startsWith("blob:")) window.__lastAudioObjectUrl = this._src;
+        const start = Date.now();
+        const tick = setInterval(() => {
+          if (this.paused || this.ended) { clearInterval(tick); return; }
+          this.currentTime = Math.min(this.duration, ((Date.now() - start) / Math.max(1, window.__audioDelay)) * this.duration);
+        }, 16);
         setTimeout(() => {
+          clearInterval(tick);
+          this.currentTime = this.duration;
           this.paused = true;
           this.ended = true;
           this.onended?.();
@@ -213,7 +221,7 @@ async function newPage(browser, calls, viewport = { width: 1280, height: 820 }) 
         window.__wsSends.push(data);
         setTimeout(() => {
           this.onmessage?.({ data: JSON.stringify({ type: "answer", text: window.__mockWsAnswer }) });
-        }, 20);
+        }, window.__wsDelay);
       }
       close() {}
     }
@@ -405,6 +413,29 @@ async function runLongAnswerSpeech(browser) {
   await closePage(page, "long answer speech summary");
 }
 
+async function runOrbDisabledWhileThinking(browser) {
+  const calls = { templates: [], speak: [] };
+  const page = await newPage(browser, calls);
+
+  await page.evaluate(() => {
+    window.__wsDelay = 1200;
+    window.__mockWsAnswer = "Jawaban pelan dari backend.";
+  });
+  const wsCount = await voice(page, "jelaskan sesuatu", 650);
+  assert(wsCount === 1, "orb disabled: command harus sudah dikirim ke WebSocket");
+
+  const disabled = await page.locator(".shader-frame button").evaluate((el) => el.disabled);
+  const subtitle = await subtitleText(page);
+  assert(disabled, `orb disabled: tombol harus mati saat menunggu jawaban, subtitle="${subtitle}"`);
+  await page.evaluate(() => document.querySelector(".shader-frame button")?.click());
+  await page.waitForTimeout(100);
+  const starts = await page.evaluate(() => window.__recognitionStarts);
+  assert(starts === 1, `orb disabled: klik saat thinking tidak boleh start mic lagi, starts=${starts}`);
+
+  await caption(page, "Orb nonaktif saat Anta sedang berpikir.");
+  await closePage(page, "orb disabled while thinking");
+}
+
 async function runBargeIn(browser) {
   const calls = { templates: [], speak: [] };
   const page = await newPage(browser, calls);
@@ -412,6 +443,7 @@ async function runBargeIn(browser) {
   await page.evaluate(() => { window.__audioDelay = 1000; window.__mockWsAnswer = "Jawaban panjang yang sedang dibacakan Anta."; });
   const firstWs = await voice(page, "cerita sesuatu", 700);
   assert(firstWs === 1, "barge-in: command pertama harus masuk WebSocket");
+  assert(!(await page.locator(".shader-frame button").evaluate((el) => el.disabled)), "barge-in: orb harus aktif saat Anta bicara");
 
   await page.evaluate(() => { window.__audioDelay = 25; });
   const secondWs = await voice(page, "halo anta", 900);
@@ -525,6 +557,7 @@ try {
   await runPanelSearch(browser);
   await runGeneralSearch(browser);
   await runLongAnswerSpeech(browser);
+  await runOrbDisabledWhileThinking(browser);
   await runSubtitleCasing(browser);
   await runBargeIn(browser);
   await runPseudoLive(browser);
