@@ -881,7 +881,6 @@ export default function Home() {
           LIVE
         </button>
       )}
-
       <Menu
         open={menuOpen}
         onClose={handleMenuClose}

@@ -7,6 +7,14 @@ body {
   color: #e8eefc;
 }
 button, input { font: inherit; }
+button {
+  -webkit-tap-highlight-color: transparent;
+}
+button:focus,
+button:focus-visible,
+button:active {
+  outline: none;
+}
 .voice-only {
   min-height: 100dvh;
   display: grid;
@@ -180,6 +188,17 @@ a:hover { text-decoration: underline; }
   border-color: #38bdf8;
   color: #38bdf8;
   background: rgba(56, 189, 248, 0.15);
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.3);
+}
+.auto-listen-corner:focus,
+.auto-listen-corner:focus-visible,
+.auto-listen-corner:active {
+  outline: none;
+  box-shadow: none;
+}
+.auto-listen-corner.active:focus,
+.auto-listen-corner.active:focus-visible,
+.auto-listen-corner.active:active {
   box-shadow: 0 0 12px rgba(56, 189, 248, 0.3);
 }
 .voice-stage small { color: #64748b; }
