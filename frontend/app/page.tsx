@@ -570,8 +570,8 @@ export default function Home() {
       const q = panelSearch[1].trim();
       await playQuickResponse("Loading / mencari");
       if (menuCardId === "google") {
-        setMessages((m) => [...m, { role: "ai", text: `Saya cari ${q} di Google.` }]);
-        setTimeout(() => openTempWebCard(`https://www.google.com/search?igu=1&q=${encodeURIComponent(q)}`, "Google"), 300);
+        setMessages((m) => [...m, { role: "ai", text: `Saya cari ${q} di Google. Kalau muncul verifikasi, login Google dulu ya.` }]);
+        setTimeout(() => openTempWebCard(`https://www.google.com/search?igu=1&q=${encodeURIComponent(q)}`, "Google", "google-search", "https://img.icons8.com/color/100/google-logo.png"), 300);
       } else if (menuCardId === "video") {
         setMessages((m) => [...m, { role: "ai", text: `Saya cari ${q} di YouTube.` }]);
         setTimeout(() => openTempWebCard(`https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`, "YouTube", "youtube-search", "https://img.icons8.com/ios-filled/100/ff0000/youtube-play.png"), 300);
@@ -603,8 +603,8 @@ export default function Home() {
     if (googleSearch?.[2]) {
       const q = googleSearch[2].trim();
       await playQuickResponse("Membuka aplikasi");
-      setMessages((m) => [...m, { role: "ai", text: `Saya buka Google untuk ${q}.` }]);
-      setTimeout(() => openTempWebCard(`https://www.google.com/search?igu=1&q=${encodeURIComponent(q)}`, "Google"), 300);
+      setMessages((m) => [...m, { role: "ai", text: `Saya buka Google untuk ${q}. Kalau muncul verifikasi, login Google dulu ya.` }]);
+      setTimeout(() => openTempWebCard(`https://www.google.com/search?igu=1&q=${encodeURIComponent(q)}`, "Google", "google-search", "https://img.icons8.com/color/100/google-logo.png"), 300);
       setLoading(false);
       setVoiceState("idle");
       setSubtitle(idleText);

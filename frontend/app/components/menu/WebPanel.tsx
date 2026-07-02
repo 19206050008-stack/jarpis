@@ -27,6 +27,13 @@ function needsSandbox(card: MenuCard): boolean {
   return !["music", "video"].includes(card.id) && !card.id.startsWith("youtube-search-");
 }
 
+function loginHint(card: MenuCard): string {
+  if (card.id === "google" || card.id.startsWith("google-search-")) return "⚠️ Login/verifikasi Google jika diminta";
+  if (card.id === "music") return "⚠️ Login Spotify jika diperlukan";
+  if (card.id === "video" || card.id.startsWith("youtube-search-")) return "⚠️ Login YouTube jika diperlukan";
+  return "⚠️ Login di browser jika diperlukan";
+}
+
 function YouTubeSearchPanel({ card, apiUrl }: { card: MenuCard; apiUrl: string }) {
   const params = new URL(card.url || "https://x/?q=").searchParams;
   const query = params.get("q") || params.get("search_query") || "";
@@ -77,7 +84,7 @@ export default function WebPanel({ card, apiUrl }: WebPanelProps) {
       <div className="panel-embed-bar">
         <img src={card.logoUrl} alt="" width={20} height={20} style={{ borderRadius: 4 }} />
         <span>{card.name}</span>
-        <span className="panel-login-hint">⚠️ Login di browser jika diperlukan</span>
+        <span className="panel-login-hint">{loginHint(card)}</span>
         <a href={originalUrl} target="_blank" rel="noopener noreferrer" className="panel-btn-sm">Buka di tab baru ↗</a>
       </div>
       {isYouTubeSearch ? <YouTubeSearchPanel card={card} apiUrl={apiUrl} /> : (
