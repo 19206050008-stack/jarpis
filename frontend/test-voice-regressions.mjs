@@ -7,7 +7,6 @@ import { fileURLToPath } from "node:url";
 const APP_URL = process.env.APP_URL || "http://127.0.0.1:3001";
 const RECORD_VIDEO = process.env.RECORD_VIDEO === "1";
 const RECORD_HOLD_MS = Number(process.env.RECORD_HOLD_MS || 2500);
-const ONLY_LIVE_AYAM = process.env.ONLY_LIVE_AYAM === "1";
 const ROOT = dirname(fileURLToPath(import.meta.url));
 const VIDEO_DIR = join(ROOT, "test-results", "voice-videos");
 const videoRecords = [];
@@ -454,24 +453,6 @@ async function runPseudoLiveToggleOff(browser) {
   await closePage(page, "pseudo live toggle off");
 }
 
-async function runLiveAyam(browser) {
-  const calls = { templates: [], speak: [] };
-  const page = await newPage(browser, calls);
-  const answer = "Ayam adalah hewan unggas yang sering dipelihara manusia, Bos. Biasanya ayam dimanfaatkan untuk telur, daging, dan juga bisa jadi hewan ternak rumahan.";
-
-  await page.evaluate((text) => { window.__mockWsAnswer = text; }, answer);
-  await page.locator(".auto-listen-corner").click();
-  assert(await page.locator(".auto-listen-corner").getAttribute("aria-pressed") === "true", "live ayam: tombol LIVE harus aktif");
-
-  const wsCount = await voice(page, "apa itu ayam", 1600);
-  assert(wsCount === 1, "live ayam: pertanyaan harus masuk WebSocket sekali");
-  const streams = await page.evaluate(() => window.__ttsStreams);
-  assert(calls.speak.length + streams === 1, "live ayam: Anta harus menjawab via TTS natural sekali");
-  await caption(page, `Anta: ${answer}`);
-
-  await closePage(page, "live tanya ayam");
-}
-
 async function runSubtitleCasing(browser) {
   const calls = { templates: [], speak: [] };
   const page = await newPage(browser, calls);
@@ -523,10 +504,6 @@ const browser = await chromium.launch();
 let runError = null;
 
 try {
-  if (ONLY_LIVE_AYAM) {
-    await runLiveAyam(browser);
-    console.log("PASS live ayam recording");
-  } else {
   for (const text of ["halo", "halo anta", "hai bos", "pagi anta"]) {
     await runCommandCase(browser, `sapaan: ${text}`, text, ["Pembuka"], { expectSpeak: 0, caption: "Anta: Halo, Bos. Anta siap." });
   }
@@ -561,7 +538,6 @@ try {
   });
 
   console.log("PASS voice/menu regression tests");
-  }
 } catch (err) {
   runError = err;
   console.error(err);
