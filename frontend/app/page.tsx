@@ -46,6 +46,7 @@ export default function Home() {
   const [voice, setVoice] = useState("kira");
   const [tts, setTts] = useState(true);
   const [listening, setListening] = useState(false);
+  const [liveMode, setLiveMode] = useState(false);
   const [subtitle, setSubtitle] = useState(idleText);
   const [voiceState, setVoiceState] = useState<VoiceState>("idle");
   const [menuOpen, setMenuOpen] = useState(false);
@@ -64,9 +65,14 @@ export default function Home() {
   const introAudioRef = useRef<HTMLAudioElement | null>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const userActionRef = useRef(false);
+  const loadingRef = useRef(false);
+  const liveModeRef = useRef(false);
+  const autoListenTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const speakingAudioRef = useRef<HTMLAudioElement | null>(null);
+  const speakingCleanupRef = useRef<(() => void) | null>(null);
   const lastUrlsRef = useRef<string[]>([]);
   const lastCommandRef = useRef({ text: "", time: 0 });
+  const turnRef = useRef(0);
 
   useEffect(() => {
     const el = shaderFrameRef.current;
@@ -107,7 +113,10 @@ export default function Home() {
       .then((rows) => Array.isArray(rows) && rows.length && setMessages(rows))
       .catch(() => {});
 
-    return () => cancelIntro(false);
+    return () => {
+      cancelIntro(false);
+      if (autoListenTimerRef.current) clearTimeout(autoListenTimerRef.current);
+    };
   }, []);
 
   useEffect(() => {
@@ -162,6 +171,47 @@ export default function Home() {
     return text.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ").replace(/\s+/g, " ").trim();
   }
 
+  function displaySubtitle(text: string) {
+    return text
+      .replace(/^(\s*)(\p{L})/u, (_, space, letter) => space + letter.toLocaleUpperCase("id-ID"))
+      .replace(/\banta\b/gi, "Anta")
+      .replace(/\bbos\b/gi, "Bos")
+      .replace(/\byoutube\b/gi, "YouTube")
+      .replace(/\bgoogle\b/gi, "Google")
+      .replace(/\bspotify\b/gi, "Spotify");
+  }
+
+  function nextTurn() {
+    if (autoListenTimerRef.current) clearTimeout(autoListenTimerRef.current);
+    autoListenTimerRef.current = null;
+    turnRef.current += 1;
+    return turnRef.current;
+  }
+
+  function isCurrentTurn(turn: number) {
+    return turnRef.current === turn;
+  }
+
+  function setBusy(value: boolean) {
+    loadingRef.current = value;
+    setLoading(value);
+  }
+
+  function setLive(value: boolean) {
+    liveModeRef.current = value;
+    setLiveMode(value);
+    if (!value && autoListenTimerRef.current) clearTimeout(autoListenTimerRef.current);
+    if (!value) autoListenTimerRef.current = null;
+  }
+
+  function scheduleLiveListen(turn: number) {
+    if (!liveModeRef.current || !isCurrentTurn(turn) || loadingRef.current || listening) return;
+    setSubtitle("Live aktif. Bicara lagi...");
+    autoListenTimerRef.current = setTimeout(() => {
+      if (liveModeRef.current && isCurrentTurn(turn) && !loadingRef.current && !listening) listenCore();
+    }, 700);
+  }
+
   function isGreetingOnly(text: string) {
     const normalized = normalizedCommand(text);
     const words = normalized.split(" ").filter(Boolean);
@@ -206,10 +256,9 @@ export default function Home() {
   }
 
   function syncSubtitle(text: string, audio: HTMLAudioElement) {
-    setSubtitle("");
     const tick = () => {
       if (audio.paused || audio.ended) return;
-      if (audio.currentTime < 0.08) { setSubtitle(""); requestAnimationFrame(tick); return; }
+      if (audio.currentTime < 0.08) { requestAnimationFrame(tick); return; }
       const fallback = Math.max(2, text.length * 0.055);
       const total = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : fallback;
       setSubtitle(text.slice(0, Math.max(1, Math.ceil((audio.currentTime / total) * text.length))));
@@ -244,70 +293,91 @@ export default function Home() {
   }
 
   function speechTextFor(text: string) {
-    if (!/https?:\/\//i.test(text)) return text;
+    const clean = text
+      .replace(/https?:\/\/\S+/gi, "")
+      .replace(/[*_`#>]/g, "")
+      .split(/\n+/)
+      .map((line) => line.replace(/^\s*[-*\d]+[.)-]?\s*/, "").trim())
+      .filter(Boolean)
+      .join(". ")
+      .replace(/\s+/g, " ")
+      .trim();
     const titles = text
       .replace(/https?:\/\/\S+/gi, "")
       .split(/\n+/)
       .map((line) => line.replace(/^\s*\d+[.)-]?\s*/, "").trim())
       .filter(Boolean);
-    if (!titles.length) return "Saya menemukan beberapa tautan, tapi tidak perlu saya bacakan alamat webnya.";
-    return `Saya menemukan ${Math.min(titles.length, 3)} hasil. ${titles.slice(0, 3).join(". ")}. Mau saya buka salah satunya?`;
+    if (/https?:\/\//i.test(text)) {
+      if (!titles.length) return "Saya menemukan beberapa tautan, Bos. Detailnya sudah Anta tampilkan di layar.";
+      return `Saya menemukan ${Math.min(titles.length, 3)} hasil, Bos. ${titles.slice(0, 2).join(". ")}. Mau saya buka salah satunya?`;
+    }
+    if (clean.length <= 260) return clean || text;
+    const parts = clean.match(/[^.!?]+[.!?]?/g)?.map((s) => s.trim()).filter(Boolean) || [clean];
+    let brief = parts.slice(0, 2).join(" ");
+    if (brief.length > 220) brief = `${brief.slice(0, 217).replace(/\s+\S*$/, "")}...`;
+    return `Intinya begini, Bos. ${brief} Kalau mau, saya lanjutkan detailnya.`;
   }
 
-  async function speak(text: string) {
+  async function speak(text: string, turn = turnRef.current) {
     if (!tts) {
       // ponytail: karaoke-style word reveal when TTS is disabled
       setVoiceState("speaking");
       const words = text.split(/\s+/);
       for (let i = 0; i < words.length; i++) {
+        if (!isCurrentTurn(turn)) return;
         setSubtitle(words.slice(0, i + 1).join(" "));
         await new Promise((r) => setTimeout(r, Math.min(180, 2500 / words.length)));
       }
       await new Promise((r) => setTimeout(r, 1000));
+      if (!isCurrentTurn(turn)) return;
       setSubtitle(idleText);
       setVoiceState("idle");
       return;
     }
-    // ponytail: stream audio directly from URL — play starts as soon as first bytes arrive,
-    // no need to wait for full blob download. Saves 1-3s on longer responses.
-    const audio = new Audio();
-    speakingAudioRef.current = audio;
-    audio.preload = "auto";
-    audio.src = `${apiUrl}/speak-kira-stream?text=${encodeURIComponent(text.slice(0, 500))}&speaker=${encodeURIComponent(voice)}&t=${Date.now()}`;
-    
-    await new Promise<void>((resolve) => {
-      const timeout = setTimeout(() => {
-        // Fallback: if stream endpoint doesn't exist, use POST blob method
-        fetchAndPlayBlob(text, resolve);
-      }, 500);
-
-      audio.oncanplay = () => {
-        clearTimeout(timeout);
-      };
-      audio.onplay = () => {
-        clearTimeout(timeout);
-        audioOrb(audio);
-        syncSubtitle(text, audio);
-      };
-      audio.onended = () => {
-        speakingAudioRef.current = null;
-        setSubtitle(idleText);
-        setVoiceState("idle");
-        resolve();
-      };
-      audio.onerror = () => {
-        clearTimeout(timeout);
-        // Fallback to blob method if stream fails
-        fetchAndPlayBlob(text, resolve);
-      };
-      audio.play().catch(() => {
-        clearTimeout(timeout);
-        fetchAndPlayBlob(text, resolve);
-      });
-    });
+    await new Promise<void>((resolve) => playStreamOrBlob(text, resolve, turn));
   }
 
-  async function fetchAndPlayBlob(text: string, resolve: () => void) {
+  async function playStreamOrBlob(text: string, resolve: () => void, turn: number) {
+    const audio = new Audio();
+    let done = false;
+    let started = false;
+    const streamUrl = `${apiUrl}/speak-kira-stream?text=${encodeURIComponent(text.slice(0, 500))}&speaker=${encodeURIComponent(voice)}&t=${Date.now()}`;
+    function finish() {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      if (speakingAudioRef.current === audio) speakingAudioRef.current = null;
+      if (speakingCleanupRef.current === finish) speakingCleanupRef.current = null;
+      resolve();
+    }
+    function fallback() {
+      if (done || started) return;
+      done = true;
+      clearTimeout(timer);
+      audio.pause();
+      if (speakingAudioRef.current === audio) speakingAudioRef.current = null;
+      if (speakingCleanupRef.current === finish) speakingCleanupRef.current = null;
+      fetchAndPlayBlob(text, resolve, turn);
+    }
+    const timer = setTimeout(fallback, 1800);
+    speakingAudioRef.current = audio;
+    speakingCleanupRef.current = finish;
+    audio.preload = "auto";
+    audio.src = streamUrl;
+    audio.onplaying = () => { started = true; clearTimeout(timer); };
+    audio.onplay = () => { if (isCurrentTurn(turn)) { audioOrb(audio); syncSubtitle(text, audio); } };
+    audio.onended = () => {
+      if (isCurrentTurn(turn)) {
+        setSubtitle(idleText);
+        setVoiceState("idle");
+      }
+      finish();
+    };
+    audio.onerror = fallback;
+    audio.play().catch(fallback);
+  }
+
+  async function fetchAndPlayBlob(text: string, resolve: () => void, turn: number) {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 12000);
     try {
@@ -319,27 +389,40 @@ export default function Home() {
       });
       if (!res.ok) throw new Error("TTS gagal");
       const url = URL.createObjectURL(await res.blob());
+      if (!isCurrentTurn(turn)) { URL.revokeObjectURL(url); resolve(); return; }
       const audio = new Audio(url);
-      speakingAudioRef.current = audio;
-      audio.onplay = () => { audioOrb(audio); syncSubtitle(text, audio); };
-      audio.onended = () => {
-        speakingAudioRef.current = null;
-        setSubtitle(idleText);
-        setVoiceState("idle");
+      let done = false;
+      function finish() {
+        if (done) return;
+        done = true;
         URL.revokeObjectURL(url);
+        if (speakingAudioRef.current === audio) speakingAudioRef.current = null;
+        if (speakingCleanupRef.current === finish) speakingCleanupRef.current = null;
         resolve();
+      }
+      speakingAudioRef.current = audio;
+      speakingCleanupRef.current = finish;
+      audio.onplay = () => { if (isCurrentTurn(turn)) { audioOrb(audio); syncSubtitle(text, audio); } };
+      audio.onended = () => {
+        if (isCurrentTurn(turn)) {
+          setSubtitle(idleText);
+          setVoiceState("idle");
+        }
+        finish();
       };
       audio.play().catch(() => {
-        speakingAudioRef.current = null;
-        URL.revokeObjectURL(url);
-        setVoiceState("idle");
-        setSubtitle(idleText);
-        resolve();
+        if (isCurrentTurn(turn)) {
+          setVoiceState("idle");
+          setSubtitle(idleText);
+        }
+        finish();
       });
     } catch {
-      speakingAudioRef.current = null;
-      setSubtitle(idleText);
-      setVoiceState("idle");
+      if (isCurrentTurn(turn)) {
+        speakingAudioRef.current = null;
+        setSubtitle(idleText);
+        setVoiceState("idle");
+      }
       resolve();
     } finally {
       clearTimeout(timer);
@@ -349,10 +432,15 @@ export default function Home() {
   // ponytail: interrupt TTS when user wants to speak again
   function interruptSpeaking() {
     if (speakingAudioRef.current) {
+      speakingAudioRef.current.onended = null;
       speakingAudioRef.current.pause();
       speakingAudioRef.current.currentTime = 0;
       speakingAudioRef.current = null;
     }
+    speakingCleanupRef.current?.();
+    speakingCleanupRef.current = null;
+    setAudioLevel(0);
+    setOrbAudio({ bass: 0, mid: 0, treble: 0, overall: 0 });
   }
 
   function playClickSound() {
@@ -373,8 +461,10 @@ export default function Home() {
 
   function listen() {
     // Case: user taps while AI is speaking → interrupt and listen
-    if (voiceState === "speaking") {
+    if (voiceState === "speaking" || speakingAudioRef.current) {
+      nextTurn();
       interruptSpeaking();
+      setBusy(false);
       setVoiceState("idle");
       setSubtitle(idleText);
       // Small delay then start listening
@@ -393,6 +483,7 @@ export default function Home() {
   }
 
   function listenCore() {
+    const listenTurn = nextTurn();
     cancelIntro();
     playClickSound();
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -404,6 +495,7 @@ export default function Home() {
     let heardAny = false;
     let timedOut = false;
     const silenceTimer = setTimeout(() => {
+      if (!isCurrentTurn(listenTurn)) return;
       if (heardAny || sent) return;
       timedOut = true;
       setSubtitle("Tidak terdengar. Ketuk orb lagi.");
@@ -428,10 +520,11 @@ export default function Home() {
       const last = event.results[event.results.length - 1];
       if (last?.isFinal && !sent) {
         sent = true;
-        sendText(text);
+        setTimeout(() => { if (isCurrentTurn(listenTurn)) sendText(text); }, 450);
       }
     };
     rec.onerror = (event) => {
+      if (!isCurrentTurn(listenTurn)) return;
       clearTimeout(silenceTimer);
       const err = event?.error === "not-allowed" ? "Izin mikrofon ditolak. Cek pengaturan browser." : "Suara belum tertangkap. Ketuk orb lagi.";
       setSubtitle(err);
@@ -441,6 +534,7 @@ export default function Home() {
       setTimeout(() => setSubtitle(idleText), 2500);
     };
     rec.onend = () => {
+      if (!isCurrentTurn(listenTurn)) return;
       clearTimeout(silenceTimer);
       setListening(false);
       setAudioLevel(0);
@@ -448,7 +542,7 @@ export default function Home() {
       if (!lastText && !sent && !timedOut) { setSubtitle(idleText); setVoiceState("idle"); }
       if (lastText && !sent) {
         sent = true;
-        sendText(lastText);
+        setTimeout(() => { if (isCurrentTurn(listenTurn)) sendText(lastText); }, 450);
       }
     };
     setSubtitle("Mendengar...");
@@ -479,7 +573,6 @@ export default function Home() {
   }
 
   function openTempWebCard(url: string, name = "Web", idPrefix = "web", logoUrl = "https://img.icons8.com/ios-filled/100/89f5ff/domain.png") {
-    const key = "anta_custom_cards";
     const id = `${idPrefix}-${Date.now()}`;
     const card = {
       id,
@@ -490,8 +583,6 @@ export default function Home() {
       type: "custom",
       url,
     };
-    const cards = JSON.parse(localStorage.getItem(key) || "[]");
-    localStorage.setItem(key, JSON.stringify([...cards.filter((c: any) => !String(c.id).startsWith("web-")), card]));
     setExtraMenuCard(card);
     openMenu(id);
   }
@@ -513,7 +604,7 @@ export default function Home() {
   }
 
   // ponytail: play pre-recorded template audio (instant, no generation delay)
-  async function playQuickResponse(category: string): Promise<void> {
+  async function playQuickResponse(category: string, turn = turnRef.current): Promise<void> {
     try {
       const res = await fetch(`${apiUrl}/speak-template`, {
         method: "POST",
@@ -521,21 +612,29 @@ export default function Home() {
         body: JSON.stringify({ category, timestamp: Date.now() }),
       });
       if (!res.ok) return;
+      if (!isCurrentTurn(turn)) return;
       const encoded = res.headers.get("x-anta-text");
       const templateText = encoded
         ? decodeURIComponent(escape(atob(encoded.replace(/-/g, "+").replace(/_/g, "/"))))
         : "";
       const url = URL.createObjectURL(await res.blob());
+      if (!isCurrentTurn(turn)) { URL.revokeObjectURL(url); return; }
       const audio = new Audio(url);
       speakingAudioRef.current = audio;
       await new Promise<void>((resolve) => {
-        audio.onplay = () => { audioOrb(audio); if (templateText) syncSubtitle(templateText, audio); };
-        audio.onended = () => {
-          speakingAudioRef.current = null;
+        let done = false;
+        function finish() {
+          if (done) return;
+          done = true;
           URL.revokeObjectURL(url);
+          if (speakingAudioRef.current === audio) speakingAudioRef.current = null;
+          if (speakingCleanupRef.current === finish) speakingCleanupRef.current = null;
           resolve();
-        };
-        audio.play().catch(() => { URL.revokeObjectURL(url); resolve(); });
+        }
+        speakingCleanupRef.current = finish;
+        audio.onplay = () => { if (isCurrentTurn(turn)) { audioOrb(audio); if (templateText) syncSubtitle(templateText, audio); } };
+        audio.onended = finish;
+        audio.play().catch(finish);
       });
     } catch {
       // silent fail — pre-recorded is optional enhancement
@@ -544,45 +643,65 @@ export default function Home() {
 
   async function sendText(raw: string) {
     const text = raw.trim();
-    if (!text || loading) return;
+    if (!text || loadingRef.current) return;
     const commandKey = normalizedCommand(text);
     const now = Date.now();
     if (commandKey && lastCommandRef.current.text === commandKey && now - lastCommandRef.current.time < 3000) return;
     lastCommandRef.current = { text: commandKey, time: now };
+    const turn = nextTurn();
+    interruptSpeaking();
 
     setInput("");
-    setLoading(true);
-    setVoiceState("speaking");
+    setBusy(true);
+    setVoiceState("thinking");
     setSubtitle(text);
     setMessages((m) => [...m, { role: "user", text }]);
 
     if (isGreetingOnly(text)) {
-      await playQuickResponse("Pembuka");
+      const quick = playQuickResponse("Pembuka", turn);
       setMessages((m) => [...m, { role: "ai", text: "Halo, Bos. Anta siap." }]);
-      setLoading(false);
+      setBusy(false);
       setVoiceState("idle");
       setSubtitle(idleText);
+      await quick;
+      scheduleLiveListen(turn);
+      return;
+    }
+
+    if (/\b(tutup|close|keluar|kembali)\b/i.test(text) && /\b(menu|panel|halaman|google|youtube|spotify|notepad|folder)?\b/i.test(text)) {
+      const reply = menuOpen ? "Saya tutup." : "Tidak ada halaman yang sedang terbuka.";
+      if (menuOpen) {
+        handleMenuClose();
+        setExtraMenuCard(null);
+      }
+      setMessages((m) => [...m, { role: "ai", text: reply }]);
+      setBusy(false);
+      setVoiceState("idle");
+      setSubtitle(reply);
+      setTimeout(() => { if (isCurrentTurn(turn)) { setSubtitle(idleText); scheduleLiveListen(turn); } }, 1600);
       return;
     }
 
     const panelSearch = menuOpen && menuCardId ? text.match(/^(?:anta\s+)?(?:tolong\s+)?(?:cari|search)\s+(.+?)(?:\s+dong)?$/i) : null;
     if (panelSearch?.[1] && ["google", "video", "music"].includes(menuCardId || "")) {
       const q = panelSearch[1].trim();
-      await playQuickResponse("Loading / mencari");
+      const quick = playQuickResponse("Loading / mencari", turn);
       if (menuCardId === "google") {
         setMessages((m) => [...m, { role: "ai", text: `Saya cari ${q} di Google. Kalau muncul verifikasi, login Google dulu ya.` }]);
-        setTimeout(() => openTempWebCard(`https://www.google.com/search?igu=1&q=${encodeURIComponent(q)}`, "Google", "google-search", "https://img.icons8.com/color/100/google-logo.png"), 300);
+        setTimeout(() => { if (isCurrentTurn(turn)) openTempWebCard(`https://www.google.com/search?igu=1&q=${encodeURIComponent(q)}`, "Google", "google-search", "https://img.icons8.com/color/100/google-logo.png"); }, 300);
       } else if (menuCardId === "video") {
         setMessages((m) => [...m, { role: "ai", text: `Saya cari ${q} di YouTube.` }]);
-        setTimeout(() => openTempWebCard(`https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`, "YouTube", "youtube-search", "https://img.icons8.com/ios-filled/100/ff0000/youtube-play.png"), 300);
+        setTimeout(() => { if (isCurrentTurn(turn)) openTempWebCard(`https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`, "YouTube", "youtube-search", "https://img.icons8.com/ios-filled/100/ff0000/youtube-play.png"); }, 300);
       } else {
         const url = `https://open.spotify.com/search/${encodeURIComponent(q)}`;
         setMessages((m) => [...m, { role: "ai", text: `Saya buka pencarian Spotify untuk ${q}.` }]);
         window.open(url, "_blank", "noopener,noreferrer");
       }
-      setLoading(false);
+      setBusy(false);
       setVoiceState("idle");
       setSubtitle(idleText);
+      await quick;
+      scheduleLiveListen(turn);
       return;
     }
 
@@ -590,88 +709,103 @@ export default function Home() {
     if (openResult && lastUrlsRef.current.length) {
       const idx = /kedua|2/i.test(openResult[0]) ? 1 : /ketiga|3/i.test(openResult[0]) ? 2 : 0;
       const url = lastUrlsRef.current[idx] || lastUrlsRef.current[0];
-      await playQuickResponse("Membuka aplikasi");
+      const quick = playQuickResponse("Membuka aplikasi", turn);
       setMessages((m) => [...m, { role: "ai", text: "Saya buka hasilnya." }]);
-      setTimeout(() => openTempWebCard(url, `Hasil ${idx + 1}`), 300);
-      setLoading(false);
+      setTimeout(() => { if (isCurrentTurn(turn)) openTempWebCard(url, `Hasil ${idx + 1}`); }, 300);
+      setBusy(false);
       setVoiceState("idle");
       setSubtitle(idleText);
+      await quick;
+      scheduleLiveListen(turn);
       return;
     }
 
     const googleSearch = text.match(/^\s*(buka|open)\s+google\s+(?:cari|search)?\s*(.+)$/i);
     if (googleSearch?.[2]) {
       const q = googleSearch[2].trim();
-      await playQuickResponse("Membuka aplikasi");
+      const quick = playQuickResponse("Membuka aplikasi", turn);
       setMessages((m) => [...m, { role: "ai", text: `Saya buka Google untuk ${q}. Kalau muncul verifikasi, login Google dulu ya.` }]);
-      setTimeout(() => openTempWebCard(`https://www.google.com/search?igu=1&q=${encodeURIComponent(q)}`, "Google", "google-search", "https://img.icons8.com/color/100/google-logo.png"), 300);
-      setLoading(false);
+      setTimeout(() => { if (isCurrentTurn(turn)) openTempWebCard(`https://www.google.com/search?igu=1&q=${encodeURIComponent(q)}`, "Google", "google-search", "https://img.icons8.com/color/100/google-logo.png"); }, 300);
+      setBusy(false);
       setVoiceState("idle");
       setSubtitle(idleText);
+      await quick;
+      scheduleLiveListen(turn);
       return;
     }
 
     if (/\b(buka|open)\b.*\b(menu|hud)\b|\b(menu|hud)\b.*\b(buka|open)\b/i.test(text)) {
-      await playQuickResponse("Membuka aplikasi");
+      const quick = playQuickResponse("Membuka aplikasi", turn);
       setMessages((m) => [...m, { role: "ai", text: "Menu saya buka." }]);
-      setTimeout(() => openMenu(), 300);
-      setLoading(false);
+      setTimeout(() => { if (isCurrentTurn(turn)) openMenu(); }, 300);
+      setBusy(false);
       setVoiceState("idle");
       setSubtitle(idleText);
+      await quick;
+      scheduleLiveListen(turn);
       return;
     }
 
     if (/\b(buka|open)\b.*\bspotify\b|\bspotify\b.*\b(buka|open)\b/i.test(text)) {
-      await playQuickResponse("Membuka aplikasi");
+      const quick = playQuickResponse("Membuka aplikasi", turn);
       setMessages((m) => [...m, { role: "ai", text: "Spotify saya buka." }]);
-      setTimeout(() => openMenu("music"), 300);
-      setLoading(false);
+      setTimeout(() => { if (isCurrentTurn(turn)) openMenu("music"); }, 300);
+      setBusy(false);
       setVoiceState("idle");
       setSubtitle(idleText);
+      await quick;
+      scheduleLiveListen(turn);
       return;
     }
 
     if (/\b(buka|open)\b.*\b(youtube|video)\b|\b(youtube|video)\b.*\b(buka|open)\b/i.test(text)) {
-      await playQuickResponse("Membuka aplikasi");
+      const quick = playQuickResponse("Membuka aplikasi", turn);
       setMessages((m) => [...m, { role: "ai", text: "YouTube saya buka." }]);
-      setTimeout(() => openMenu("video"), 300);
-      setLoading(false);
+      setTimeout(() => { if (isCurrentTurn(turn)) openMenu("video"); }, 300);
+      setBusy(false);
       setVoiceState("idle");
       setSubtitle(idleText);
+      await quick;
+      scheduleLiveListen(turn);
       return;
     }
 
     if (/\b(buka|open)\b.*\b(notepad|catatan)\b|\b(notepad|catatan)\b.*\b(buka|open)\b/i.test(text)) {
-      await playQuickResponse("Membuka aplikasi");
+      const quick = playQuickResponse("Membuka aplikasi", turn);
       setMessages((m) => [...m, { role: "ai", text: "Notepad saya buka." }]);
-      setTimeout(() => openMenu("notepad"), 300);
-      setLoading(false);
+      setTimeout(() => { if (isCurrentTurn(turn)) openMenu("notepad"); }, 300);
+      setBusy(false);
       setVoiceState("idle");
       setSubtitle(idleText);
+      await quick;
+      scheduleLiveListen(turn);
       return;
     }
 
     if (/\b(buka|open)\b.*\b(folder|berkas|file)\b|\b(folder|berkas|file)\b.*\b(buka|open)\b/i.test(text)) {
-      await playQuickResponse("Membuka aplikasi");
+      const quick = playQuickResponse("Membuka aplikasi", turn);
       setMessages((m) => [...m, { role: "ai", text: "Folder saya buka." }]);
-      setTimeout(() => openMenu("folder"), 300);
-      setLoading(false);
+      setTimeout(() => { if (isCurrentTurn(turn)) openMenu("folder"); }, 300);
+      setBusy(false);
       setVoiceState("idle");
       setSubtitle(idleText);
+      await quick;
+      scheduleLiveListen(turn);
       return;
     }
 
     if (/\b(buka|open)\b.*\bgoogle\b|\bgoogle\b.*\b(buka|open)\b/i.test(text)) {
-      await playQuickResponse("Membuka aplikasi");
+      const quick = playQuickResponse("Membuka aplikasi", turn);
       setMessages((m) => [...m, { role: "ai", text: "Google saya buka." }]);
-      setTimeout(() => openMenu("google"), 300);
-      setLoading(false);
+      setTimeout(() => { if (isCurrentTurn(turn)) openMenu("google"); }, 300);
+      setBusy(false);
       setVoiceState("idle");
       setSubtitle(idleText);
+      await quick;
+      scheduleLiveListen(turn);
       return;
     }
 
-    // Step 1: Langsung play "Menerima perintah" (instan) + paralel kirim ke backend
     const category = categoryFor(text);
     const [answer] = await Promise.all([
       askWs(text).then((a) => a.trim() || "Tidak ada jawaban.").catch((err) => {
@@ -679,8 +813,9 @@ export default function Home() {
         if (err instanceof Error && err.message.includes("gagal")) return "__ERROR_GAGAL__";
         return "__ERROR__";
       }),
-      playQuickResponse(category),
+      category === "Loading / mencari" ? playQuickResponse(category, turn) : Promise.resolve(),
     ]);
+    if (!isCurrentTurn(turn)) return;
 
     // Step 2: Handle result
     if (answer.startsWith("__ERROR")) {
@@ -690,21 +825,24 @@ export default function Home() {
         ? "Koneksi terputus. Coba lagi."
         : "Terjadi gangguan. Coba lagi.";
       setMessages((m) => [...m, { role: "ai", text: friendly }]);
-      await playQuickResponse("Error / gagal");
+      await playQuickResponse("Error / gagal", turn);
+      if (!isCurrentTurn(turn)) return;
       setSubtitle(idleText);
       setVoiceState("idle");
-      setLoading(false);
+      setBusy(false);
+      scheduleLiveListen(turn);
       return;
     }
 
     lastUrlsRef.current = Array.from(answer.matchAll(/https?:\/\/\S+/gi), (m) => m[0].replace(/[),.]+$/, ""));
 
-    // Step 3: Play "Hasil ditemukan" lalu bacakan jawaban
     setMessages((m) => [...m, { role: "ai", text: answer }]);
-    await playQuickResponse("Hasil ditemukan");
     setVoiceState("speaking");
-    await speak(speechTextFor(answer));
-    setLoading(false);
+    await speak(speechTextFor(answer), turn);
+    if (isCurrentTurn(turn)) {
+      setBusy(false);
+      scheduleLiveListen(turn);
+    }
   }
 
   async function send(e: FormEvent) {
@@ -729,14 +867,26 @@ export default function Home() {
         <button onClick={listen} type="button" aria-label="Bicara dengan Anta" />
       </div>
       {!menuOpen && (
-        <div className={`subtitle-live state-${voiceState}`}>{subtitle}</div>
+        <div className={`subtitle-live state-${voiceState}`}>{displaySubtitle(subtitle)}</div>
+      )}
+      {!menuOpen && (
+        <button
+          className={`auto-listen-corner ${liveMode ? "active" : ""}`}
+          onClick={() => setLive(!liveMode)}
+          type="button"
+          aria-pressed={liveMode}
+          aria-label={liveMode ? "Matikan mode Live" : "Nyalakan mode Live"}
+          title={liveMode ? "Live aktif" : "Live mati"}
+        >
+          LIVE
+        </button>
       )}
 
       <Menu
         open={menuOpen}
         onClose={handleMenuClose}
         openCardId={menuCardId}
-        subtitle={subtitle}
+        subtitle={displaySubtitle(subtitle)}
         subtitleState={`state-${voiceState}`}
         extraCard={extraMenuCard}
       />

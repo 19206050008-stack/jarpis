@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { type MenuCard } from "./data";
+import { cardMark, type MenuCard } from "./data";
 
 interface WebPanelProps {
   card: MenuCard;
@@ -82,7 +82,7 @@ export default function WebPanel({ card, apiUrl }: WebPanelProps) {
   return (
     <div className={`panel-embed panel-embed-${card.id}`}>
       <div className="panel-embed-bar">
-        <img src={card.logoUrl} alt="" width={20} height={20} style={{ borderRadius: 4 }} />
+        <span className={`panel-embed-mark mark-${card.id.replace(/[^a-z0-9_-]/gi, "")}`}>{cardMark(card)}</span>
         <span>{card.name}</span>
         <span className="panel-login-hint">{loginHint(card)}</span>
         <a href={originalUrl} target="_blank" rel="noopener noreferrer" className="panel-btn-sm">Buka di tab baru ↗</a>

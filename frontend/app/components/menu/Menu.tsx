@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import gsap from "gsap";
-import { getAllCards, getApiUrl, type MenuCard } from "./data";
+import { cardMark, getAllCards, getApiUrl, type MenuCard } from "./data";
 import NotepadPanel from "./NotepadPanel";
 import FolderPanel from "./FolderPanel";
 import AddCardPanel from "./AddCardPanel";
@@ -18,9 +18,10 @@ interface MenuProps {
 }
 
 const GAP_X = 320;
+const MOBILE_GAP_X = 210;
 const STEP_Z = -80;
 
-const ADD_CARD: MenuCard = { id: "__add__", name: "+ Tambah", category: "Custom", description: "Tambah card baru", logoUrl: "https://img.icons8.com/ios-glyphs/100/ffffff/plus.png", type: "builtin" };
+const ADD_CARD: MenuCard = { id: "__add__", name: "+ Tambah", category: "Custom", description: "Tambah card baru", logoUrl: "", type: "builtin" };
 
 export default function Menu({ open, onClose, openCardId, subtitle, subtitleState, extraCard }: MenuProps) {
   const allCards = useCallback(() => [...getAllCards(), ...(extraCard ? [extraCard] : []), ADD_CARD], [extraCard]);
@@ -32,10 +33,15 @@ export default function Menu({ open, onClose, openCardId, subtitle, subtitleStat
   const pipelineRef = useRef<HTMLDivElement>(null);
   const cardsRef = useRef<(HTMLDivElement | null)[]>([]);
   const mouseRef = useRef({ x: 0, y: 0 });
+  const lastWheelRef = useRef(0);
   const apiUrl = getApiUrl();
 
   function refreshCards() {
     setCards(allCards());
+  }
+
+  function cardGap() {
+    return typeof window !== "undefined" && window.innerWidth <= 640 ? MOBILE_GAP_X : GAP_X;
   }
 
   useEffect(() => {
@@ -47,14 +53,15 @@ export default function Menu({ open, onClose, openCardId, subtitle, subtitleStat
     const clamped = Math.max(0, Math.min(idx, cards.length - 1));
     setActiveIdx(clamped);
     if (pipelineRef.current) {
+      gsap.killTweensOf(pipelineRef.current);
       gsap.to(pipelineRef.current, {
-        x: -(clamped * GAP_X),
+        x: -(clamped * cardGap()),
         z: -(clamped * STEP_Z),
         duration: instant ? 0 : 0.8,
-        ease: "power3.inOut",
+        ease: "power2.out",
       });
     }
-  }, []);
+  }, [cards.length]);
 
   // Auto-open card when openCardId changes
   useEffect(() => {
@@ -75,11 +82,11 @@ export default function Menu({ open, onClose, openCardId, subtitle, subtitleStat
     if (!open) return;
     cardsRef.current.forEach((card, i) => {
       if (card) {
-        gsap.set(card, { x: i * GAP_X, y: 0, z: i * STEP_Z });
+        gsap.set(card, { x: i * cardGap(), y: 0, z: i * STEP_Z });
       }
     });
     setActive(activeIdx, true);
-  }, [open, setActive, activeIdx]);
+  }, [open, cards.length, setActive]);
 
   // Mouse parallax → scene 3D rotation
   useEffect(() => {
@@ -150,6 +157,14 @@ export default function Menu({ open, onClose, openCardId, subtitle, subtitleStat
     setTimeout(() => setPanelCardId(null), 300);
   }
 
+  function handleWheel(e: React.WheelEvent) {
+    if (panelOpen || Math.abs(e.deltaY) < 30) return;
+    const now = Date.now();
+    if (now - lastWheelRef.current < 450) return;
+    lastWheelRef.current = now;
+    setActive(activeIdx + (e.deltaY > 0 ? 1 : -1));
+  }
+
   // Card mouse tilt
   function handleCardMove(e: React.MouseEvent, cardEl: HTMLDivElement | null) {
     if (!cardEl) return;
@@ -178,7 +193,7 @@ export default function Menu({ open, onClose, openCardId, subtitle, subtitleStat
   if (!open) return null;
 
   return (
-    <div className="menu-screen">
+    <div className="menu-screen" onWheel={handleWheel}>
       {/* Floor grid */}
       <div className="menu-floor-grid" />
 
@@ -195,11 +210,6 @@ export default function Menu({ open, onClose, openCardId, subtitle, subtitleStat
                 onMouseMove={(e) => handleCardMove(e, cardsRef.current[i])}
                 onMouseLeave={() => handleCardLeave(cardsRef.current[i])}
               >
-                {/* Progress ring */}
-                <svg className="menu-card-ring" viewBox="0 0 100 100">
-                  <circle className="ring-bg" cx="50" cy="50" r="45" />
-                  <circle className="ring-fg" cx="50" cy="50" r="45" strokeDasharray={`${2 * Math.PI * 45}`} strokeDashoffset="0" />
-                </svg>
                 {/* Particles */}
                 <div className="menu-card-particles">
                   {Array.from({ length: 6 }).map((_, j) => (
@@ -212,14 +222,12 @@ export default function Menu({ open, onClose, openCardId, subtitle, subtitleStat
                 <div className="menu-card-content">
                   <div className="menu-card-header">
                     <span className="menu-card-name">{card.name}</span>
-                    <span className="menu-card-cat">{card.category}</span>
                   </div>
                   <div className="menu-card-visuals">
                     <div className="menu-card-icon-wrap">
-                      <img src={card.logoUrl} alt={card.name} width={80} height={80} />
+                      <span className={`menu-card-mark mark-${card.id.replace(/[^a-z0-9_-]/gi, "")}`}>{cardMark(card)}</span>
                     </div>
                   </div>
-                  <div className="menu-card-footer">{card.description}</div>
                 </div>
               </div>
             ))}

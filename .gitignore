@@ -11,6 +11,7 @@ __pycache__/
 .tmp-*
 backend/menu_store.json
 backend/tts_cache/elevenlabs*/
+frontend/test-results/
 .DS_Store
 riset/
 models/

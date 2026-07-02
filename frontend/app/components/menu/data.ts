@@ -9,6 +9,16 @@ export interface MenuCard {
   url?: string; // for custom cards
 }
 
+export function cardMark(card: Pick<MenuCard, "id" | "name">): string {
+  if (card.id === "__add__") return "+";
+  if (card.id === "folder") return "🗀";
+  if (card.id === "notepad") return "✎";
+  if (card.id === "music") return "♫";
+  if (card.id.startsWith("youtube") || card.id === "video") return "▶";
+  if (card.id.startsWith("google")) return "⌕";
+  return "◇";
+}
+
 export const BUILTIN_CARDS: MenuCard[] = [
   { id: "folder", name: "Folder", category: "Utility", description: "Manage local data files.", logoUrl: "https://img.icons8.com/ios-filled/100/89f5ff/folder-invoices.png", type: "builtin" },
   { id: "notepad", name: "Notepad", category: "Utility", description: "Quick note editor.", logoUrl: "https://img.icons8.com/ios-filled/100/89f5ff/document.png", type: "builtin" },

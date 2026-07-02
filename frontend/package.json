@@ -1,6 +1,7 @@
 {
   "scripts": {
     "dev": "next dev",
+    "test:voice": "node test-voice-regressions.mjs",
     "build": "next build",
     "start": "next start"
   },

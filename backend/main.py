@@ -28,6 +28,7 @@ except ImportError:
 import httpx
 import numpy as np
 from fastapi import FastAPI, HTTPException, Request, Response, WebSocket, WebSocketDisconnect
+from fastapi.responses import StreamingResponse
 
 _start_time = time.time()
 from fastapi.middleware.cors import CORSMiddleware
@@ -277,6 +278,33 @@ async def _elevenlabs_cached_audio(text: str, folder: str, voice_id: str | None 
             last = res.text
             if res.status_code not in {400, 401, 402, 403, 429}:  # try creator key after free-tier voice rejects
                 break
+    raise HTTPException(status_code=503, detail=last)
+
+
+async def _elevenlabs_stream_audio(text: str, voice_id: str):
+    global _elevenlabs_key_index
+    if not ELEVENLABS_API_KEYS:
+        raise HTTPException(status_code=503, detail="ELEVENLABS_API_KEYS belum diset")
+    async with httpx.AsyncClient(timeout=60) as client:
+        last = ""
+        for offset in range(len(ELEVENLABS_API_KEYS)):
+            idx = (_elevenlabs_key_index + offset) % len(ELEVENLABS_API_KEYS)
+            async with client.stream(
+                "POST",
+                f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}/stream",
+                headers={"xi-api-key": ELEVENLABS_API_KEYS[idx], "Accept": "audio/mpeg"},
+                json={"text": text, "model_id": ELEVENLABS_MODEL},
+            ) as res:
+                if res.status_code < 400:
+                    _elevenlabs_key_index = idx
+                    async for chunk in res.aiter_bytes():
+                        if chunk:
+                            yield chunk
+                    return
+                last = await res.aread()
+                last = last.decode("utf-8", errors="ignore")
+                if res.status_code not in {400, 401, 402, 403, 429}:
+                    break
     raise HTTPException(status_code=503, detail=last)
 
 
@@ -1460,6 +1488,15 @@ async def speak_kira(req: SpeakRequest):
     if cached:
         return Response(content=cached, media_type="audio/mpeg")
     return Response(content=await _elevenlabs_cached_audio(text, "elevenlabs_kira", _elevenlabs_voice("elevenlabs-kira")), media_type="audio/mpeg")
+
+
+@app.get("/speak-kira-stream")
+async def speak_kira_stream(text: str, speaker: str | None = None):
+    clean = re.sub(r"\s+", " ", (text or "").strip())[:500]
+    if not clean:
+        raise HTTPException(status_code=400, detail="Teks wajib diisi")
+    voice_id = _elevenlabs_voice(speaker or "elevenlabs-kira")
+    return StreamingResponse(_elevenlabs_stream_audio(clean, voice_id), media_type="audio/mpeg")
 
 
 @app.post("/speak-eleven-smart")
