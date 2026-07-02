@@ -14,6 +14,7 @@ interface MenuProps {
   openCardId?: string | null;
   subtitle: string;
   subtitleState: string;
+  extraCard?: MenuCard | null;
 }
 
 const GAP_X = 320;
@@ -21,8 +22,9 @@ const STEP_Z = -80;
 
 const ADD_CARD: MenuCard = { id: "__add__", name: "+ Tambah", category: "Custom", description: "Tambah card baru", logoUrl: "https://img.icons8.com/ios-glyphs/100/ffffff/plus.png", type: "builtin" };
 
-export default function Menu({ open, onClose, openCardId, subtitle, subtitleState }: MenuProps) {
-  const [cards, setCards] = useState<MenuCard[]>([...getAllCards(), ADD_CARD]);
+export default function Menu({ open, onClose, openCardId, subtitle, subtitleState, extraCard }: MenuProps) {
+  const allCards = useCallback(() => [...getAllCards(), ...(extraCard ? [extraCard] : []), ADD_CARD], [extraCard]);
+  const [cards, setCards] = useState<MenuCard[]>(allCards());
   const [activeIdx, setActiveIdx] = useState(0);
   const [panelOpen, setPanelOpen] = useState(false);
   const [panelCardId, setPanelCardId] = useState<string | null>(null);
@@ -33,8 +35,12 @@ export default function Menu({ open, onClose, openCardId, subtitle, subtitleStat
   const apiUrl = getApiUrl();
 
   function refreshCards() {
-    setCards([...getAllCards(), ADD_CARD]);
+    setCards(allCards());
   }
+
+  useEffect(() => {
+    setCards(allCards());
+  }, [allCards]);
 
   // Navigate to card
   const setActive = useCallback((idx: number, instant = false) => {
@@ -62,7 +68,7 @@ export default function Menu({ open, onClose, openCardId, subtitle, subtitleStat
         }, 300);
       }
     }
-  }, [open, openCardId, setActive]);
+  }, [open, openCardId, cards, setActive]);
 
   // Init card positions
   useEffect(() => {

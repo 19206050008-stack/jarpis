@@ -78,7 +78,9 @@ Kalau tidak yakin, bilang singkat dan tawarkan langkah berikutnya."""
 
 def _quick_chat_reply(message: str) -> str | None:
     lower = message.lower().strip()
-    if re.fullmatch(r"(halo|hai|hello|helo|hi)(\s+anta)?[.!?\s]*", lower):
+    normalized = re.sub(r"[^\w\s]", " ", lower, flags=re.UNICODE)
+    normalized = re.sub(r"\s+", " ", normalized).strip()
+    if re.fullmatch(r"(halo|hallo|hai|hello|helo|hi|pagi|siang|sore|malam)(\s+(anta|bos|boss))?", normalized):
         return "Halo! Anta di sini 😄 Ada yang mau dibahas hari ini?"
     if re.search(r"\b(siapa kamu|kamu siapa|kenalan)\b", lower):
         return "Aku Anta, asisten AI kamu. Bisa bantu kerjaan, jawab pertanyaan, atau ngobrol santai juga boleh."
@@ -137,6 +139,8 @@ _cors_origins = list(dict.fromkeys(os.getenv("CORS_ORIGINS", "*").split(",") + [
     "https://www.antasiar.my.id",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "http://localhost:3001",
+    "http://127.0.0.1:3001",
     "http://localhost:3010",
     "http://127.0.0.1:3010",
 ]))
@@ -491,6 +495,13 @@ async def _news_results(q: str) -> list[dict]:
     } for item in root.findall(".//item")[:5]]
 
 
+def _clean_search_query(message: str) -> str:
+    q = re.sub(r"^(tolong|mohon|coba|bantu)\s+", "", message.strip(), flags=re.I)
+    q = re.sub(r"^(carikan|cari|search|googling|berita|artikel|detail|jelaskan)\s+", "", q, flags=re.I)
+    q = re.sub(r"^(detail|jelaskan)\s+", "", q, flags=re.I)
+    return q.strip() or message.strip()
+
+
 def _search_knowledge_fallback(q: str, rows: list[dict]) -> str:
     facts = [r.get("snippet") or r.get("title") or "" for r in rows]
     facts = [re.sub(r"https?://\S+", "", x).strip() for x in facts if x.strip()]
@@ -505,20 +516,26 @@ async def _search_knowledge_answer(q: str, rows: list[dict], payload: dict) -> s
         f"- Judul: {r.get('title', '')}\n  Cuplikan: {r.get('snippet') or r.get('source') or ''}"
         for r in rows[:5]
     )
-    if not context.strip():
-        return _search_knowledge_fallback(q, rows)
     prompt = (
         "Jawab sebagai pengetahuan langsung dalam bahasa Indonesia. "
         "Jangan tampilkan URL, jangan beri daftar link, jangan bilang 'berikut hasil pencarian'. "
-        "Ringkas 2-4 kalimat, gunakan hanya konteks pencarian ini.\n\n"
-        f"Pertanyaan: {q}\n\nKonteks:\n{context}"
+        "Kalau konteks kosong, jawab dari pengetahuan umum. Ringkas tapi berguna.\n\n"
+        f"Pertanyaan: {q}\n\nKonteks:\n{context or '(kosong)'}"
     )
     for provider in _providers_for_task("chat"):
         try:
             return await _openai_chat(provider, ANTA_PERSONA, prompt, payload)
         except Exception:
             continue
-    return _search_knowledge_fallback(q, rows)
+    if _mimo_enabled():
+        try:
+            return await _mimo_chat(ANTA_PERSONA, prompt, payload)
+        except Exception:
+            pass
+    try:
+        return await _pollinations_chat(f"{ANTA_PERSONA}\n\n{prompt}\nAnta:")
+    except Exception:
+        return _search_knowledge_fallback(q, rows)
 
 
 async def _article_text(url: str) -> str:
@@ -870,7 +887,7 @@ async def chat(payload: dict):
         return await reply(text or "Tidak ada hasil.", {"X-Anta-Task": task})
 
     if task in {"web_search", "news", "marketplace"}:
-        q = re.sub(r"^(cari|search|googling|berita|artikel|harga)\s+", "", message, flags=re.I).strip() or message
+        q = _clean_search_query(message)
         if task == "marketplace":
             q = f"{q} harga marketplace shopee tokopedia"
         rows = await (_news_results(q) if task == "news" else _search_web_results(q))

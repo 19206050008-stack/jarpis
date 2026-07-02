@@ -50,6 +50,7 @@ export default function Home() {
   const [voiceState, setVoiceState] = useState<VoiceState>("idle");
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuCardId, setMenuCardId] = useState<string | null>(null);
+  const [extraMenuCard, setExtraMenuCard] = useState<any>(null);
   const [audioLevel, setAudioLevel] = useState(0);
   const [orbColors, setOrbColors] = useState<{ color1: number[]; color2: number[]; color3: number[] }>({
     color1: [1.0, 0.70, 0.16], color2: [1.0, 0.46, 0.18], color3: [0.55, 0.16, 0.48]
@@ -65,6 +66,7 @@ export default function Home() {
   const userActionRef = useRef(false);
   const speakingAudioRef = useRef<HTMLAudioElement | null>(null);
   const lastUrlsRef = useRef<string[]>([]);
+  const lastCommandRef = useRef({ text: "", time: 0 });
 
   useEffect(() => {
     const el = shaderFrameRef.current;
@@ -104,13 +106,6 @@ export default function Home() {
       .then((r) => r.ok ? r.json() : [])
       .then((rows) => Array.isArray(rows) && rows.length && setMessages(rows))
       .catch(() => {});
-
-    introTimerRef.current = setTimeout(() => {
-      if (userActionRef.current) return;
-      playTemplate("Pembuka", () => {
-        if (!userActionRef.current) setSubtitle(idleText);
-      }, () => !userActionRef.current).then((audio) => { introAudioRef.current = audio; });
-    }, 3000);
 
     return () => cancelIntro(false);
   }, []);
@@ -163,8 +158,17 @@ export default function Home() {
     return "Menerima perintah";
   }
 
+  function normalizedCommand(text: string) {
+    return text.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ").replace(/\s+/g, " ").trim();
+  }
+
   function isGreetingOnly(text: string) {
-    return /^(halo|hai|hello|helo|hi|pagi|siang|sore|malam)(\s+(anta|bos))?[.!?\s]*$/i.test(text.trim());
+    const normalized = normalizedCommand(text);
+    const words = normalized.split(" ").filter(Boolean);
+    if (!words.length || words.length > 3) return false;
+    const greetings = new Set(["halo", "hallo", "hai", "hello", "helo", "hi", "pagi", "siang", "sore", "malam"]);
+    const fillers = new Set(["anta", "bos", "boss"]);
+    return greetings.has(words[0]) && words.slice(1).every((w) => fillers.has(w));
   }
 
   function cancelIntro(markAction = true) {
@@ -474,20 +478,21 @@ export default function Home() {
     setMenuOpen(true);
   }
 
-  function openTempWebCard(url: string, name = "Web") {
+  function openTempWebCard(url: string, name = "Web", idPrefix = "web", logoUrl = "https://img.icons8.com/ios-filled/100/89f5ff/domain.png") {
     const key = "anta_custom_cards";
-    const id = `web-${Date.now()}`;
+    const id = `${idPrefix}-${Date.now()}`;
     const card = {
       id,
       name,
       category: "Web",
       description: url,
-      logoUrl: "https://img.icons8.com/ios-filled/100/89f5ff/domain.png",
+      logoUrl,
       type: "custom",
       url,
     };
     const cards = JSON.parse(localStorage.getItem(key) || "[]");
     localStorage.setItem(key, JSON.stringify([...cards.filter((c: any) => !String(c.id).startsWith("web-")), card]));
+    setExtraMenuCard(card);
     openMenu(id);
   }
 
@@ -540,6 +545,10 @@ export default function Home() {
   async function sendText(raw: string) {
     const text = raw.trim();
     if (!text || loading) return;
+    const commandKey = normalizedCommand(text);
+    const now = Date.now();
+    if (commandKey && lastCommandRef.current.text === commandKey && now - lastCommandRef.current.time < 3000) return;
+    lastCommandRef.current = { text: commandKey, time: now };
 
     setInput("");
     setLoading(true);
@@ -550,6 +559,27 @@ export default function Home() {
     if (isGreetingOnly(text)) {
       await playQuickResponse("Pembuka");
       setMessages((m) => [...m, { role: "ai", text: "Halo, Bos. Anta siap." }]);
+      setLoading(false);
+      setVoiceState("idle");
+      setSubtitle(idleText);
+      return;
+    }
+
+    const panelSearch = menuOpen && menuCardId ? text.match(/^(?:anta\s+)?(?:tolong\s+)?(?:cari|search)\s+(.+?)(?:\s+dong)?$/i) : null;
+    if (panelSearch?.[1] && ["google", "video", "music"].includes(menuCardId || "")) {
+      const q = panelSearch[1].trim();
+      await playQuickResponse("Loading / mencari");
+      if (menuCardId === "google") {
+        setMessages((m) => [...m, { role: "ai", text: `Saya cari ${q} di Google.` }]);
+        setTimeout(() => openTempWebCard(`https://www.google.com/search?igu=1&q=${encodeURIComponent(q)}`, "Google"), 300);
+      } else if (menuCardId === "video") {
+        setMessages((m) => [...m, { role: "ai", text: `Saya cari ${q} di YouTube.` }]);
+        setTimeout(() => openTempWebCard(`https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`, "YouTube", "youtube-search", "https://img.icons8.com/ios-filled/100/ff0000/youtube-play.png"), 300);
+      } else {
+        const url = `https://open.spotify.com/search/${encodeURIComponent(q)}`;
+        setMessages((m) => [...m, { role: "ai", text: `Saya buka pencarian Spotify untuk ${q}.` }]);
+        window.open(url, "_blank", "noopener,noreferrer");
+      }
       setLoading(false);
       setVoiceState("idle");
       setSubtitle(idleText);
@@ -696,7 +726,7 @@ export default function Home() {
           onRipple={orbRipple}
           ripplePosition={orbRipplePos}
         />
-        <button onClick={menuOpen ? handleMenuClose : listen} type="button" aria-label={menuOpen ? "Tutup menu" : "Bicara dengan Anta"} />
+        <button onClick={listen} type="button" aria-label="Bicara dengan Anta" />
       </div>
       {!menuOpen && (
         <div className={`subtitle-live state-${voiceState}`}>{subtitle}</div>
@@ -708,6 +738,7 @@ export default function Home() {
         openCardId={menuCardId}
         subtitle={subtitle}
         subtitleState={`state-${voiceState}`}
+        extraCard={extraMenuCard}
       />
 
       <div 
